@@ -1,0 +1,32 @@
+@import '@tabler/icons-webfont/dist/tabler-icons.css';
+@import 'tailwindcss';
+@import 'tailwindcss-primeui';
+
+@import '@fontsource-variable/jetbrains-mono';
+@import '@fontsource-variable/plus-jakarta-sans';
+
+
+@tailwind utilities;
+@layer tailwind-base, primevue, tailwind-utilities;
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  font-family: 'Plus Jakarta Sans Variable', sans-serif;
+}
+
+
+.mono, .highlighted * {
+  font-family: 'JetBrains Mono Variable', monospace;
+}
+
+.electron .electron\:pt-4 {
+  @apply pt-4;
+}
+
+
+.region-drag {
+  app-region: drag
+}
+.region-no-drag {
+  app-region: drag
+}

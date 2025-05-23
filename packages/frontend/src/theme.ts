@@ -1,0 +1,105 @@
+import type { Preset } from '@primeuix/themes/types'
+
+export default {
+  semantic: {
+    primary: {
+      50: '#FBEAF0',
+      100: '#F6D5E2',
+      200: '#EFAEC7',
+      300: '#E684AA',
+      400: '#DE5E8F',
+      500: '#D63472',
+      600: '#B2245B',
+      700: '#841B43',
+      800: '#59122D',
+      900: '#2A0916',
+      950: '#15040B',
+    },
+  },
+  primitive: {
+    colorScheme: {
+      light: {
+        surface: {
+          0: '#ffffff',
+          50: '{zinc.50}',
+          100: '{zinc.100}',
+          200: '{zinc.200}',
+          300: '{zinc.300}',
+          400: '{zinc.400}',
+          500: '{zinc.500}',
+          600: '{zinc.600}',
+          700: '{zinc.700}',
+          800: '{zinc.800}',
+          900: '{zinc.900}',
+          950: '{zinc.950}',
+        },
+      },
+      dark: {
+        surface: {
+          0: '#ffffff',
+          50: '{slate.50}',
+          100: '{slate.100}',
+          200: '{slate.200}',
+          300: '{slate.300}',
+          400: '{slate.400}',
+          500: '{slate.500}',
+          600: '{slate.600}',
+          700: '{slate.700}',
+          800: '{slate.800}',
+          900: '{slate.900}',
+          950: '{slate.950}',
+        },
+      },
+    },
+  },
+  components: {
+    inputtext: {
+      colorScheme: {
+        light: {
+          shadow: 'none',
+          background: 'transparent',
+          border: {
+            color: '{neutral.400}',
+          },
+        },
+        dark: {
+          border: {
+            color: '{neutral.600}',
+          },
+        },
+      },
+    },
+    select: {
+      colorScheme: {
+        light: {
+          shadow: 'none',
+          background: 'transparent',
+          border: {
+            color: '{neutral.400}',
+          },
+        },
+        dark: {
+          border: {
+            color: '{neutral.600}',
+          },
+        },
+      },
+    },
+    treeselect: {
+      colorScheme: {
+        light: {
+          shadow: 'none',
+          background: 'transparent',
+          border: {
+            color: '{neutral.400}',
+          },
+          dark: {
+            border: {
+              color: '{neutral.600}',
+            },
+          },
+        },
+      },
+    },
+  },
+} as Preset

@@ -16,6 +16,7 @@
     "@types/express": "^5.0.2",
     "@types/express-ws": "^3.0.5",
     "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
     "express": "^5.0.2",
     "express-ws": "^5.0.2",
     "mysql2": "^3.14.1",

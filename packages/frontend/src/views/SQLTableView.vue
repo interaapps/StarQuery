@@ -34,7 +34,7 @@ const runQuery = async () => {
     query: query.value,
   })
 
-  columns.value = res.fields.map((c) => ({ name: c.name, field: c.name }))
+  columns.value = res.columns.map((c) => ({ name: c, field: c }))
   data.value = res.rows
 
   console.log(res)

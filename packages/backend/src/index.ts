@@ -1,14 +1,15 @@
 import bodyParser from 'body-parser'
 import express, { Request, Response } from 'express'
 import expressWs from 'express-ws'
-import {setupSourcesApi} from "./wsapi/sources";
+import cors from 'cors'
+import {setupSourcesApi} from "./api/sources";
 import {MySQLAdapter} from "./adapters/database/sql/mysql-adapter/MySQLAdapter";
 
 export const sources = {
     pastefy: {
-        type: 'sql',
-        adapter: MySQLAdapter,
+        type: 'mysql',
         options: {
+            adapter: MySQLAdapter,
             host: 'localhost',
             user: 'pastefy',
             password: 'pastefy',
@@ -19,21 +20,7 @@ export const sources = {
 
 const server = expressWs(express()).app
 server.use(bodyParser.json())
-
-server.get('/sources/:source/tables', async (req: Request, res: Response) => {
-    const source = sources[req.params.source]
-    if (!source) {
-        res.status(404).send('Source not found')
-        return;
-    }
-
-    const adapter = new MySQLAdapter(source.options)
-    await adapter.connect()
-    const tables = await adapter.getTables()
-    await adapter.close()
-
-    res.json(tables)
-})
+server.use(cors())
 
 setupSourcesApi(server)
 
@@ -43,3 +30,4 @@ async function main() {
 
 
 main().catch(console.error);
+export {Channel} from "./ws/Channel";

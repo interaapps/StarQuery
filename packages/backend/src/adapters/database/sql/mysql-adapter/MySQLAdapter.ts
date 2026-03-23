@@ -28,6 +28,8 @@ export class MySQLAdapter extends DefaultSQLAdapter {
     async getTables() {
         const [rows, fields] = await this.connection!.query(`SELECT *  FROM information_schema.tables where table_schema='${this.options.database}' `);
 
+        console.log(rows)
+
         return (rows as any[]).map((r) => ({
             name: r.TABLE_NAME
         }))

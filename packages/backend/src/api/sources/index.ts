@@ -1,51 +1,45 @@
 import expressWs from "express-ws";
-import {sources} from "../../index";
-import WebSocket from "ws";
+import {Channel, sources} from "../../index";
 import {DefaultSQLAdapter} from "../../adapters/database/sql/default-sql-adapter/DefaultSQLAdapter";
 import query from "../../adapters/database/sql/default-sql-adapter/routes/query";
-
-export class Channel {
-    id: string
-    ws: WebSocket.WebSocket
-    source: string
-    adapter: DefaultSQLAdapter
-
-    constructor(id: string, ws: WebSocket.WebSocket, source: string, adapter: DefaultSQLAdapter) {
-        this.id = id
-        this.ws = ws
-        this.source = source
-        this.adapter = adapter
-    }
-
-    send(data: any) {
-        this.ws.send(JSON.stringify({
-            id: this.id,
-            ...data
-        }))
-    }
-
-    error() {
-        this.send({
-            type: 'error',
-            error: true
-        })
-    }
-
-    close() {
-        this.send(JSON.stringify({
-            type: 'close',
-        }))
-    }
-}
+import {SQL_ADAPTERS} from "../../adapters/database/sql";
+import {Request, Response} from "express";
+import {MySQLAdapter} from "../../adapters/database/sql/mysql-adapter/MySQLAdapter";
 
 const routes = {
     query
 }
 
-
 export function setupSourcesApi(server: expressWs.Application) {
-    console.log('Setting up /api/organizations/:orga/projects/:project/source/:source/sql')
-    server.ws('/api/organizations/:orga/projects/:project/source/:source/sql', (ws, req) => {
+
+    server.get("/api/projects/:project/sources", (req, res) => {
+        console.log('Getting sources')
+        const sourcesList = Object.keys(sources).map((key) => {
+            return {
+                name: key,
+                type: sources[key].type
+            }
+        })
+        res.json(sourcesList)
+    })
+
+
+    server.get('/api/projects/:project/sources/:source/tables', async (req: Request, res: Response) => {
+        const source = sources[req.params.source]
+        if (!source) {
+            res.status(404).send('Source not found')
+            return;
+        }
+
+        const adapter = new MySQLAdapter(source.options)
+        await adapter.connect()
+        const tables = await adapter.getTables()
+        await adapter.close()
+
+        res.json(tables)
+    })
+
+    server.ws('/api/projects/:project/sources/:source/sql', (ws, req) => {
         console.log('Creating websocket')
         const source = sources[req.params.source]
         if (!source) {
@@ -67,7 +61,7 @@ export function setupSourcesApi(server: expressWs.Application) {
 
             if (data.type === 'connect') {
                 console.log('Connecting', source.options)
-                adapter = new source.adapter(source.options)
+                adapter = new SQL_ADAPTERS[source.type](source.options)
                 try {
                     await adapter.connect()
                     channel.close()

@@ -3,6 +3,9 @@ import Tree from 'primevue/tree'
 import Button from 'primevue/button'
 import { onMounted, ref } from 'vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
+import { client } from '@/main.ts'
+import { useAsyncState } from '@vueuse/core'
+import SourcesSidebar from '@/components/SourcesSidebar.vue'
 
 const nodes = ref([
   {
@@ -75,12 +78,6 @@ const sideBarWidth = ref(300)
           </router-link>
 
           <div class="flex flex-col gap-2 p-1.5 pt-0">
-            <!--<router-link
-              to="/"
-              class="w-full aspect-square flex justify-center items-center bg-primary-500/20 rounded-lg"
-            >
-              <i class="text-primary-500 text-xl ti ti-device-laptop" />
-            </router-link> -->
             <router-link
               to="/"
               class="w-full aspect-square flex justify-center items-center bg-primary-500/20 rounded-lg"
@@ -100,39 +97,12 @@ const sideBarWidth = ref(300)
             to="/"
             class="w-full aspect-square flex justify-center items-center border border-primary-500/20 rounded-full"
           >
-            <span class="text-primary-500 text-lg font-bold select-none">U</span>
+            <i class="text-primary-500 text-xl ti ti-device-laptop" />
           </router-link>
         </div>
       </div>
     </div>
-    <div class="border-r border-neutral-200 dark:border-neutral-800 px-0.5 relative">
-      <div class="flex w-full justify-between items-center p-2 pb-0 pt-0.5 pr-0 region-drag">
-        <span class="opacity-60">sources</span>
-        <Button
-          icon="ti ti-plus text-lg p-0.5"
-          size="small"
-          rounded
-          severity="contrast"
-          text
-          class="region-no-drag"
-        />
-      </div>
-      <Tree
-        v-model:selectionKeys="selectedKey"
-        v-model:expandedKeys="expandedKeys"
-        size="small"
-        :value="nodes"
-        selectionMode="single"
-        class="w-full bg-transparent p-0 text-sm"
-      />
-
-      <ResizeKnob
-        :min-width="230"
-        :max-width="460"
-        v-model:width="sideBarWidth"
-        class="absolute right-[-0.3rem] top-0"
-      />
-    </div>
+    <SourcesSidebar v-model:sidebar-width="sideBarWidth" />
     <main class="h-full w-full overflow-hidden">
       <RouterView />
     </main>

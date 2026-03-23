@@ -7,6 +7,10 @@ import { sql, MariaSQL, MySQL } from '@codemirror/lang-sql'
 import { starQueryTheme } from './theme-starquery.ts'
 import { EditorView } from 'codemirror'
 
+defineProps<{
+  placeholder?: string
+}>()
+
 const singleLineExtension = EditorView.domEventHandlers({
   beforeinput(event, view) {
     if (event.inputType === 'insertLineBreak') {
@@ -68,7 +72,7 @@ const keydownEvent = (e: KeyboardEvent) => {
 <template>
   <codemirror
     v-model="code"
-    placeholder=""
+    :placeholder="placeholder"
     :style="{ height: '24px', width: '1000px' }"
     :autofocus="false"
     :indent-with-tab="true"

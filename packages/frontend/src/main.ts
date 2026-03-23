@@ -25,7 +25,7 @@ export const config = useConfig()
 export const app = createApp(App)
 
 export const client = axios.create({
-  baseURL: (import.meta.env.VITE_APP_BASE_URL as string) || undefined,
+  baseURL: (import.meta.env.VITE_APP_BASE_URL as string) || 'http://localhost:3000',
 })
 
 const preset = definePreset(Aura, theme)

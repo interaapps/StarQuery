@@ -22,3 +22,12 @@
   - [ ] GraphQL
   - [ ] gRPC
   - [ ] OpenAPI
+
+
+## TODOs
+- [ ] Add authentication
+- [ ] Add projects
+- [ ] Electron save passwords via npm package `keytar`
+
+## Backlog
+- [ ] Add OpenID Connect support

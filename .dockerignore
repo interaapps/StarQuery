@@ -1,0 +1,11 @@
+node_modules
+packages/*/node_modules
+packages/*/dist
+packages/electron/.vite
+.git
+.github
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
+docker/mysql
+docker/postgres

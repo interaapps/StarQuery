@@ -1,0 +1,18 @@
+FROM node:24-alpine
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/backend/package.json packages/backend/package.json
+
+RUN pnpm install --filter backend... --frozen-lockfile --prod
+
+COPY packages/backend packages/backend
+
+WORKDIR /app/packages/backend
+
+EXPOSE 3000
+
+CMD ["pnpm", "start"]

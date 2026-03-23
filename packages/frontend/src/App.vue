@@ -1,76 +1,219 @@
 <script setup lang="ts">
-import Tree from 'primevue/tree'
-import Button from 'primevue/button'
 import { onMounted, ref } from 'vue'
-import ResizeKnob from '@/components/ResizeKnob.vue'
-import { client } from '@/main.ts'
-import { useAsyncState } from '@vueuse/core'
+import Button from 'primevue/button'
+import ConfirmDialog from 'primevue/confirmdialog'
+import ContextMenu from 'primevue/contextmenu'
+import Popover from 'primevue/popover'
+import Toast from 'primevue/toast'
+import { useConfirm } from 'primevue/useconfirm'
+import { useToast } from 'primevue/usetoast'
 import SourcesSidebar from '@/components/SourcesSidebar.vue'
+import { getErrorMessage } from '@/services/error-message'
+import { useWorkspaceStore } from '@/stores/workspace-store.ts'
+import AddServerDialog from '@/components/workspace/AddServerDialog.vue'
+import CreateProjectDialog from '@/components/workspace/CreateProjectDialog.vue'
+import type { ProjectRecord, ServerProfile } from '@/types/workspace'
 
-const nodes = ref([
-  {
-    key: 'sources/mysql:pastefy',
-    label: 'Documents',
-    data: { data: 'pastefy' },
-    icon: 'ti ti-brand-mysql',
-    children: [
-      {
-        key: 'sources/mysql:pastefy/pastefy_pastes',
-        label: 'pastefy_pastes',
-        data: 'pastefy_pastes',
-        icon: 'ti ti-table',
-      },
-      {
-        key: 'sources/mysql:pastefy/pastefy_users',
-        label: 'pastefy_users',
-        data: 'pastefy_users',
-        icon: 'ti ti-table',
-      },
-      {
-        key: 'sources/mysql:pastefy/pastefy_folders',
-        label: 'pastefy_folders',
-        data: 'pastefy_folders',
-        icon: 'ti ti-table',
-      },
-    ],
-  },
-])
+const workspaceStore = useWorkspaceStore()
+const toast = useToast()
+const confirm = useConfirm()
 
-const expandNode = (node: any) => {
-  if (node.children && node.children.length) {
-    expandedKeys.value[node.key] = true
+const sideBarWidth = ref(320)
+const addServerVisible = ref(false)
+const createProjectVisible = ref(false)
+const serverPopover = ref()
+const projectMenu = ref()
+const editingServer = ref<ServerProfile | null>(null)
+const editingProject = ref<ProjectRecord | null>(null)
+const selectedProject = ref<ProjectRecord | null>(null)
 
-    for (let child of node.children) {
-      expandNode(child)
+onMounted(async () => {
+  await workspaceStore.hydrate()
+})
+
+const saveServer = async (payload: { name: string; url: string; kind: 'local' | 'remote' }) => {
+  const wasEditing = Boolean(editingServer.value)
+
+  try {
+    if (editingServer.value) {
+      await workspaceStore.updateServer(editingServer.value.id, payload)
+    } else {
+      await workspaceStore.addServer(payload)
     }
+
+    addServerVisible.value = false
+    editingServer.value = null
+
+    toast.add({
+      severity: 'success',
+      summary: wasEditing ? 'Server updated' : 'Server added',
+      detail: `${payload.name} is available`,
+      life: 2000,
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: wasEditing ? 'Server update failed' : 'Server unavailable',
+      detail: getErrorMessage(error, 'The server could not be saved'),
+      life: 3200,
+    })
   }
 }
 
-const expandAll = () => {
-  for (let node of nodes.value) {
-    expandNode(node)
+const saveProject = async (payload: { name: string; slug?: string; description?: string }) => {
+  const wasEditing = Boolean(editingProject.value)
+
+  try {
+    if (editingProject.value) {
+      await workspaceStore.updateProject(editingProject.value.id, payload)
+    } else {
+      await workspaceStore.createProject(payload)
+    }
+
+    createProjectVisible.value = false
+    editingProject.value = null
+
+    toast.add({
+      severity: 'success',
+      summary: wasEditing ? 'Workspace updated' : 'Workspace created',
+      detail: `${payload.name} is ready`,
+      life: 2000,
+    })
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: wasEditing ? 'Workspace update failed' : 'Workspace creation failed',
+      detail: getErrorMessage(error, 'The workspace could not be saved'),
+      life: 3200,
+    })
+  }
+}
+
+const selectProject = async (projectId: string) => {
+  await workspaceStore.setCurrentProject(projectId)
+}
+
+const getServerIcon = (kind?: 'local' | 'remote') =>
+  kind === 'local' ? 'ti-device-laptop' : 'ti-server-2'
+
+const serverTooltip = () =>
+  workspaceStore.isServerSelectionLocked
+    ? `${workspaceStore.currentServer?.name || 'Server'} (locked by frontend config)`
+    : workspaceStore.currentServer?.name || 'Select server'
+
+const toggleServerPopover = (event: Event) => {
+  if (workspaceStore.isServerSelectionLocked) {
+    return
   }
 
-  expandedKeys.value = { ...expandedKeys.value }
+  serverPopover.value?.toggle(event)
 }
-const selectedKey = ref(undefined)
-const expandedKeys = ref<Record<string, boolean>>({})
-onMounted(() => expandAll())
 
-const sideBarWidth = ref(300)
+const selectServer = async (serverId: string) => {
+  await workspaceStore.setCurrentServer(serverId)
+  serverPopover.value?.hide()
+}
+
+const openAddServerDialog = () => {
+  serverPopover.value?.hide()
+  editingServer.value = null
+  addServerVisible.value = true
+}
+
+const openEditServerDialog = (server: ServerProfile) => {
+  serverPopover.value?.hide()
+  editingServer.value = { ...server }
+  addServerVisible.value = true
+}
+
+const removeServer = (server: ServerProfile) => {
+  serverPopover.value?.hide()
+
+  confirm.require({
+    header: 'Remove Server',
+    message: `Remove server ${server.name}?`,
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        await workspaceStore.removeServer(server.id)
+        toast.add({
+          severity: 'success',
+          summary: 'Server removed',
+          detail: `${server.name} was removed`,
+          life: 2200,
+        })
+      } catch (error) {
+        toast.add({
+          severity: 'error',
+          summary: 'Server removal failed',
+          detail: getErrorMessage(error, 'The server could not be removed'),
+          life: 3200,
+        })
+      }
+    },
+  })
+}
+
+const showProjectMenu = (event: MouseEvent, project: ProjectRecord) => {
+  selectedProject.value = project
+  projectMenu.value?.show(event)
+}
+
+const openCreateProjectDialog = () => {
+  editingProject.value = null
+  createProjectVisible.value = true
+}
+
+const openEditProjectDialog = () => {
+  if (!selectedProject.value) return
+  editingProject.value = { ...selectedProject.value }
+  createProjectVisible.value = true
+}
+
+const removeProject = () => {
+  if (!selectedProject.value) return
+
+  const project = selectedProject.value
+  confirm.require({
+    header: 'Remove Workspace',
+    message: `Remove workspace ${project.name}?`,
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        await workspaceStore.deleteProject(project.id)
+        toast.add({
+          severity: 'success',
+          summary: 'Workspace removed',
+          detail: `${project.name} was removed`,
+          life: 2200,
+        })
+      } catch (error) {
+        toast.add({
+          severity: 'error',
+          summary: 'Workspace removal failed',
+          detail: getErrorMessage(error, 'The workspace could not be removed'),
+          life: 3200,
+        })
+      }
+    },
+  })
+}
 </script>
 
 <template>
+  <Toast />
+  <ConfirmDialog />
+
   <div
     class="grid h-full"
     :style="{
-      gridTemplateColumns: `68px ${sideBarWidth}px 1fr`,
+      gridTemplateColumns: `76px ${sideBarWidth}px 1fr`,
     }"
   >
-    <div class="p-2 border-r border-neutral-200 dark:border-neutral-800">
-      <div class="flex flex-col gap-3 justify-between h-full">
-        <div class="flex flex-col gap-3 electron:pt-4">
-          <router-link to="/" class="hover:scale-110 active:scale-95 transition-all">
+    <div class="p-2 border-r border-neutral-200 dark:border-neutral-800 app-left-rail">
+      <div class="flex flex-col gap-4 justify-between h-full">
+        <div class="flex flex-col gap-4">
+          <router-link to="/" class="hover:scale-110 active:scale-95 transition-all app-logo-link">
             <img
               src="@/assets/logo.svg"
               class="w-full animate-[spin_120s_linear_infinite] select-none hover:animate-duration-2000 active:animate-duration-1000"
@@ -78,33 +221,135 @@ const sideBarWidth = ref(300)
           </router-link>
 
           <div class="flex flex-col gap-2 p-1.5 pt-0">
-            <router-link
-              to="/"
-              class="w-full aspect-square flex justify-center items-center bg-primary-500/20 rounded-lg"
+            <button
+              v-for="project of workspaceStore.projects"
+              :key="project.id"
+              v-tooltip.right="project.name"
+              class="w-full aspect-square flex justify-center items-center rounded-xl transition-all border font-semibold"
+              :class="
+                workspaceStore.currentProjectId === project.id
+                  ? 'border-primary-500/30 bg-primary-500/20 text-primary-500'
+                  : 'border-transparent bg-neutral-500/5 text-neutral-500/80'
+              "
+              @click="selectProject(project.id)"
+              @contextmenu.prevent="showProjectMenu($event, project)"
             >
-              <span class="text-primary-500/80 font-bold">I</span>
-            </router-link>
-            <router-link
-              to="/"
-              class="w-full aspect-square flex justify-center items-center bg-neutral-500/5 rounded-full"
+              <span>{{ project.name.slice(0, 2).toUpperCase() }}</span>
+            </button>
+
+            <button
+              v-tooltip.right="'Create workspace'"
+              class="w-full aspect-square flex justify-center items-center rounded-full border border-dashed border-neutral-300 dark:border-neutral-700 text-neutral-500/80"
+              :disabled="
+                !workspaceStore.hydrated ||
+                !workspaceStore.currentServer ||
+                !!workspaceStore.serverError
+              "
+              @click="openCreateProjectDialog"
             >
-              <span class="text-neutral-500/80 font-bold">I</span>
-            </router-link>
+              <i class="ti ti-plus" />
+            </button>
           </div>
         </div>
-        <div class="p-1">
-          <router-link
-            to="/"
-            class="w-full aspect-square flex justify-center items-center border border-primary-500/20 rounded-full"
-          >
-            <i class="text-primary-500 text-xl ti ti-device-laptop" />
-          </router-link>
+
+        <div class="p-1 mx-auto">
+          <Button
+            v-tooltip.right="serverTooltip()"
+            :icon="`ti ${getServerIcon(workspaceStore.currentServer?.kind)}`"
+            severity="secondary"
+            rounded
+            text
+            size="large"
+            class="border border-primary-500/20"
+            :disabled="workspaceStore.isServerSelectionLocked"
+            @click="toggleServerPopover"
+          />
+
+          <Popover v-if="!workspaceStore.isServerSelectionLocked" ref="serverPopover">
+            <div class="w-[19rem] flex flex-col gap-2">
+              <div class="text-xs uppercase tracking-[0.16em] opacity-55 mono px-1 pt-1">
+                Servers
+              </div>
+
+              <button
+                v-for="server of workspaceStore.servers"
+                :key="server.id"
+                class="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors"
+                :class="
+                  workspaceStore.currentServerId === server.id
+                    ? 'bg-primary-500/15 text-primary-500'
+                    : 'bg-neutral-500/5 hover:bg-neutral-500/10'
+                "
+                @click="selectServer(server.id)"
+              >
+                <i :class="`ti ${getServerIcon(server.kind)}`" />
+                <span class="truncate flex-1">{{ server.name }}</span>
+                <div class="flex items-center gap-1">
+                  <i
+                    v-if="workspaceStore.currentServerId === server.id"
+                    class="ti ti-check text-sm"
+                  />
+                  <Button
+                    icon="ti ti-edit"
+                    text
+                    rounded
+                    severity="secondary"
+                    class="size-[1.6rem]"
+                    @click.stop="openEditServerDialog(server)"
+                  />
+                  <Button
+                    icon="ti ti-trash"
+                    text
+                    rounded
+                    severity="secondary"
+                    class="size-[1.6rem]"
+                    :disabled="workspaceStore.servers.length === 1"
+                    @click.stop="removeServer(server)"
+                  />
+                </div>
+              </button>
+
+              <div class="h-px bg-neutral-200 dark:bg-neutral-800 my-1" />
+
+              <Button
+                label="Add server"
+                icon="ti ti-plus"
+                severity="secondary"
+                text
+                class="justify-start"
+                @click="openAddServerDialog"
+              />
+            </div>
+          </Popover>
+
+          <ContextMenu
+            ref="projectMenu"
+            :model="[
+              { label: 'Edit workspace', icon: 'ti ti-edit', command: openEditProjectDialog },
+              { label: 'Remove workspace', icon: 'ti ti-trash', command: removeProject },
+            ]"
+          />
         </div>
       </div>
     </div>
+
     <SourcesSidebar v-model:sidebar-width="sideBarWidth" />
+
     <main class="h-full w-full overflow-hidden">
       <RouterView />
     </main>
   </div>
+
+  <AddServerDialog
+    v-model:visible="addServerVisible"
+    :mode="editingServer ? 'edit' : 'create'"
+    :initial-value="editingServer"
+    @submit="saveServer"
+  />
+  <CreateProjectDialog
+    v-model:visible="createProjectVisible"
+    :mode="editingProject ? 'edit' : 'create'"
+    :initial-value="editingProject"
+    @submit="saveProject"
+  />
 </template>

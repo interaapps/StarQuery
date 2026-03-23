@@ -1,4 +1,4 @@
-import query from "./query";
+import query from "./query.ts";
 
 export default {
     query

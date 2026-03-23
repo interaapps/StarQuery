@@ -59,5 +59,54 @@ docker compose down -v
 
 Use `docker compose down -v` if you want to wipe the database and re-run the seed from scratch.
 
+## Self-Hosted Deployment
+There is now a dedicated Docker deployment for the hosted web version with:
+
+- a Vite-built frontend served by Nginx
+- a Node backend
+- a MySQL metastore for projects, datasources, and users
+
+Start it with:
+
+```bash
+docker compose -f docker-compose.hosted.yml up -d --build
+```
+
+Then open:
+
+- Frontend: `http://localhost:8080`
+
+The frontend proxies `/api` to the backend internally, so in production mode the browser app automatically uses the same origin as its default hosted server.
+
+If you want the frontend to use exactly one backend and disable server switching entirely, set:
+
+```bash
+VITE_LOCKED_SERVER_URL=https://your-server.example.com
+```
+
+Optional label:
+
+```bash
+VITE_LOCKED_SERVER_NAME="Production Server"
+```
+
+Services in the hosted stack:
+
+- `frontend`: public web UI on port `8080`
+- `backend`: internal StarQuery API in `hosted` mode
+- `meta-db`: MySQL database used by the backend as its metastore
+
+Stop it with:
+
+```bash
+docker compose -f docker-compose.hosted.yml down
+```
+
+Reset the hosted metastore volume with:
+
+```bash
+docker compose -f docker-compose.hosted.yml down -v
+```
+
 ## Backlog
 - [ ] Add OpenID Connect support

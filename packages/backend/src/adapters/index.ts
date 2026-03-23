@@ -1,4 +1,4 @@
-import {MySQLAdapter} from "./database/sql/mysql-adapter/MySQLAdapter";
+import {MySQLAdapter} from "./database/sql/mysql-adapter/MySQLAdapter.ts";
 
 export default {
     database: {

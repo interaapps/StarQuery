@@ -1,4 +1,4 @@
-import {DefaultSQLAdapter} from "../adapters/database/sql/default-sql-adapter/DefaultSQLAdapter";
+import type {DefaultSQLAdapter} from "../adapters/database/sql/default-sql-adapter/DefaultSQLAdapter.ts";
 import * as WebSocket from "ws";
 
 export class Channel {
@@ -29,8 +29,8 @@ export class Channel {
     }
 
     close() {
-        this.send(JSON.stringify({
+        this.send({
             type: 'close',
-        }))
+        })
     }
 }

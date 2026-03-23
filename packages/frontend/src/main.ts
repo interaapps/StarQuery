@@ -7,7 +7,6 @@ import App from './App.vue'
 import router from './router'
 import { registerEventHandlers } from '@/utils/theme-logic.ts'
 import { useConfig } from '@/composables/config.ts'
-import axios from 'axios'
 import { install as VueCodemirror } from 'vue-codemirror'
 
 import PrimeVue from 'primevue/config'
@@ -17,16 +16,11 @@ import ToastService from 'primevue/toastservice'
 import Tooltip from 'primevue/tooltip'
 import ConfirmationService from 'primevue/confirmationservice'
 import theme from '@/theme.ts'
-import { SQLWebSocket } from '@/utils/connections/SQLWebSocket.ts'
 
 // @ts-ignore
 import vue3Shortkey from 'vue3-shortkey'
 export const config = useConfig()
 export const app = createApp(App)
-
-export const client = axios.create({
-  baseURL: (import.meta.env.VITE_APP_BASE_URL as string) || 'http://localhost:3000',
-})
 
 const preset = definePreset(Aura, theme)
 app.use(PrimeVue, {

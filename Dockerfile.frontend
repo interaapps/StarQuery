@@ -1,0 +1,23 @@
+FROM node:24-alpine AS build
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/frontend/package.json packages/frontend/package.json
+
+RUN pnpm install --filter frontend... --frozen-lockfile
+
+COPY packages/frontend packages/frontend
+
+WORKDIR /app/packages/frontend
+
+RUN pnpm build
+
+FROM nginx:1.27-alpine
+
+COPY docker/nginx/starquery.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/packages/frontend/dist /usr/share/nginx/html
+
+EXPOSE 80

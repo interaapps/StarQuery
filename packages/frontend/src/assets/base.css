@@ -23,10 +23,18 @@
   @apply pt-4;
 }
 
+.electron.electron-mac .app-left-rail {
+  padding-top: 2rem;
+}
+
+.electron.electron-mac .app-logo-link {
+  display: block;
+}
 
 .region-drag {
-  app-region: drag
+  -webkit-app-region: drag;
 }
+
 .region-no-drag {
-  app-region: drag
+  -webkit-app-region: no-drag;
 }

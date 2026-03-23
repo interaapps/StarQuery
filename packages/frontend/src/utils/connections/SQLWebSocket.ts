@@ -56,17 +56,22 @@ export class SQLWebSocket {
 
   sendWithResponse(data: any) {
     this.currentMessageId++
+    const messageId = this.currentMessageId
     return new Promise((resolve, reject) => {
-      this.listeners.set(this.currentMessageId, (data: any) => {
+      this.listeners.set(messageId, (data: any) => {
         if (data.error) {
+          this.listeners.delete(messageId)
           reject(data.error)
         } else {
+          if (data.type === 'close' || data.type === 'error' || data.type === 'RESULT' || data.type === 'SELECT') {
+            this.listeners.delete(messageId)
+          }
           resolve(data)
         }
       })
 
       this.send({
-        id: this.currentMessageId,
+        id: messageId,
         ...data,
       })
     })

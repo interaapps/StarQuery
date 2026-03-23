@@ -10,6 +10,7 @@ dist
 .npmrc
 
 packages/electron/out
+packages/backend/.starquery/
 
 logs
 *.log

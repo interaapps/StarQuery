@@ -6,6 +6,7 @@ export class MySQLAdapter extends DefaultSQLAdapter {
 
     constructor(private options: {
         host: string
+        port?: number
         user: string
         password: string
         database: string
@@ -16,6 +17,7 @@ export class MySQLAdapter extends DefaultSQLAdapter {
     async connect() {
         this.connection = await mysql.createConnection({
             host: this.options.host,
+            port: this.options.port,
             user: this.options.user,
             password: this.options.password,
             database: this.options.database,

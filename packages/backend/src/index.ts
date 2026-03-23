@@ -10,10 +10,11 @@ export const sources = {
         type: 'mysql',
         options: {
             adapter: MySQLAdapter,
-            host: 'localhost',
-            user: 'pastefy',
-            password: 'pastefy',
-            database: 'pastefy',
+            host: process.env.PASTEFY_DB_HOST ?? '127.0.0.1',
+            port: Number(process.env.PASTEFY_DB_PORT ?? '3307'),
+            user: process.env.PASTEFY_DB_USER ?? 'pastefy',
+            password: process.env.PASTEFY_DB_PASSWORD ?? 'pastefy',
+            database: process.env.PASTEFY_DB_NAME ?? 'pastefy',
         }
     }
 }

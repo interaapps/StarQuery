@@ -8,7 +8,6 @@ const frontendRoot = fileURLToPath(new URL('../frontend', import.meta.url))
 const frontendSrc = fileURLToPath(new URL('../frontend/src', import.meta.url))
 const electronRendererOutDir = fileURLToPath(new URL('./.vite/renderer/main_window', import.meta.url))
 
-
 export default defineConfig({
   root: frontendRoot,
   base: './',

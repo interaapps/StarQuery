@@ -45,7 +45,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="flex flex-col w-full h-full transition-all"
-    :class="tabsStore.tabs.length ? 'app-bg' : ''"
+    :class="tabsStore.tabs.length ? 'app-bg' : 'app-bg-no-mac'"
   >
     <WorkspaceTabsBar
       v-model:current-tab="tabsStore.currentTab"

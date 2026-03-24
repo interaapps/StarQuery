@@ -90,14 +90,17 @@ const createWindow = async () => {
     icon: '../images/128x128.png',
     width: 1280,
     height: 720,
-    ...('darwin' ? {vibrancy: 'sidebar',
-      visualEffectState: 'active',
-      transparent: true} : {}),
+    ...(process.platform === 'darwin' ?
+        {
+          vibrancy: 'sidebar',
+        visualEffectState: 'active',
+        transparent: true
+      } : {}),
 
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'hidden'
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default'
   });
 
   mainWindow.webContents.on("did-finish-load", () => {

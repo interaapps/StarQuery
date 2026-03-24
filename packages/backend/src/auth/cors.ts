@@ -16,6 +16,7 @@ export function createCorsOptions(config: AppConfig): CorsOptions {
     }
   }
 
+  const allowAnyOrigin = config.corsAllowedOrigins.some((origin) => origin.trim() === '*')
   const allowedOrigins = new Set(
     [
       ...config.corsAllowedOrigins.map((origin) => normalizeOrigin(origin)).filter((origin): origin is string => Boolean(origin)),
@@ -25,6 +26,11 @@ export function createCorsOptions(config: AppConfig): CorsOptions {
 
   return {
     origin(origin, callback) {
+      if (allowAnyOrigin) {
+        callback(null, true)
+        return
+      }
+
       if (!origin) {
         callback(null, true)
         return

@@ -2,6 +2,26 @@
 
 StarQuery is a desktop and web database/resource browser with support for SQL datasources, Elasticsearch, and S3-compatible object storage.
 
+## Docker Quick Start
+
+Run the prebuilt single-image deployment:
+
+```bash
+docker run -it --rm \
+  -p 8080:8080 \
+  --add-host=host.docker.internal:host-gateway \
+  -v starquery-data:/var/lib/starquery \
+  interaapps/starquery
+```
+
+Then open:
+
+- App: `http://localhost:8080`
+
+Networking note:
+- If StarQuery inside the container should connect to services running on your host machine, use `host.docker.internal` as the host in your datasource config instead of `localhost`.
+- The `--add-host=host.docker.internal:host-gateway` flag makes that work on Linux as well.
+
 Status:
 - Work in progress
 - No stable releases yet
@@ -39,7 +59,8 @@ Runtime targets:
 
 - Intended for self-hosting on a server
 - Auth is enabled by default
-- Uses MySQL as the default meta database
+- Uses MySQL as the default meta database in the generic backend config
+- The published Docker image uses SQLite for the meta database by default so no extra DB is required
 - Can optionally bootstrap users, projects, and datasources from JSON
 
 ### Plain web frontend
@@ -73,9 +94,10 @@ Use `docker compose down -v` if you want to wipe the database and re-run the see
 ## Hosted Docker Deployment
 
 There is a dedicated Docker deployment for the hosted web version with:
-- a Vite-built frontend served by Nginx
-- a Node backend
-- a MySQL metastore for users, roles, projects, datasources, tokens, and settings
+- one Node app image that serves both the built frontend and the backend API
+- a SQLite metastore by default, stored in a Docker volume
+
+This means the default self-hosted setup does not require any separate database container or database configuration.
 
 Start it with:
 
@@ -85,12 +107,21 @@ docker compose -f docker-compose.hosted.yml up -d --build
 
 Then open:
 
-- Frontend: `http://localhost:8080`
+- App: `http://localhost:8080`
+
+You can also run the single image directly without compose:
+
+```bash
+docker build -t starquery -f Dockerfile.backend .
+docker run -it --rm \
+  -p 8080:8080 \
+  --add-host=host.docker.internal:host-gateway \
+  -v starquery-data:/var/lib/starquery \
+  starquery
+```
 
 Services in the hosted stack:
-- `frontend`: public web UI on port `8080`
-- `backend`: internal StarQuery API in `hosted` mode
-- `meta-db`: MySQL database used by the backend as its metastore
+- `app`: public StarQuery web UI and backend API on port `8080`
 
 Stop it with:
 
@@ -103,6 +134,14 @@ Reset the hosted metastore volume with:
 ```bash
 docker compose -f docker-compose.hosted.yml down -v
 ```
+
+The hosted compose file now uses:
+- `STARQUERY_META_DRIVER=sqlite`
+- `STARQUERY_META_SQLITE_PATH=/var/lib/starquery/starquery-meta.sqlite`
+- `VITE_LOCKED_SERVER_URL=/`
+- `PORT=8080`
+
+If you prefer MySQL for the metastore, you can still switch the backend to MySQL by providing the normal `STARQUERY_META_MYSQL_*` environment variables in your own compose override.
 
 ## Configuration Overview
 
@@ -145,7 +184,7 @@ These are read by the StarQuery backend.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `STARQUERY_META_DRIVER` | `mysql` in hosted mode, `sqlite` in local mode | Meta database driver. Valid values: `mysql`, `sqlite`. |
+| `STARQUERY_META_DRIVER` | `mysql` in hosted mode, `sqlite` in local mode | Meta database driver. Valid values: `mysql`, `sqlite`. The bundled Docker hosted deployment overrides this to `sqlite` by default so no extra DB is required. |
 | `STARQUERY_META_SQLITE_PATH` | `<cwd>/.starquery/starquery-meta.sqlite` | SQLite file path for the meta database. Only used when `STARQUERY_META_DRIVER=sqlite`. |
 | `STARQUERY_META_MYSQL_HOST` | `127.0.0.1` | MySQL host for the meta database. |
 | `STARQUERY_META_MYSQL_PORT` | `3307` | MySQL port for the meta database. |

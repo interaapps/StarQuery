@@ -33,6 +33,22 @@ function normalizeSqliteRows(rows: unknown[]) {
   })
 }
 
+function normalizeSqliteParam(param: unknown) {
+  if (typeof param === 'boolean') {
+    return param ? 1 : 0
+  }
+
+  if (param instanceof Date) {
+    return param.toISOString()
+  }
+
+  return param
+}
+
+function normalizeSqliteParams(params: unknown[]) {
+  return params.map((param) => normalizeSqliteParam(param))
+}
+
 function normalizeSqliteRow(row: unknown) {
   return normalizeSqliteRows([row])[0] ?? []
 }
@@ -40,34 +56,36 @@ function normalizeSqliteRow(row: unknown) {
 function createSqliteProxyCallback(connection: SqliteConnection) {
   return async (query: string, params: unknown[], method: SqliteMethod) => {
     const statement = connection.prepare(query)
+    const normalizedParams = normalizeSqliteParams(params)
 
     if (method === 'run') {
-      statement.run(...params)
+      statement.run(...normalizedParams)
       return { rows: [] }
     }
 
     if (method === 'get') {
-      const row = statement.get(...params)
+      const row = statement.get(...normalizedParams)
       return { rows: row === undefined ? [] : [normalizeSqliteRow(row)] }
     }
 
-    const rows = statement.all(...params)
+    const rows = statement.all(...normalizedParams)
     return { rows: normalizeSqliteRows(rows as unknown[]) }
   }
 }
 
 function executeSqlite(connection: SqliteConnection, statement: string, params: unknown[] = []) {
   const prepared = connection.prepare(statement)
+  const normalizedParams = normalizeSqliteParams(params)
   const normalizedStatement = statement.trim().toLowerCase()
   if (
     normalizedStatement.startsWith('select') ||
     normalizedStatement.startsWith('pragma') ||
     normalizedStatement.startsWith('with')
   ) {
-    return prepared.all(...params) as unknown[]
+    return prepared.all(...normalizedParams) as unknown[]
   }
 
-  prepared.run(...params)
+  prepared.run(...normalizedParams)
   return []
 }
 

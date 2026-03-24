@@ -14,6 +14,7 @@ import { registerAuthRoutes } from './routes/auth-routes.ts'
 import { registerProjectRoutes } from './routes/projects-routes.ts'
 import { registerServerRoutes } from './routes/server-routes.ts'
 import { registerSourceRoutes } from './routes/source-routes.ts'
+import { registerStaticFrontend } from './static-frontend.ts'
 
 export type StartBackendServerOptions = Partial<Omit<AppConfig, 'metaStore' | 'auth'>> & {
   auth?: Partial<Omit<AppConfig['auth'], 'seedAdmin' | 'openId'>> & {
@@ -76,6 +77,7 @@ export async function startBackendServer(overrides: StartBackendServerOptions = 
   registerAdminRoutes(app, context)
   registerProjectRoutes(app, context)
   registerSourceRoutes(app, context)
+  registerStaticFrontend(app, config)
 
   const server = await new Promise<Server>((resolve, reject) => {
     const httpServer = app.listen(config.port, config.host, () => resolve(httpServer))

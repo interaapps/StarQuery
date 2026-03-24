@@ -41,6 +41,14 @@ function getLockedServerUrl() {
     return null
   }
 
+  if (configuredUrl.trim() === '/') {
+    if (typeof window === 'undefined' || !/^https?:$/i.test(window.location.protocol)) {
+      return null
+    }
+
+    return normalizeServerUrl(window.location.origin)
+  }
+
   return normalizeServerUrl(configuredUrl)
 }
 

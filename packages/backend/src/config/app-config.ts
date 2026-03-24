@@ -8,6 +8,7 @@ export type AppConfig = {
   host: string
   publicUrl?: string
   corsAllowedOrigins: string[]
+  frontendDistPath?: string
   serverName: string
   mode: AppMode
   requestBodyLimit: string
@@ -63,6 +64,8 @@ export function loadAppConfig(): AppConfig {
       .split(',')
       .map((entry) => entry.trim())
       .filter(Boolean),
+    frontendDistPath:
+      process.env.STARQUERY_FRONTEND_DIST_PATH?.trim() || path.resolve(process.cwd(), '..', 'frontend', 'dist'),
     serverName:
       process.env.STARQUERY_SERVER_NAME ?? (mode === 'hosted' ? 'Hosted Server' : 'Local Computer'),
     mode,

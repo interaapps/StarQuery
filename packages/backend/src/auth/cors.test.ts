@@ -59,6 +59,12 @@ test('hosted CORS allows the configured public origin', async () => {
   assert.equal(await evaluateOrigin(config, 'https://evil.example.com'), false)
 })
 
+test('hosted CORS allows every origin when wildcard is configured', async () => {
+  const config = createConfig({ corsAllowedOrigins: ['*'] })
+  assert.equal(await evaluateOrigin(config, 'http://localhost:5173'), true)
+  assert.equal(await evaluateOrigin(config, 'https://evil.example.com'), true)
+})
+
 test('local mode keeps broad CORS for the desktop app flow', () => {
   const config = createConfig({ mode: 'local' })
   const options = createCorsOptions(config)

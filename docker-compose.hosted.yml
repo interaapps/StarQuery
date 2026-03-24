@@ -1,52 +1,23 @@
 services:
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    depends_on:
-      - backend
-    ports:
-      - '8080:80'
-    restart: unless-stopped
-
-  backend:
+  app:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    depends_on:
-      meta-db:
-        condition: service_healthy
+      args:
+        VITE_LOCKED_SERVER_URL: /
+        VITE_LOCKED_SERVER_NAME: StarQuery Hosted
     environment:
       HOST: 0.0.0.0
-      PORT: 3000
+      PORT: 8080
       STARQUERY_MODE: hosted
       STARQUERY_SERVER_NAME: StarQuery Hosted
-      STARQUERY_META_DRIVER: mysql
-      STARQUERY_META_MYSQL_HOST: meta-db
-      STARQUERY_META_MYSQL_PORT: 3306
-      STARQUERY_META_MYSQL_USER: starquery
-      STARQUERY_META_MYSQL_PASSWORD: starquery
-      STARQUERY_META_MYSQL_DATABASE: starquery
-    expose:
-      - '3000'
-    restart: unless-stopped
-
-  meta-db:
-    image: mysql:8.4
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: starquery
-      MYSQL_USER: starquery
-      MYSQL_PASSWORD: starquery
+      STARQUERY_META_DRIVER: sqlite
+      STARQUERY_META_SQLITE_PATH: /var/lib/starquery/starquery-meta.sqlite
+    ports:
+      - '8080:8080'
     volumes:
-      - starquery-meta-data:/var/lib/mysql
-    healthcheck:
-      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD']
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 20s
+      - starquery-app-data:/var/lib/starquery
     restart: unless-stopped
 
 volumes:
-  starquery-meta-data:
+  starquery-app-data:

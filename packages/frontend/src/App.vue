@@ -416,6 +416,7 @@ const openManageProjectUsersDialog = () => {
 
         <div class="p-1 mx-auto flex flex-col items-center gap-2">
           <Button
+            v-if="!workspaceStore.isServerSelectionLocked"
             v-tooltip.right="serverTooltip()"
             :icon="`ti ${getServerIcon(workspaceStore.currentServer?.kind)}`"
             severity="secondary"

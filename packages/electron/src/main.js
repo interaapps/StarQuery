@@ -53,6 +53,8 @@ const writeDesktopConfig = (config) => {
   fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
 };
 
+const getWindowIconPath = () => path.join(__dirname, '../images/128x128.png');
+
 const hasRunningLocalBackend = () => Boolean(localBackend?.server?.listening);
 
 const startLocalBackend = async () => {
@@ -87,7 +89,7 @@ const startLocalBackend = async () => {
 const createWindow = async () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
-    icon: '../images/128x128.png',
+    icon: getWindowIconPath(),
     width: 1280,
     height: 720,
     ...(process.platform === 'darwin' ?

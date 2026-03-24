@@ -6,6 +6,8 @@ export type MetaStoreDriver = 'sqlite' | 'mysql'
 export type AppConfig = {
   port: number
   host: string
+  publicUrl?: string
+  corsAllowedOrigins: string[]
   serverName: string
   mode: AppMode
   requestBodyLimit: string
@@ -13,6 +15,9 @@ export type AppConfig = {
     enabled: boolean
     sessionTtlHours: number
     apiKeyTtlDays: number
+    rateLimitWindowMs: number
+    rateLimitMaxAttempts: number
+    oidcStateTtlMinutes: number
     seedAdmin?: {
       email: string
       password: string
@@ -53,6 +58,11 @@ export function loadAppConfig(): AppConfig {
   return {
     port: Number(process.env.PORT ?? '3000'),
     host: process.env.HOST ?? '0.0.0.0',
+    publicUrl: process.env.STARQUERY_PUBLIC_URL?.trim() || undefined,
+    corsAllowedOrigins: (process.env.STARQUERY_CORS_ALLOWED_ORIGINS ?? '')
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean),
     serverName:
       process.env.STARQUERY_SERVER_NAME ?? (mode === 'hosted' ? 'Hosted Server' : 'Local Computer'),
     mode,
@@ -61,6 +71,9 @@ export function loadAppConfig(): AppConfig {
       enabled: mode !== 'local',
       sessionTtlHours: Number(process.env.STARQUERY_AUTH_SESSION_TTL_HOURS ?? '720'),
       apiKeyTtlDays: Number(process.env.STARQUERY_AUTH_API_KEY_TTL_DAYS ?? '365'),
+      rateLimitWindowMs: Number(process.env.STARQUERY_AUTH_RATE_LIMIT_WINDOW_MS ?? '600000'),
+      rateLimitMaxAttempts: Number(process.env.STARQUERY_AUTH_RATE_LIMIT_MAX_ATTEMPTS ?? '10'),
+      oidcStateTtlMinutes: Number(process.env.STARQUERY_AUTH_OIDC_STATE_TTL_MINUTES ?? '15'),
       seedAdmin:
         seedAdminEmail && seedAdminPassword
           ? {

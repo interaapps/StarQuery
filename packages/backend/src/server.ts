@@ -4,6 +4,7 @@ import bodyParser from 'body-parser'
 import cors from 'cors'
 import express from 'express'
 import { attachAuth } from './auth/middleware.ts'
+import { createCorsOptions } from './auth/cors.ts'
 import type { AppContext } from './app-context.ts'
 import { loadBootstrapConfig } from './bootstrap/load-bootstrap-config.ts'
 import { loadAppConfig, type AppConfig } from './config/app-config.ts'
@@ -67,7 +68,7 @@ export async function startBackendServer(overrides: StartBackendServerOptions = 
 
   const app = express()
   app.use(bodyParser.json({ limit: config.requestBodyLimit }))
-  app.use(cors())
+  app.use(cors(createCorsOptions(config)))
   app.use(attachAuth(context))
 
   registerServerRoutes(app, context)

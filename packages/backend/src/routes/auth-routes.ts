@@ -1,12 +1,15 @@
-import type { Express } from 'express'
+import type { Express, Response } from 'express'
 import { URL } from 'node:url'
 import type { AppContext } from '../app-context.ts'
 import { getOpenIdConfiguration, client as openIdClient } from '../auth/openid.ts'
 import { createPasswordHash, verifyPasswordHash } from '../auth/passwords.ts'
+import { clearRateLimit, consumeRateLimit } from '../auth/rate-limit.ts'
 import type { AuthenticatedRequest } from '../auth/request.ts'
 import { serializeUser } from '../auth/serializers.ts'
+import { getAppBaseUrl, resolveSafeReturnTo } from '../auth/url.ts'
 import { buildAuthStatus, getRequestAuth, requireAuthenticated } from '../auth/middleware.ts'
 import { createRawAuthToken } from '../auth/tokens.ts'
+import { normalizeStoredDateTimeToIso } from '../meta/utils.ts'
 
 function buildUserPayload(req: AuthenticatedRequest) {
   const auth = getRequestAuth(req)
@@ -44,10 +47,46 @@ async function createSessionResponse(context: AppContext, userId: string, storag
   }
 }
 
-function getRequestBaseUrl(req: AuthenticatedRequest) {
-  const protocol = String(req.headers['x-forwarded-proto'] ?? req.protocol ?? 'http')
-  const host = String(req.headers['x-forwarded-host'] ?? req.headers.host)
-  return `${protocol}://${host}`
+function getAuthRateLimitKey(req: AuthenticatedRequest, scope: string, email?: string) {
+  const normalizedEmail = email?.trim().toLowerCase() || 'anonymous'
+  return `${scope}:${req.ip}:${normalizedEmail}`
+}
+
+function applyAuthRateLimit(
+  context: AppContext,
+  req: AuthenticatedRequest,
+  res: Response,
+  scope: string,
+  email?: string,
+) {
+  const result = consumeRateLimit(
+    getAuthRateLimitKey(req, scope, email),
+    context.config.auth.rateLimitWindowMs,
+    context.config.auth.rateLimitMaxAttempts,
+  )
+
+  if (result.allowed) {
+    return true
+  }
+
+  const retryAfterSeconds = Math.max(1, Math.ceil((result.resetAt - Date.now()) / 1000))
+  res.setHeader('Retry-After', String(retryAfterSeconds))
+  res.status(429).json({ error: 'Too many authentication attempts. Please try again later.' })
+  return false
+}
+
+function clearAuthRateLimit(req: AuthenticatedRequest, scope: string, email?: string) {
+  clearRateLimit(getAuthRateLimitKey(req, scope, email))
+}
+
+function isOidcStateExpired(context: AppContext, createdAt: string) {
+  const createdAtIso = normalizeStoredDateTimeToIso(createdAt)
+  const timestamp = createdAtIso ? new Date(createdAtIso).getTime() : Number.NaN
+  if (Number.isNaN(timestamp)) {
+    return true
+  }
+
+  return timestamp + context.config.auth.oidcStateTtlMinutes * 60 * 1000 < Date.now()
 }
 
 export function registerAuthRoutes(app: Express, context: AppContext) {
@@ -90,6 +129,11 @@ export function registerAuthRoutes(app: Express, context: AppContext) {
       return
     }
 
+    const authReq = req as AuthenticatedRequest
+    if (!applyAuthRateLimit(context, authReq, res, 'onboard', email)) {
+      return
+    }
+
     const { hash, salt } = createPasswordHash(password)
     const user = await context.metaStore.createUser({
       email,
@@ -103,6 +147,8 @@ export function registerAuthRoutes(app: Express, context: AppContext) {
     if (adminRole) {
       await context.metaStore.setUserRoleIds(user.id, [adminRole.id])
     }
+
+    clearAuthRateLimit(authReq, 'onboard', email)
 
     const nextStorage = storage === 'session' ? 'session' : 'local'
     const session = await createSessionResponse(context, user.id, nextStorage, 'Initial admin session')
@@ -130,6 +176,11 @@ export function registerAuthRoutes(app: Express, context: AppContext) {
       storage?: 'local' | 'session'
     }
 
+    const authReq = req as AuthenticatedRequest
+    if (!applyAuthRateLimit(context, authReq, res, 'login', email)) {
+      return
+    }
+
     const user = email?.trim() ? await context.metaStore.getUserByEmail(email.trim().toLowerCase()) : null
     if (!user || !user.passwordHash || !user.passwordSalt || user.disabled) {
       res.status(401).json({ error: 'Invalid credentials' })
@@ -140,6 +191,8 @@ export function registerAuthRoutes(app: Express, context: AppContext) {
       res.status(401).json({ error: 'Invalid credentials' })
       return
     }
+
+    clearAuthRateLimit(authReq, 'login', email)
 
     const nextStorage = storage === 'session' ? 'session' : 'local'
     const session = await createSessionResponse(context, user.id, nextStorage, 'Web session')
@@ -183,11 +236,19 @@ export function registerAuthRoutes(app: Express, context: AppContext) {
 
     const authReq = req as AuthenticatedRequest
     const storage = req.query.storage === 'session' ? 'session' : 'local'
-    const returnTo =
-      typeof req.query.returnTo === 'string' && req.query.returnTo.trim()
-        ? req.query.returnTo
-        : `${getRequestBaseUrl(authReq)}/`
-    const callbackUrl = new URL('/api/auth/openid/callback', getRequestBaseUrl(authReq))
+    let returnTo: string
+    try {
+      returnTo = resolveSafeReturnTo(
+        context.config,
+        authReq,
+        typeof req.query.returnTo === 'string' ? req.query.returnTo : undefined,
+      )
+    } catch (error) {
+      res.status(400).json({ error: error instanceof Error ? error.message : 'Invalid returnTo parameter' })
+      return
+    }
+
+    const callbackUrl = new URL('/api/auth/openid/callback', getAppBaseUrl(context.config, authReq))
     const state = openIdClient.randomState()
     const nonce = openIdClient.randomNonce()
     const codeVerifier = openIdClient.randomPKCECodeVerifier()
@@ -220,7 +281,7 @@ export function registerAuthRoutes(app: Express, context: AppContext) {
     }
 
     const authReq = req as AuthenticatedRequest
-    const callbackUrl = new URL(authReq.originalUrl, getRequestBaseUrl(authReq))
+    const callbackUrl = new URL(authReq.originalUrl, getAppBaseUrl(context.config, authReq))
     const callbackState = callbackUrl.searchParams.get('state')
     if (!callbackState) {
       res.status(400).send('Missing OpenID state')
@@ -229,6 +290,12 @@ export function registerAuthRoutes(app: Express, context: AppContext) {
 
     const oidcState = await context.metaStore.getOidcState(callbackState)
     if (!oidcState) {
+      res.status(400).send('Invalid or expired OpenID state')
+      return
+    }
+
+    if (isOidcStateExpired(context, oidcState.createdAt)) {
+      await context.metaStore.deleteOidcState(oidcState.state)
       res.status(400).send('Invalid or expired OpenID state')
       return
     }
@@ -285,6 +352,11 @@ export function registerAuthRoutes(app: Express, context: AppContext) {
         externalSubject: subject,
         name,
       })
+    }
+
+    if (user.disabled) {
+      res.status(403).send('This account is disabled')
+      return
     }
 
     const session = await createSessionResponse(context, user.id, oidcState.storage, 'OpenID session')

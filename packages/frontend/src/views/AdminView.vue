@@ -44,13 +44,13 @@ const {
 </script>
 
 <template>
-  <div class="h-full overflow-auto px-5 py-4">
+  <div class="h-full overflow-auto px-5 py-4 app-bg">
     <div v-if="!canAccessAdmin" class="max-w-[42rem]">
       <Message severity="warn"> You do not have access to the admin page on this server. </Message>
     </div>
 
     <template v-else>
-      <div class="flex items-center justify-between gap-3 mb-6">
+      <div class="flex items-center justify-between gap-3 mb-6 region-drag">
         <div>
           <div class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Administration</div>
           <h1 class="text-2xl font-semibold mt-1">Users, roles, and API keys</h1>
@@ -59,6 +59,7 @@ const {
         <Button
           size="small"
           icon="ti ti-refresh"
+          class="region-no-drag"
           label="Refresh"
           severity="secondary"
           :loading="loading"

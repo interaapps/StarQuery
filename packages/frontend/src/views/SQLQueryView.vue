@@ -10,7 +10,9 @@ import SQLEditor from '@/components/editors/SQLEditor.vue'
 import ExtendedDataTable from '@/components/table/ExtendedDataTable.vue'
 import { createBackendClient } from '@/services/backend-api'
 import { getErrorMessage } from '@/services/error-message'
+import { dataSourcePermissionTargets } from '@/services/permissions'
 import { loadSqlCompletionCatalog } from '@/services/sql-completion'
+import { useAuthStore } from '@/stores/auth-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
 import type {
   SQLExecutionResult,
@@ -24,6 +26,7 @@ const props = defineProps<{
 }>()
 
 const toast = useToast()
+const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
 const client = createBackendClient(props.data.serverUrl)
 
@@ -58,6 +61,13 @@ const resultSets = computed(() => results.value.filter((result) => result.type =
 const hasOutput = computed(() => results.value.length > 0)
 const sourceRecord = computed(() => workspaceStore.dataSources.find((source) => source.id === props.data.sourceId))
 const sourceType = computed(() => props.data.sourceType ?? sourceRecord.value?.type ?? 'mysql')
+const canRunQuery = computed(() =>
+  authStore.hasPermission([
+    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'read'),
+    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'write'),
+    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
+  ]),
+)
 
 const loadCompletion = async () => {
   if (!sourceRecord.value) return
@@ -78,6 +88,18 @@ const loadCompletion = async () => {
 }
 
 const runQuery = async () => {
+  if (!canRunQuery.value) {
+    logs.value = [
+      {
+        id: `log-permission-${Date.now()}`,
+        level: 'error',
+        title: 'Permission required',
+        message: 'This server account is not allowed to run SQL against this datasource.',
+      },
+    ]
+    return
+  }
+
   isRunning.value = true
   const startedAt = performance.now()
 
@@ -172,10 +194,15 @@ watch(sourceRecord, async (nextSource) => {
         :icon="`ti ti-player-play ${isRunning ? 'animate-pulse' : ''}`"
         label="Run query"
         :loading="isRunning"
+        :disabled="!canRunQuery"
         @click="runQuery"
         size="small"
       />
     </div>
+
+    <Message v-if="!canRunQuery" severity="warn" class="m-3 mb-0">
+      This server account can open the console but cannot run SQL on this datasource.
+    </Message>
 
     <div class="border-b border-neutral-200 dark:border-neutral-800">
       <div class="px-3 py-2 flex items-center justify-between">

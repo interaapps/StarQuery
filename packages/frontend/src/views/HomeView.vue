@@ -1,49 +1,19 @@
 <script setup lang="ts">
+import WorkspaceTabsBar from '@/components/workspace/WorkspaceTabsBar.vue'
 import SqlTableView from '@/views/SQLTableView.vue'
 import SQLQueryView from '@/views/SQLQueryView.vue'
-import Button from 'primevue/button'
+import DataSourceBrowserView from '@/views/DataSourceBrowserView.vue'
+import ElasticsearchBrowserView from '@/views/ElasticsearchBrowserView.vue'
+import ObjectStorageBrowserView from '@/views/ObjectStorageBrowserView.vue'
 import { useTabsStore } from '@/stores/tabs-store.ts'
+import { isResourceBrowserTab, isSqlQueryTab, isSqlTableTab } from '@/types/tabs'
 
 const tabsStore = useTabsStore()
 </script>
 
 <template>
   <div class="flex flex-col w-full h-full">
-    <div
-      class="border-b border-neutral-200 dark:border-neutral-800 flex"
-      v-if="tabsStore.tabs.length"
-    >
-      <Button
-        v-for="(tab, index) of tabsStore.tabs"
-        size="small"
-        class="rounded-none border-y-0 border-l-0 border-r border-neutral-200 dark:border-neutral-800"
-        :severity="tabsStore.currentTab === index ? 'primary' : 'secondary'"
-        text
-        @click="tabsStore.currentTab = index"
-      >
-        <i
-          :class="`ti ti-${
-            {
-              'database.sql.query': 'file-type-sql',
-              'database.sql.table': 'table',
-            }[tab.type as string]
-          }`"
-        />
-        <span>{{ tab.name }}</span>
-        <span
-          v-if="tab.dirty"
-          class="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"
-        />
-        <Button
-          rounded
-          icon="ti ti-x"
-          :class="`p-0 w-[1rem] h-[1rem] hover:bg-primary-500/30 ${tabsStore.currentTab === index ? '' : 'opacity-0'} hover:opacity-100`"
-          text
-          @click.stop="tabsStore.closeTab(index)"
-        />
-      </Button>
-      <div class="w-max h-full region-drag" />
-    </div>
+    <WorkspaceTabsBar v-model:current-tab="tabsStore.currentTab" :tabs="tabsStore.tabs" @close="tabsStore.closeTab" />
 
     <div
       v-if="!tabsStore.tabs.length"
@@ -67,8 +37,19 @@ const tabsStore = useTabsStore()
 
     <template v-for="(tab, index) of tabsStore.tabs">
       <div v-show="index === tabsStore.currentTab" class="h-full">
-        <SqlTableView class="h-full" v-if="tab.type === 'database.sql.table'" :data="tab.data" />
-        <SQLQueryView class="h-full" v-else-if="tab.type === 'database.sql.query'" :data="tab.data" />
+        <SqlTableView class="h-full" v-if="isSqlTableTab(tab)" :data="tab.data" />
+        <SQLQueryView class="h-full" v-else-if="isSqlQueryTab(tab)" :data="tab.data" />
+        <ElasticsearchBrowserView
+          class="h-full"
+          v-else-if="isResourceBrowserTab(tab) && tab.data.sourceType === 'elasticsearch'"
+          :data="tab.data"
+        />
+        <ObjectStorageBrowserView
+          class="h-full"
+          v-else-if="isResourceBrowserTab(tab) && (tab.data.sourceType === 's3' || tab.data.sourceType === 'minio')"
+          :data="tab.data"
+        />
+        <DataSourceBrowserView class="h-full" v-else-if="isResourceBrowserTab(tab)" :data="tab.data" />
         <div class="flex items-center justify-center w-full h-full" v-else>
           <span class="opacity-60"> There is no view for this type yet. </span>
         </div>

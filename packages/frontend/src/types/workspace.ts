@@ -1,4 +1,5 @@
-import type { DataSourceType } from '@/types/sql'
+import type { DataSourceDefinition, DataSourceType } from '@/types/datasources'
+import type { AuthStatus } from '@/types/auth'
 
 export type ServerProfile = {
   id: string
@@ -10,9 +11,10 @@ export type ServerProfile = {
 export type ServerInfo = {
   name: string
   mode: 'local' | 'hosted'
+  auth: Pick<AuthStatus, 'enabled' | 'onboardingRequired' | 'openIdEnabled'>
   capabilities: {
     projects: boolean
-    dataSources: DataSourceType[]
+    dataSources: Array<DataSourceDefinition | DataSourceType>
   }
 }
 
@@ -22,6 +24,25 @@ export type ProjectRecord = {
   name: string
   description: string | null
   position: number
+}
+
+export type ProjectUserAccess = 'none' | 'read' | 'write'
+
+export type ProjectUserAccessRecord = {
+  id: string
+  email: string
+  name: string
+  authProvider: 'local' | 'openid'
+  disabled: boolean
+  permissions: string[]
+  roleIds: string[]
+  roles: Array<{
+    id: string
+    slug: string
+    name: string
+    permissions: string[]
+  }>
+  workspaceAccess: ProjectUserAccess
 }
 
 export type DataSourceRecord = {

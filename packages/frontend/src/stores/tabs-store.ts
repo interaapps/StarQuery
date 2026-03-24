@@ -1,13 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-
-type WorkspaceTab = {
-  id?: string
-  name: string
-  type: string
-  data: any
-  dirty?: boolean
-}
+import type { WorkspaceTab } from '@/types/tabs'
 
 export const useTabsStore = defineStore('tabs', () => {
   const tabs = ref<WorkspaceTab[]>([])

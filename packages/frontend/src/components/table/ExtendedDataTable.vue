@@ -11,6 +11,8 @@ type CellPosition = {
   column: number
 }
 
+const CELL_PREVIEW_TEXT_LIMIT = 150
+
 const props = withDefaults(
   defineProps<{
     canEdit?: boolean
@@ -78,6 +80,13 @@ const clampCell = (cell: CellPosition): CellPosition => ({
   row: Math.min(Math.max(cell.row, 0), Math.max(rows.value.length - 1, 0)),
   column: Math.min(Math.max(cell.column, 0), Math.max(columns.value.length - 1, 0)),
 })
+
+const isEditableColumn = (columnIndex: number) => {
+  const column = columns.value[columnIndex]
+  return props.canEdit && !!column && column.readOnly !== true
+}
+
+const findFirstEditableColumnIndex = () => columns.value.findIndex((column) => column.readOnly !== true)
 
 watch(
   columns,
@@ -240,15 +249,18 @@ const getValue = (rowIndex: number, columnIndex: number) => {
 }
 
 const formatDisplayValue = (value: unknown) => {
-  if (typeof value === 'string') {
-    return value
+  const text =
+    typeof value === 'string'
+      ? value
+      : value === null || value === undefined
+        ? ''
+        : String(value)
+
+  if (text.length <= CELL_PREVIEW_TEXT_LIMIT) {
+    return text
   }
 
-  if (value === null || value === undefined) {
-    return ''
-  }
-
-  return String(value)
+  return `${text.slice(0, CELL_PREVIEW_TEXT_LIMIT)}…`
 }
 
 const getDisplaySegments = (value: unknown) => {
@@ -328,7 +340,7 @@ const setValue = (rowIndex: number, columnIndex: number, value: unknown) => {
 }
 
 const startEditing = (rowIndex: number, columnIndex: number) => {
-  if (!props.canEdit) return
+  if (!isEditableColumn(columnIndex)) return
   if (rows.value[rowIndex]?.state === 'deleted') return
 
   setSelection({ row: rowIndex, column: columnIndex })
@@ -369,8 +381,12 @@ const addRow = () => {
   })
 
   const rowIndex = rows.value.length - 1
-  setSelection({ row: rowIndex, column: 0 })
-  startEditing(rowIndex, 0)
+  const editableColumnIndex = findFirstEditableColumnIndex()
+  const targetColumn = editableColumnIndex >= 0 ? editableColumnIndex : 0
+  setSelection({ row: rowIndex, column: targetColumn })
+  if (editableColumnIndex >= 0) {
+    startEditing(rowIndex, editableColumnIndex)
+  }
 }
 
 const duplicateSelectedRows = () => {
@@ -445,6 +461,7 @@ const setSelectionToNull = () => {
       column <= selectionRange.value.endColumn;
       column += 1
     ) {
+      if (!isEditableColumn(column)) continue
       setValue(row, column, null)
     }
   }
@@ -635,7 +652,11 @@ const contextMenuItems = computed(() => [
   {
     label: 'Edit cell',
     icon: 'ti ti-edit',
-    disabled: !selectionIsSingleCell.value || !props.canEdit,
+    disabled:
+      !selectionIsSingleCell.value ||
+      !props.canEdit ||
+      !focusCell.value ||
+      !isEditableColumn(focusCell.value.column),
     command: () => {
       const cell = focusCell.value
       if (cell) startEditing(cell.row, cell.column)
@@ -832,6 +853,10 @@ defineExpose({
                 </span>
               </template>
             </span>
+            <i
+              v-if="column.readOnly"
+              class="ti ti-lock text-[11px] opacity-30"
+            />
           </div>
         </td>
       </tr>

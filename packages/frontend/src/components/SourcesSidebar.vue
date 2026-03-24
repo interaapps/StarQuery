@@ -1,19 +1,40 @@
 <script lang="ts" setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import Button from 'primevue/button'
 import ResizeKnob from '@/components/ResizeKnob.vue'
+import SidebarResourceSource from '@/components/sidebar/SidebarResourceSource.vue'
 import SidebarSQLSource from '@/components/sidebar/SidebarSQLSource.vue'
 import CreateDataSourceDialog from '@/components/sidebar/CreateDataSourceDialog.vue'
+import { isSqlDataSource } from '@/services/data-source-definitions'
 import { getErrorMessage } from '@/services/error-message'
+import { dataSourcePermissionTargets, projectPermissionTargets } from '@/services/permissions'
+import { useAuthStore } from '@/stores/auth-store.ts'
 import { useToast } from 'primevue/usetoast'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
 import type { DataSourceType } from '@/types/sql'
+import type { DataSourceRecord } from '@/types/workspace'
 
 const sidebarWidth = defineModel<number>('sidebarWidth')
 const workspaceStore = useWorkspaceStore()
+const authStore = useAuthStore()
 const toast = useToast()
 
 const createDialogVisible = ref(false)
+const editDialogVisible = ref(false)
+const editingSource = ref<DataSourceRecord | null>(null)
+const canCreateDataSource = computed(() =>
+  workspaceStore.currentProjectId
+    ? authStore.hasPermission([
+        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, '*', 'manage', 'write'),
+        ...projectPermissionTargets(workspaceStore.currentProjectId, 'manage', 'write'),
+      ])
+    : false,
+)
+
+const openEditDialog = (source: DataSourceRecord) => {
+  editingSource.value = source
+  editDialogVisible.value = true
+}
 
 const createDataSource = async (payload: {
   name: string
@@ -38,6 +59,34 @@ const createDataSource = async (payload: {
     })
   }
 }
+
+const updateDataSource = async (
+  sourceId: string,
+  payload: {
+    name: string
+    type: DataSourceType
+    config: Record<string, unknown>
+  },
+) => {
+  try {
+    await workspaceStore.updateDataSource(sourceId, payload)
+    toast.add({
+      severity: 'success',
+      summary: 'Datasource updated',
+      detail: `${payload.name} was saved`,
+      life: 2200,
+    })
+    editDialogVisible.value = false
+    editingSource.value = null
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Datasource update failed',
+      detail: getErrorMessage(error, 'The datasource could not be updated'),
+      life: 3200,
+    })
+  }
+}
 </script>
 
 <template>
@@ -55,7 +104,7 @@ const createDataSource = async (payload: {
         severity="contrast"
         text
         class="region-no-drag"
-        :disabled="!workspaceStore.currentProject"
+        :disabled="!workspaceStore.currentProject || !canCreateDataSource"
         @click="createDialogVisible = true"
       />
     </div>
@@ -69,9 +118,16 @@ const createDataSource = async (payload: {
       </div>
 
       <SidebarSQLSource
-        v-for="source of workspaceStore.dataSources"
+        v-for="source of workspaceStore.dataSources.filter((source) => isSqlDataSource(source.type, workspaceStore.serverInfo))"
         :key="source.id"
         :source="source"
+        @edit-datasource="openEditDialog(source)"
+      />
+      <SidebarResourceSource
+        v-for="source of workspaceStore.dataSources.filter((source) => !isSqlDataSource(source.type, workspaceStore.serverInfo))"
+        :key="source.id"
+        :source="source"
+        @edit-datasource="openEditDialog(source)"
       />
     </div>
 
@@ -83,5 +139,11 @@ const createDataSource = async (payload: {
     />
 
     <CreateDataSourceDialog v-model:visible="createDialogVisible" @submit="createDataSource" />
+    <CreateDataSourceDialog
+      v-model:visible="editDialogVisible"
+      :source="editingSource"
+      @update:visible="(nextVisible) => { if (!nextVisible) editingSource = null }"
+      @submit="(payload) => editingSource && updateDataSource(editingSource.id, payload)"
+    />
   </div>
 </template>

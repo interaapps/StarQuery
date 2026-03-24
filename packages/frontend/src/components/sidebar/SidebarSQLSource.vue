@@ -7,16 +7,25 @@ import { useToast } from 'primevue/usetoast'
 import LogoLoadingSpinner from '@/components/LogoLoadingSpinner.vue'
 import CreateSQLTableDialog from '@/components/sources/database/CreateSQLTableDialog.vue'
 import EditSQLTableDialog from '@/components/sources/database/EditSQLTableDialog.vue'
+import { getDataSourceDefinition } from '@/services/data-source-definitions'
+import { dataSourcePermissionTargets, projectPermissionTargets } from '@/services/permissions'
+import { useAuthStore } from '@/stores/auth-store.ts'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
 import type { DataSourceRecord } from '@/types/workspace'
 import type { SQLQueryTabData, SQLTableTabData } from '@/types/sql'
+import { isSqlTableTab } from '@/types/tabs'
 
 const props = defineProps<{
   source: DataSourceRecord
 }>()
 
+const emit = defineEmits<{
+  editDatasource: []
+}>()
+
 const workspaceStore = useWorkspaceStore()
+const authStore = useAuthStore()
 const tabsStore = useTabsStore()
 const confirm = useConfirm()
 const toast = useToast()
@@ -31,13 +40,75 @@ const editTableVisible = ref(false)
 const sourceMenu = useTemplateRef<ContextMenuMethods>('sourceMenu')
 const tableMenu = useTemplateRef<ContextMenuMethods>('tableMenu')
 
-const sourceIcon = computed(() =>
-  ({
-    mysql: 'brand-mysql',
-    postgres: 'brand-postgresql',
-    sqlite: 'database',
-  })[props.source.type],
+const sourceIcon = computed(() => getDataSourceDefinition(props.source.type, workspaceStore.serverInfo).icon)
+const canQuerySource = computed(() =>
+  workspaceStore.currentProjectId
+    ? authStore.hasPermission([
+        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'query', 'read'),
+        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'query', 'write'),
+        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'manage', 'write'),
+      ])
+    : false,
 )
+const canManageSource = computed(() =>
+  workspaceStore.currentProjectId
+    ? authStore.hasPermission([
+        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'manage', 'write'),
+        ...projectPermissionTargets(workspaceStore.currentProjectId, 'manage', 'write'),
+      ])
+    : false,
+)
+const canEditTables = computed(() =>
+  workspaceStore.currentProjectId
+    ? authStore.hasPermission([
+        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'table.edit', 'write'),
+        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'manage', 'write'),
+      ])
+    : false,
+)
+const sourceMenuItems = computed(() => [
+  { label: 'Run SQL', icon: 'ti ti-terminal-2', command: openQueryConsole, disabled: !canQuerySource.value },
+  {
+    label: 'Edit datasource',
+    icon: 'ti ti-settings-cog',
+    command: () => emit('editDatasource'),
+    disabled: !canManageSource.value,
+  },
+  {
+    label: 'Create table',
+    icon: 'ti ti-table-plus',
+    command: () => (createTableVisible.value = true),
+    disabled: !canEditTables.value,
+  },
+  { label: 'Refresh tables', icon: 'ti ti-refresh', command: loadTables },
+  { separator: true },
+  {
+    label: 'Delete datasource',
+    icon: 'ti ti-trash',
+    command: deleteDatasource,
+    disabled: !canManageSource.value,
+  },
+])
+const tableMenuItems = computed(() => [
+  {
+    label: 'Open table',
+    icon: 'ti ti-table',
+    command: () => selectedTableName.value && openTable(selectedTableName.value),
+    disabled: !canQuerySource.value,
+  },
+  {
+    label: 'Edit table',
+    icon: 'ti ti-edit',
+    command: () => selectedTableName.value && (editTableVisible.value = true),
+    disabled: !canEditTables.value,
+  },
+  {
+    label: 'Drop table',
+    icon: 'ti ti-trash',
+    command: () => selectedTableName.value && dropTable(selectedTableName.value),
+    disabled: !canEditTables.value,
+  },
+])
 
 const loadTables = async () => {
   if (!workspaceStore.currentProjectId) return
@@ -62,6 +133,7 @@ const toggleExpanded = async () => {
 }
 
 const openTable = async (tableName: string) => {
+  if (!canQuerySource.value) return
   if (!workspaceStore.currentProjectId) return
   const currentServer = await workspaceStore.resolveCurrentServer()
   if (!currentServer) return
@@ -85,6 +157,7 @@ const openTable = async (tableName: string) => {
 }
 
 const openQueryConsole = async () => {
+  if (!canQuerySource.value) return
   if (!workspaceStore.currentProjectId) return
   const currentServer = await workspaceStore.resolveCurrentServer()
   if (!currentServer) return
@@ -107,6 +180,7 @@ const openQueryConsole = async () => {
 }
 
 const deleteDatasource = async () => {
+  if (!canManageSource.value) return
   confirm.require({
     header: 'Delete Datasource',
     message: `Delete datasource ${props.source.name}?`,
@@ -125,12 +199,14 @@ const deleteDatasource = async () => {
 }
 
 const createTable = async (payload: { tableName: string }) => {
+  if (!canEditTables.value) return
   createTableVisible.value = false
   await loadTables()
   openTable(payload.tableName)
 }
 
 const dropTable = async (tableName: string) => {
+  if (!canEditTables.value) return
   if (!workspaceStore.currentProjectId) return
 
   confirm.require({
@@ -142,9 +218,7 @@ const dropTable = async (tableName: string) => {
       await client.delete(`/api/projects/${workspaceStore.currentProjectId}/sources/${props.source.id}/tables/${tableName}`)
       tabsStore.closeTabsMatching(
         (tab) =>
-          tab.type === 'database.sql.table' &&
-          tab.data?.sourceId === props.source.id &&
-          tab.data?.tableName === tableName,
+          isSqlTableTab(tab) && tab.data.sourceId === props.source.id && tab.data.tableName === tableName,
       )
       await loadTables()
       toast.add({
@@ -197,6 +271,7 @@ const showTableMenu = (event: MouseEvent, tableName: string) => {
         text
         severity="secondary"
         class="w-[1.75rem] h-[1.75rem]"
+        :disabled="!canQuerySource"
         @click="openQueryConsole"
       />
     </div>
@@ -210,6 +285,7 @@ const showTableMenu = (event: MouseEvent, tableName: string) => {
           text
           severity="secondary"
           size="small"
+          :disabled="!canQuerySource"
           @click="openTable(table.name)"
           @contextmenu.prevent="showTableMenu($event, table.name)"
         >
@@ -221,34 +297,12 @@ const showTableMenu = (event: MouseEvent, tableName: string) => {
 
     <ContextMenu
       ref="sourceMenu"
-      :model="[
-        { label: 'Run SQL', icon: 'ti ti-terminal-2', command: openQueryConsole },
-        { label: 'Create table', icon: 'ti ti-table-plus', command: () => (createTableVisible = true) },
-        { label: 'Refresh tables', icon: 'ti ti-refresh', command: loadTables },
-        { separator: true },
-        { label: 'Delete datasource', icon: 'ti ti-trash', command: deleteDatasource },
-      ]"
+      :model="sourceMenuItems"
     />
 
     <ContextMenu
       ref="tableMenu"
-      :model="[
-        {
-          label: 'Open table',
-          icon: 'ti ti-table',
-          command: () => selectedTableName && openTable(selectedTableName),
-        },
-        {
-          label: 'Edit table',
-          icon: 'ti ti-edit',
-          command: () => selectedTableName && (editTableVisible = true),
-        },
-        {
-          label: 'Drop table',
-          icon: 'ti ti-trash',
-          command: () => selectedTableName && dropTable(selectedTableName),
-        },
-      ]"
+      :model="tableMenuItems"
     />
 
     <CreateSQLTableDialog v-model:visible="createTableVisible" :source="source" @applied="createTable" />

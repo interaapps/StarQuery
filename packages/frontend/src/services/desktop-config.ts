@@ -8,6 +8,19 @@ export type DesktopWorkspaceConfig = {
   currentProjectId?: string
 }
 
+function normalizeOptionalId(value: unknown): string | undefined {
+  if (typeof value !== 'string') {
+    return undefined
+  }
+
+  const trimmedValue = value.trim()
+  if (!trimmedValue || trimmedValue === 'undefined' || trimmedValue === 'null') {
+    return undefined
+  }
+
+  return trimmedValue
+}
+
 export function isElectronDesktop() {
   return typeof window !== 'undefined' && window.starqueryDesktop?.isElectron === true
 }
@@ -28,9 +41,9 @@ function toServerProfile(value: unknown): ServerProfile | null {
   }
 
   return {
-    id: candidate.id,
-    name: candidate.name,
-    url: candidate.url,
+    id: candidate.id.trim(),
+    name: candidate.name.trim(),
+    url: candidate.url.trim(),
     kind: candidate.kind,
   }
 }
@@ -42,10 +55,13 @@ function normalizeDesktopWorkspaceConfig(config: unknown): DesktopWorkspaceConfi
     servers: Array.isArray(candidate.servers)
       ? candidate.servers
           .map((server) => toServerProfile(server))
-          .filter((server): server is ServerProfile => server !== null)
+          .filter(
+            (server): server is ServerProfile =>
+              server !== null && Boolean(server.id) && Boolean(server.name) && Boolean(server.url),
+          )
       : [],
-    currentServerId: typeof candidate.currentServerId === 'string' ? candidate.currentServerId : undefined,
-    currentProjectId: typeof candidate.currentProjectId === 'string' ? candidate.currentProjectId : undefined,
+    currentServerId: normalizeOptionalId(candidate.currentServerId),
+    currentProjectId: normalizeOptionalId(candidate.currentProjectId),
   }
 }
 

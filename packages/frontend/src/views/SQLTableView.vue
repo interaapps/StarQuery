@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import type { SQLNamespace } from '@codemirror/lang-sql'
 import Button from 'primevue/button'
+import Message from 'primevue/message'
 import Select from 'primevue/select'
 import { useToast } from 'primevue/usetoast'
 import LoadingContainer from '@/components/LoadingContainer.vue'
@@ -11,9 +12,12 @@ import SQLEditor from '@/components/editors/SQLEditor.vue'
 import ExtendedDataTable from '@/components/table/ExtendedDataTable.vue'
 import { createBackendClient } from '@/services/backend-api'
 import { getErrorMessage } from '@/services/error-message'
+import { dataSourcePermissionTargets } from '@/services/permissions'
 import { buildSqlCompletionCatalog } from '@/services/sql-completion'
+import { useAuthStore } from '@/stores/auth-store.ts'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
+import { isSqlTableTab } from '@/types/tabs'
 import type {
   DataSourceType,
   SQLExecutionResult,
@@ -30,6 +34,7 @@ const props = defineProps<{
 
 const extendedDataTable = useTemplateRef<typeof ExtendedDataTable>('extendedDataTable')
 const toast = useToast()
+const authStore = useAuthStore()
 const tabsStore = useTabsStore()
 const workspaceStore = useWorkspaceStore()
 const client = createBackendClient(props.data.serverUrl)
@@ -185,13 +190,23 @@ const sourceType = computed<DataSourceType>(
     sourceRecord.value?.type ??
     'mysql',
 )
+const canQueryTable = computed(() =>
+  authStore.hasPermission([
+    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'read'),
+    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'write'),
+    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
+  ]),
+)
+const canEditTable = computed(() =>
+  authStore.hasPermission([
+    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'table.edit', 'write'),
+    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
+  ]),
+)
 
 const tabIndex = computed(() =>
   tabsStore.tabs.findIndex(
-    (tab) =>
-      tab.type === 'database.sql.table' &&
-      tab.data?.sourceId === props.data.sourceId &&
-      tab.data?.tableName === props.data.tableName,
+    (tab) => isSqlTableTab(tab) && tab.data.sourceId === props.data.sourceId && tab.data.tableName === props.data.tableName,
   ),
 )
 
@@ -353,6 +368,7 @@ const loadRows = async (options?: {
 }
 
 const refreshTable = async () => {
+  if (!canQueryTable.value) return
   await fetchTableDetails()
   await loadRows()
 }
@@ -375,7 +391,7 @@ const guardPendingChanges = () => {
 }
 
 const saveChanges = async () => {
-  if (!tableDetails.value) return
+  if (!canEditTable.value || !tableDetails.value) return
   isSaving.value = true
   const startedAt = performance.now()
 
@@ -455,6 +471,7 @@ const saveChanges = async () => {
 }
 
 const discardChanges = async () => {
+  if (!canQueryTable.value) return
   await loadRows()
   toast.add({
     severity: 'info',
@@ -470,6 +487,7 @@ const discardChanges = async () => {
 }
 
 const updateSorting = async (columnName: string) => {
+  if (!canQueryTable.value) return
   if (guardPendingChanges()) return
   await loadRows({
     sortBy: columnName,
@@ -478,6 +496,7 @@ const updateSorting = async (columnName: string) => {
 }
 
 const changePage = async (nextPage: number) => {
+  if (!canQueryTable.value) return
   if (guardPendingChanges()) return
   await loadRows({
     page: Math.min(Math.max(nextPage, 1), pageCount.value),
@@ -485,6 +504,7 @@ const changePage = async (nextPage: number) => {
 }
 
 const changePageSize = async (nextPageSize: number) => {
+  if (!canQueryTable.value) return
   if (guardPendingChanges()) return
   await loadRows({
     pageSize: nextPageSize,
@@ -493,6 +513,7 @@ const changePageSize = async (nextPageSize: number) => {
 }
 
 const toggleSortDirection = async () => {
+  if (!canQueryTable.value) return
   if (guardPendingChanges()) return
   await loadRows({
     sortDirection: sortDirection.value === 'asc' ? 'desc' : 'asc',
@@ -500,6 +521,7 @@ const toggleSortDirection = async () => {
 }
 
 const applyWhereClause = async () => {
+  if (!canQueryTable.value) return
   if (guardPendingChanges()) return
 
   const nextWhereClause = whereInput.value.trim()
@@ -541,6 +563,7 @@ const applyWhereClause = async () => {
 }
 
 const clearWhereClause = async () => {
+  if (!canQueryTable.value) return
   if (guardPendingChanges()) return
   if (!whereInput.value && !appliedWhereClause.value) return
 
@@ -567,7 +590,17 @@ const clearWhereClause = async () => {
 
 onMounted(async () => {
   await fetchTableDetails()
-  await loadRows()
+  if (canQueryTable.value) {
+    await loadRows()
+    return
+  }
+
+  isLoading.value = false
+  pushLog({
+    level: 'info',
+    title: 'Read-only metadata access',
+    message: 'This server account can inspect the table definition but cannot load rows from it.',
+  })
 })
 </script>
 
@@ -583,6 +616,7 @@ onMounted(async () => {
           rounded
           text
           severity="contrast"
+          :disabled="!canQueryTable"
           @click="refreshTable"
         />
         <Button
@@ -591,7 +625,7 @@ onMounted(async () => {
           rounded
           text
           :severity="hasPendingChanges ? 'primary' : 'contrast'"
-          :disabled="!hasPendingChanges || isSaving"
+          :disabled="!canEditTable || !hasPendingChanges || isSaving"
           @click="saveChanges"
           aria-label="Save changes"
         />
@@ -601,7 +635,7 @@ onMounted(async () => {
           rounded
           text
           severity="contrast"
-          :disabled="!hasPendingChanges"
+          :disabled="!canQueryTable || !hasPendingChanges"
           @click="discardChanges"
           aria-label="Discard"
         />
@@ -612,6 +646,7 @@ onMounted(async () => {
           rounded
           text
           severity="contrast"
+          :disabled="!canEditTable"
         />
         <Button
           @click="() => extendedDataTable?.deleteSelectedRows()"
@@ -620,6 +655,7 @@ onMounted(async () => {
           rounded
           text
           severity="contrast"
+          :disabled="!canEditTable"
         />
       </div>
 
@@ -649,13 +685,13 @@ onMounted(async () => {
             @enter="applyWhereClause"
           />
         </div>
-        <Button label="Apply" size="small" severity="secondary" @click="applyWhereClause" />
+        <Button label="Apply" size="small" severity="secondary" :disabled="!canQueryTable" @click="applyWhereClause" />
         <Button
           icon="ti ti-x"
           size="small"
           text
           severity="secondary"
-          :disabled="!whereInput && !appliedWhereClause"
+          :disabled="!canQueryTable || (!whereInput && !appliedWhereClause)"
           @click="clearWhereClause"
         />
       </div>
@@ -669,6 +705,7 @@ onMounted(async () => {
           option-value="value"
           size="small"
           class="min-w-[12rem]"
+          :disabled="!canQueryTable"
           @update:model-value="(value) => value && updateSorting(value)"
         />
         <Button
@@ -676,6 +713,7 @@ onMounted(async () => {
           size="small"
           text
           severity="secondary"
+          :disabled="!canQueryTable"
           @click="toggleSortDirection"
         />
       </div>
@@ -687,6 +725,7 @@ onMounted(async () => {
           :options="[25, 50, 100]"
           size="small"
           class="w-[5rem]"
+          :disabled="!canQueryTable"
           @update:model-value="(value) => value && changePageSize(value)"
         />
         <Button
@@ -694,7 +733,7 @@ onMounted(async () => {
           size="small"
           text
           severity="secondary"
-          :disabled="page <= 1"
+          :disabled="!canQueryTable || page <= 1"
           @click="changePage(page - 1)"
         />
         <span class="text-xs mono opacity-60">Page {{ page }} / {{ pageCount }}</span>
@@ -703,11 +742,15 @@ onMounted(async () => {
           size="small"
           text
           severity="secondary"
-          :disabled="page >= pageCount"
+          :disabled="!canQueryTable || page >= pageCount"
           @click="changePage(page + 1)"
         />
       </div>
     </div>
+
+    <Message v-if="!canQueryTable" severity="warn" class="m-3 mb-0">
+      This server account can inspect the schema but cannot load table rows from this datasource.
+    </Message>
 
     <div v-if="isLoading" class="border-b h-full border-neutral-200 dark:border-neutral-800">
       <LoadingContainer />
@@ -720,7 +763,7 @@ onMounted(async () => {
             ref="extendedDataTable"
             v-model:columns="columns"
             v-model:rows="rows"
-            :can-edit="true"
+            :can-edit="canEditTable"
           />
         </div>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import ConfirmDialog from 'primevue/confirmdialog'
 import ContextMenu from 'primevue/contextmenu'
@@ -7,29 +7,162 @@ import Popover from 'primevue/popover'
 import Toast from 'primevue/toast'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import { useRoute, useRouter } from 'vue-router'
 import SourcesSidebar from '@/components/SourcesSidebar.vue'
 import { getErrorMessage } from '@/services/error-message'
+import { adminPermissionTargets, projectPermissionTargets } from '@/services/permissions'
+import { useAuthStore } from '@/stores/auth-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
 import AddServerDialog from '@/components/workspace/AddServerDialog.vue'
 import CreateProjectDialog from '@/components/workspace/CreateProjectDialog.vue'
+import ManageProjectUsersDialog from '@/components/workspace/ManageProjectUsersDialog.vue'
 import type { ProjectRecord, ServerProfile } from '@/types/workspace'
 
 const workspaceStore = useWorkspaceStore()
+const authStore = useAuthStore()
 const toast = useToast()
 const confirm = useConfirm()
+const router = useRouter()
+const route = useRoute()
 
 const sideBarWidth = ref(320)
 const addServerVisible = ref(false)
 const createProjectVisible = ref(false)
+const manageProjectUsersVisible = ref(false)
 const serverPopover = ref()
+const userPopover = ref()
 const projectMenu = ref()
 const editingServer = ref<ServerProfile | null>(null)
 const editingProject = ref<ProjectRecord | null>(null)
 const selectedProject = ref<ProjectRecord | null>(null)
 
+const canCreateProject = computed(() =>
+  authStore.hasPermission([
+    'project.create:write',
+    'project.create.*:write',
+    'project.manage:write',
+    'project.manage.*:write',
+    '*',
+  ]),
+)
+const canManageSelectedProject = computed(() =>
+  selectedProject.value
+    ? authStore.hasPermission(projectPermissionTargets(selectedProject.value.id, 'manage', 'write'))
+    : false,
+)
+const canManageSelectedProjectUsers = computed(() =>
+  selectedProject.value
+    ? authStore.hasPermission([
+        ...projectPermissionTargets(selectedProject.value.id, 'users', 'write'),
+        ...projectPermissionTargets(selectedProject.value.id, 'manage', 'write'),
+        ...adminPermissionTargets('users', 'write'),
+      ])
+    : false,
+)
+const projectMenuItems = computed(() => [
+  {
+    label: 'Edit workspace',
+    icon: 'ti ti-edit',
+    command: openEditProjectDialog,
+    disabled: !canManageSelectedProject.value,
+  },
+  {
+    label: 'Manage users',
+    icon: 'ti ti-users',
+    command: openManageProjectUsersDialog,
+    disabled: !canManageSelectedProjectUsers.value,
+  },
+  {
+    label: 'Remove workspace',
+    icon: 'ti ti-trash',
+    command: removeProject,
+    disabled: !canManageSelectedProject.value,
+  },
+])
+
+const syncRouteWithAuth = async () => {
+  if (!workspaceStore.hydrated) return
+
+  if (authStore.requiresOnboarding) {
+    if (route.name !== 'onboarding') {
+      await router.replace({ name: 'onboarding' })
+    }
+    return
+  }
+
+  if (authStore.requiresLogin) {
+    if (route.name !== 'login') {
+      await router.replace({ name: 'login' })
+    }
+    return
+  }
+
+  if (route.name === 'login' || route.name === 'onboarding') {
+    await router.replace({ name: 'home' })
+    return
+  }
+
+  if (route.name === 'admin' && !authStore.hasPermission(adminPermissionTargets('access', 'read'))) {
+    await router.replace({ name: 'home' })
+  }
+}
+
+const syncCurrentServerAuth = async () => {
+  try {
+    await authStore.refreshStatus()
+  } catch (error) {
+    if (!workspaceStore.serverError) {
+      toast.add({
+        severity: 'error',
+        summary: 'Server unavailable',
+        detail: getErrorMessage(error, 'The selected server is unreachable right now.'),
+        life: 3200,
+      })
+    }
+  }
+
+  await workspaceStore.loadWorkspaceFromServer()
+  await syncRouteWithAuth()
+}
+
 onMounted(async () => {
   await workspaceStore.hydrate()
+
+  try {
+    await authStore.consumeCallback()
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Login failed',
+      detail: getErrorMessage(error, 'The authentication callback could not be completed.'),
+      life: 3200,
+    })
+  }
+
+  await syncCurrentServerAuth()
 })
+
+watch(
+  () => workspaceStore.currentServerId,
+  async (nextServerId, previousServerId) => {
+    if (!workspaceStore.hydrated || nextServerId === previousServerId) {
+      return
+    }
+
+    if (previousServerId && route.name !== 'home') {
+      await router.replace({ name: 'home' })
+    }
+
+    await syncCurrentServerAuth()
+  },
+)
+
+watch(
+  () => [authStore.status.enabled, authStore.requiresLogin, authStore.requiresOnboarding, authStore.currentUser?.id, route.name],
+  async () => {
+    await syncRouteWithAuth()
+  },
+)
 
 const saveServer = async (payload: { name: string; url: string; kind: 'local' | 'remote' }) => {
   const wasEditing = Boolean(editingServer.value)
@@ -95,6 +228,7 @@ const selectProject = async (projectId: string) => {
 
 const getServerIcon = (kind?: 'local' | 'remote') =>
   kind === 'local' ? 'ti-device-laptop' : 'ti-server-2'
+const isManagedLocalServer = (server: ServerProfile) => workspaceStore.isBuiltInLocalServer(server)
 
 const serverTooltip = () =>
   workspaceStore.isServerSelectionLocked
@@ -160,18 +294,22 @@ const showProjectMenu = (event: MouseEvent, project: ProjectRecord) => {
 }
 
 const openCreateProjectDialog = () => {
+  if (!canCreateProject.value) {
+    return
+  }
+
   editingProject.value = null
   createProjectVisible.value = true
 }
 
 const openEditProjectDialog = () => {
-  if (!selectedProject.value) return
+  if (!selectedProject.value || !canManageSelectedProject.value) return
   editingProject.value = { ...selectedProject.value }
   createProjectVisible.value = true
 }
 
 const removeProject = () => {
-  if (!selectedProject.value) return
+  if (!selectedProject.value || !canManageSelectedProject.value) return
 
   const project = selectedProject.value
   confirm.require({
@@ -197,6 +335,59 @@ const removeProject = () => {
       }
     },
   })
+}
+
+const openManageProjectUsersDialog = () => {
+  if (!selectedProject.value || !canManageSelectedProjectUsers.value) {
+    return
+  }
+
+  manageProjectUsersVisible.value = true
+}
+
+const authButtonTooltip = computed(() => {
+  if (!authStore.status.enabled) {
+    return null
+  }
+
+  if (authStore.currentUser) {
+    return authStore.currentUser.email
+  }
+
+  return authStore.requiresOnboarding ? 'Create the first admin user' : 'Sign in'
+})
+
+const toggleUserPopover = async (event: Event) => {
+  if (!authStore.status.enabled) {
+    return
+  }
+
+  if (!authStore.currentUser) {
+    await router.push({ name: authStore.requiresOnboarding ? 'onboarding' : 'login' })
+    return
+  }
+
+  userPopover.value?.toggle(event)
+}
+
+const goToAdmin = async () => {
+  userPopover.value?.hide()
+  await router.push({ name: 'admin' })
+}
+
+const logout = async () => {
+  userPopover.value?.hide()
+
+  try {
+    await authStore.logout()
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Logout failed',
+      detail: getErrorMessage(error, 'The session could not be closed cleanly.'),
+      life: 3200,
+    })
+  }
 }
 </script>
 
@@ -243,7 +434,8 @@ const removeProject = () => {
               :disabled="
                 !workspaceStore.hydrated ||
                 !workspaceStore.currentServer ||
-                !!workspaceStore.serverError
+                !!workspaceStore.serverError ||
+                !canCreateProject
               "
               @click="openCreateProjectDialog"
             >
@@ -252,7 +444,50 @@ const removeProject = () => {
           </div>
         </div>
 
-        <div class="p-1 mx-auto">
+        <div class="p-1 mx-auto flex flex-col items-center gap-2">
+          <Button
+            v-if="authStore.status.enabled"
+            v-tooltip.right="authButtonTooltip || undefined"
+            :icon="`ti ${authStore.currentUser ? 'ti-user-circle' : 'ti-lock'}`"
+            severity="secondary"
+            rounded
+            text
+            size="large"
+            class="border border-primary-500/20"
+            @click="toggleUserPopover"
+          />
+
+          <Popover v-if="authStore.status.enabled && authStore.currentUser" ref="userPopover">
+            <div class="w-[18rem] flex flex-col gap-3">
+              <div>
+                <div class="font-semibold">{{ authStore.currentUser.name }}</div>
+                <div class="text-sm opacity-70">{{ authStore.currentUser.email }}</div>
+              </div>
+
+              <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs opacity-70">
+                {{ workspaceStore.currentServer?.name || 'Current server' }}
+              </div>
+
+              <Button
+                v-if="authStore.hasPermission(adminPermissionTargets('access', 'read'))"
+                label="Admin page"
+                icon="ti ti-shield"
+                severity="secondary"
+                text
+                class="justify-start"
+                @click="goToAdmin"
+              />
+              <Button
+                label="Sign out"
+                icon="ti ti-logout-2"
+                severity="secondary"
+                text
+                class="justify-start"
+                @click="logout"
+              />
+            </div>
+          </Popover>
+
           <Button
             v-tooltip.right="serverTooltip()"
             :icon="`ti ${getServerIcon(workspaceStore.currentServer?.kind)}`"
@@ -295,6 +530,7 @@ const removeProject = () => {
                     rounded
                     severity="secondary"
                     class="size-[1.6rem]"
+                    :disabled="isManagedLocalServer(server)"
                     @click.stop="openEditServerDialog(server)"
                   />
                   <Button
@@ -303,7 +539,7 @@ const removeProject = () => {
                     rounded
                     severity="secondary"
                     class="size-[1.6rem]"
-                    :disabled="workspaceStore.servers.length === 1"
+                    :disabled="workspaceStore.servers.length === 1 || isManagedLocalServer(server)"
                     @click.stop="removeServer(server)"
                   />
                 </div>
@@ -324,10 +560,7 @@ const removeProject = () => {
 
           <ContextMenu
             ref="projectMenu"
-            :model="[
-              { label: 'Edit workspace', icon: 'ti ti-edit', command: openEditProjectDialog },
-              { label: 'Remove workspace', icon: 'ti ti-trash', command: removeProject },
-            ]"
+            :model="projectMenuItems"
           />
         </div>
       </div>
@@ -351,5 +584,9 @@ const removeProject = () => {
     :mode="editingProject ? 'edit' : 'create'"
     :initial-value="editingProject"
     @submit="saveProject"
+  />
+  <ManageProjectUsersDialog
+    v-model:visible="manageProjectUsersVisible"
+    :project="selectedProject"
   />
 </template>

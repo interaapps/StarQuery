@@ -4,12 +4,22 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
-import { pickSqliteFile } from '@/services/desktop-config'
+import ElasticsearchDataSourceConfigForm from '@/components/sidebar/forms/ElasticsearchDataSourceConfigForm.vue'
+import S3DataSourceConfigForm from '@/components/sidebar/forms/S3DataSourceConfigForm.vue'
+import SqlDataSourceConfigForm from '@/components/sidebar/forms/SqlDataSourceConfigForm.vue'
+import SqliteDataSourceConfigForm from '@/components/sidebar/forms/SqliteDataSourceConfigForm.vue'
+import { listDataSourceDefinitions } from '@/services/data-source-definitions'
+import { buildDataSourcePayload, canSubmitDataSourcePayload, createDataSourceFormState } from '@/services/data-source-form'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
-import type { DataSourceType } from '@/types/sql'
+import type { DataSourceDefinition, DataSourceType } from '@/types/datasources'
+import type { DataSourceRecord } from '@/types/workspace'
 
 const visible = defineModel<boolean>('visible', { required: true })
 const workspaceStore = useWorkspaceStore()
+
+const props = defineProps<{
+  source?: DataSourceRecord | null
+}>()
 
 const emit = defineEmits<{
   submit: [
@@ -23,97 +33,71 @@ const emit = defineEmits<{
 
 const name = ref('')
 const type = ref<DataSourceType>('mysql')
-const host = ref('127.0.0.1')
-const port = ref('3306')
-const user = ref('')
-const password = ref('')
-const database = ref('')
-const filePath = ref('')
-const availableTypes = computed<DataSourceType[]>(
-  () => workspaceStore.serverInfo?.capabilities.dataSources ?? ['mysql', 'postgres'],
-)
+const config = ref<Record<string, unknown>>({})
+const redactedSecretFields = ref<string[]>([])
+const definitions = computed(() => listDataSourceDefinitions(workspaceStore.serverInfo))
+const availableTypes = computed<DataSourceType[]>(() => definitions.value.map((definition) => definition.type))
+const isEditing = computed(() => Boolean(props.source))
 const typeOptions = computed(() =>
-  availableTypes.value.map((value) => ({
-    value,
-    label:
-      value === 'mysql' ? 'MySQL' : value === 'postgres' ? 'Postgres' : 'SQLite',
+  definitions.value.map((definition) => ({
+    value: definition.type,
+    label: definition.label,
   })),
+)
+const currentDefinition = computed<DataSourceDefinition | null>(
+  () => definitions.value.find((definition) => definition.type === type.value) ?? null,
 )
 
 watch(
   () => visible.value,
   (nextVisible) => {
     if (!nextVisible) return
-    name.value = ''
-    type.value = availableTypes.value.includes('mysql') ? 'mysql' : (availableTypes.value[0] ?? 'mysql')
-    host.value = '127.0.0.1'
-    port.value = '3306'
-    user.value = ''
-    password.value = ''
-    database.value = ''
-    filePath.value = ''
+    const initialType = props.source?.type ?? (availableTypes.value[0] ?? 'mysql')
+    const state = createDataSourceFormState(initialType, props.source)
+    name.value = state.name
+    type.value = state.type
+    config.value = state.config
+    redactedSecretFields.value = state.redactedSecretFields
   },
 )
 
 watch(type, (nextType) => {
-  port.value = nextType === 'postgres' ? '5432' : '3306'
+  if (props.source?.type === nextType) {
+    const state = createDataSourceFormState(nextType, props.source)
+    config.value = state.config
+    redactedSecretFields.value = state.redactedSecretFields
+    return
+  }
+
+  const state = createDataSourceFormState(nextType)
+  config.value = state.config
+  redactedSecretFields.value = []
 })
 
 watch(availableTypes, (nextTypes) => {
   if (!nextTypes.includes(type.value)) {
-    type.value = nextTypes.includes('mysql') ? 'mysql' : (nextTypes[0] ?? 'mysql')
+    type.value = nextTypes[0] ?? 'mysql'
   }
 })
 
-const payload = computed(() => {
-  if (type.value === 'sqlite') {
-    return {
-      name: name.value.trim(),
-      type: type.value,
-      config: {
-        filePath: filePath.value.trim(),
-      },
-    }
-  }
-
-  return {
-    name: name.value.trim(),
+const payload = computed(() =>
+  buildDataSourcePayload({
+    name: name.value,
     type: type.value,
-    config: {
-      host: host.value.trim(),
-      port: Number(port.value),
-      user: user.value.trim(),
-      password: password.value,
-      database: database.value.trim(),
-    },
-  }
-})
-
-const canSubmit = computed(() => {
-  if (!payload.value.name) return false
-
-  if (payload.value.type === 'sqlite') {
-    return Boolean(payload.value.config.filePath)
-  }
-
-  return Boolean(
-    payload.value.config.host &&
-      payload.value.config.port &&
-      payload.value.config.user &&
-      payload.value.config.database,
-  )
-})
-
-const browseSqliteFile = async () => {
-  const selectedFile = await pickSqliteFile()
-  if (selectedFile) {
-    filePath.value = selectedFile
-  }
-}
+    config: config.value,
+    redactedSecretFields: redactedSecretFields.value,
+  }),
+)
+const canSubmit = computed(() =>
+  canSubmitDataSourcePayload({
+    ...payload.value,
+    redactedSecretFields: redactedSecretFields.value,
+  }),
+)
 </script>
 
 <template>
-  <Dialog v-model:visible="visible" modal header="Add Datasource" :style="{ width: '36rem' }">
+  <Dialog v-model:visible="visible" modal :header="isEditing ? 'Edit Datasource' : 'Add Datasource'" :style="{ width: '36rem' }">
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Datasource name</label>
@@ -131,52 +115,33 @@ const browseSqliteFile = async () => {
         />
       </div>
 
-      <template v-if="type !== 'sqlite'">
-        <div class="grid grid-cols-2 gap-3">
-          <div class="flex flex-col gap-2">
-            <label class="text-sm opacity-70">Host</label>
-            <InputText v-model="host" fluid />
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-sm opacity-70">Port</label>
-            <InputText v-model="port" fluid />
-          </div>
-        </div>
+      <SqlDataSourceConfigForm
+        v-if="type === 'mysql' || type === 'postgres'"
+        v-model:config="config"
+        :engine="type"
+        :redacted-secret-fields="redactedSecretFields"
+      />
+      <SqliteDataSourceConfigForm v-else-if="type === 'sqlite'" v-model:config="config" />
+      <ElasticsearchDataSourceConfigForm
+        v-else-if="type === 'elasticsearch'"
+        v-model:config="config"
+        :redacted-secret-fields="redactedSecretFields"
+      />
+      <S3DataSourceConfigForm
+        v-else-if="type === 's3' || type === 'minio'"
+        v-model:config="config"
+        :provider-label="currentDefinition?.label ?? 'S3-compatible storage'"
+        :redacted-secret-fields="redactedSecretFields"
+      />
 
-        <div class="grid grid-cols-2 gap-3">
-          <div class="flex flex-col gap-2">
-            <label class="text-sm opacity-70">User</label>
-            <InputText v-model="user" fluid />
-          </div>
-          <div class="flex flex-col gap-2">
-            <label class="text-sm opacity-70">Password</label>
-            <InputText v-model="password" type="password" fluid />
-          </div>
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <label class="text-sm opacity-70">Database</label>
-          <InputText v-model="database" fluid />
-        </div>
-      </template>
-
-      <div v-else class="flex flex-col gap-2">
-        <label class="text-sm opacity-70">SQLite file path</label>
-        <div class="flex gap-2">
-          <InputText v-model="filePath" fluid readonly placeholder="Choose a local SQLite file" />
-          <Button
-            label="Browse"
-            icon="ti ti-folder-open"
-            severity="secondary"
-            @click="browseSqliteFile"
-          />
-        </div>
+      <div v-if="currentDefinition" class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs opacity-65">
+        {{ currentDefinition.capabilities.sqlQuery ? 'SQL datasource' : 'Resource datasource' }}
       </div>
 
       <div class="flex justify-end">
         <Button
-          label="Create datasource"
-          icon="ti ti-database-plus"
+          :label="isEditing ? 'Save datasource' : 'Create datasource'"
+          :icon="isEditing ? 'ti ti-device-floppy' : 'ti ti-database-plus'"
           :disabled="!canSubmit"
           @click="emit('submit', payload)"
         />

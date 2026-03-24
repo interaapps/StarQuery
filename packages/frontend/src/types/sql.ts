@@ -1,9 +1,12 @@
-export type DataSourceType = 'mysql' | 'postgres' | 'sqlite'
+import type { DataSourceType } from '@/types/datasources'
+
+export type { DataSourceType } from '@/types/datasources'
 
 export type SQLTableColumn = {
   name: string
   field: string
   type?: string
+  readOnly?: boolean
   nullable?: boolean
   autoIncrement?: boolean
   primaryKey?: boolean

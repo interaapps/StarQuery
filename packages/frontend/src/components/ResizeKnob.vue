@@ -5,6 +5,7 @@ const props = defineProps<{
   minHeight?: number
   maxHeight?: number
   direction?: 'horizontal' | 'vertical'
+  invert?: boolean
 }>()
 const width = defineModel<number>('width')
 const height = defineModel<number>('height')
@@ -26,7 +27,8 @@ const onMouseDown = (e: MouseEvent) => {
 
   const windowMouseMove = (e: MouseEvent) => {
     const nextPosition = isVertical ? e.clientY : e.clientX
-    const nextSize = originalSize + (nextPosition - startClientPosition)
+    const delta = nextPosition - startClientPosition
+    const nextSize = originalSize + (props.invert ? -delta : delta)
 
     if (isVertical) {
       height.value = clamp(nextSize, props.minHeight ?? 0, props.maxHeight)

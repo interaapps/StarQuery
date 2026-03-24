@@ -8,11 +8,32 @@ import {
   loadDesktopWorkspaceConfig,
   saveDesktopWorkspaceConfig,
 } from '@/services/desktop-config'
-import type { DataSourceRecord, ProjectRecord, ServerInfo, ServerProfile } from '@/types/workspace'
+import type {
+  DataSourceRecord,
+  ProjectRecord,
+  ProjectUserAccess,
+  ProjectUserAccessRecord,
+  ServerInfo,
+  ServerProfile,
+} from '@/types/workspace'
 
 const DEFAULT_LOCAL_SERVER_URL = (import.meta.env.VITE_APP_BASE_URL as string) || 'http://127.0.0.1:3000'
 const DEFAULT_HOSTED_SERVER_ID = 'hosted-default'
 const LOCKED_SERVER_ID = 'locked-server'
+const LOCAL_COMPUTER_SERVER_ID = 'local-computer'
+
+function normalizeSelectedId(value: string | null | undefined) {
+  if (!value) {
+    return null
+  }
+
+  const trimmedValue = value.trim()
+  if (!trimmedValue || trimmedValue === 'undefined' || trimmedValue === 'null') {
+    return null
+  }
+
+  return trimmedValue
+}
 
 function getLockedServerUrl() {
   const configuredUrl = import.meta.env.VITE_LOCKED_SERVER_URL as string | undefined
@@ -48,7 +69,7 @@ async function createDefaultLocalServer(name = 'Local computer'): Promise<Server
   const localServerUrl = (await getElectronLocalServerUrl()) ?? DEFAULT_LOCAL_SERVER_URL
 
   return {
-    id: 'local-computer',
+    id: LOCAL_COMPUTER_SERVER_ID,
     name,
     url: normalizeServerUrl(localServerUrl),
     kind: 'local',
@@ -101,6 +122,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   )
   const lockedServer = computed(() => createLockedServer())
   const isServerSelectionLocked = computed(() => Boolean(lockedServer.value))
+  const isBuiltInLocalServer = (server: ServerProfile | null | undefined) => {
+    if (!server) {
+      return false
+    }
+
+    return server.id === LOCAL_COMPUTER_SERVER_ID && server.kind === 'local'
+  }
 
   const resolveCurrentServer = async () => {
     const server = currentServer.value
@@ -134,8 +162,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const persistServers = async () => {
     await saveDesktopWorkspaceConfig({
       servers: servers.value,
-      currentServerId: currentServerId.value,
-      currentProjectId: currentProjectId.value ?? undefined,
+      currentServerId: normalizeSelectedId(currentServerId.value) ?? undefined,
+      currentProjectId: normalizeSelectedId(currentProjectId.value) ?? undefined,
     })
   }
 
@@ -159,7 +187,9 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     }
 
     if (!isElectronDesktop()) {
-      servers.value = servers.value.filter((server) => server.kind !== 'local')
+      servers.value = servers.value.filter(
+        (server) => server.kind !== 'local' && server.id !== LOCAL_COMPUTER_SERVER_ID,
+      )
       const defaultHostedServer = createDefaultHostedServer()
       const existingHostedDefault = servers.value.find((server) => server.id === DEFAULT_HOSTED_SERVER_ID)
 
@@ -175,22 +205,20 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       if (!servers.value.find((server) => server.id === currentServerId.value)) {
         currentServerId.value = servers.value[0]?.id ?? ''
       }
+
+      currentServerId.value = normalizeSelectedId(currentServerId.value) ?? servers.value[0]?.id ?? ''
       return
     }
 
     const defaultLocalServer = await createDefaultLocalServer(
-      servers.value.find((server) => server.kind === 'local')?.name ?? 'Local computer',
+      servers.value.find((server) => server.id === LOCAL_COMPUTER_SERVER_ID)?.name ?? 'Local computer',
     )
-    const existingLocal = servers.value.find((server) => server.kind === 'local')
-    if (!existingLocal) {
-      servers.value.unshift(defaultLocalServer)
-    } else {
-      existingLocal.url = defaultLocalServer.url
-    }
+    const remoteServers = servers.value.filter(
+      (server) => server.kind === 'remote' && server.id !== LOCAL_COMPUTER_SERVER_ID,
+    )
+    servers.value = [defaultLocalServer, ...remoteServers]
 
-    if (!currentServerId.value) {
-      currentServerId.value = servers.value[0]?.id ?? defaultLocalServer.id
-    }
+    currentServerId.value = normalizeSelectedId(currentServerId.value) ?? servers.value[0]?.id ?? defaultLocalServer.id
   }
 
   const refreshServerInfo = async () => {
@@ -201,6 +229,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
   const refreshProjects = async () => {
     projects.value = (await (await getClient()).get('/api/projects')).data
+    currentProjectId.value = normalizeSelectedId(currentProjectId.value)
+
     if (!projects.value.find((project) => project.id === currentProjectId.value)) {
       currentProjectId.value = projects.value[0]?.id ?? null
       await persistServers()
@@ -210,6 +240,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
 
   const refreshDataSources = async () => {
+    currentProjectId.value = normalizeSelectedId(currentProjectId.value)
+
     if (!currentProjectId.value) {
       dataSources.value = []
       return dataSources.value
@@ -227,8 +259,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 
     const config = await loadDesktopWorkspaceConfig()
     servers.value = config.servers ?? []
-    currentServerId.value = config.currentServerId ?? ''
-    currentProjectId.value = config.currentProjectId ?? null
+    currentServerId.value = normalizeSelectedId(config.currentServerId) ?? ''
+    currentProjectId.value = normalizeSelectedId(config.currentProjectId)
     await ensureDefaultServer()
     hydrated.value = true
 
@@ -252,6 +284,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       await refreshDataSources()
       serverError.value = null
     } catch (error) {
+      if (axios.isAxiosError(error) && [401, 403].includes(error.response?.status ?? 0)) {
+        projects.value = []
+        dataSources.value = []
+        serverError.value = null
+        return
+      }
+
       serverInfo.value = null
       projects.value = []
       currentProjectId.value = null
@@ -264,18 +303,21 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const setCurrentServer = async (serverId: string) => {
     if (isServerSelectionLocked.value) {
       currentServerId.value = lockedServer.value?.id ?? currentServerId.value
+      currentProjectId.value = normalizeSelectedId(currentProjectId.value)
       await persistServers()
       await loadWorkspaceFromServer()
       return
     }
 
-    currentServerId.value = serverId
+    currentServerId.value = normalizeSelectedId(serverId) ?? ''
+    currentProjectId.value = null
+    dataSources.value = []
     await persistServers()
     await loadWorkspaceFromServer()
   }
 
   const setCurrentProject = async (projectId: string | null) => {
-    currentProjectId.value = projectId
+    currentProjectId.value = normalizeSelectedId(projectId)
     await persistServers()
     await refreshDataSources()
   }
@@ -285,25 +327,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       throw new Error('The server is locked by the frontend configuration')
     }
 
-    if (server.kind === 'local' && !isElectronDesktop()) {
-      throw new Error('Local computer servers are only available in the Electron app')
-    }
-
     if (server.kind === 'local') {
-      const localServer = await createDefaultLocalServer(server.name.trim() || 'Local computer')
-      const existingLocalIndex = servers.value.findIndex((entry) => entry.kind === 'local')
-
-      if (existingLocalIndex !== -1) {
-        servers.value[existingLocalIndex] = localServer
-        await persistServers()
-        await setCurrentServer(localServer.id)
-        return localServer
-      }
-
-      servers.value.unshift(localServer)
-      await persistServers()
-      await setCurrentServer(localServer.id)
-      return localServer
+      throw new Error('Local computer is managed automatically by the Electron app')
     }
 
     const record: ServerProfile = {
@@ -331,15 +356,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       throw new Error('Server not found')
     }
 
+    if (isBuiltInLocalServer(existing)) {
+      throw new Error('Local computer is managed automatically by the Electron app')
+    }
+
     if (patch.kind === 'local') {
-      const localServer = await createDefaultLocalServer(patch.name.trim() || existing.name)
-      const index = servers.value.findIndex((server) => server.id === serverId)
-      if (index !== -1) {
-        servers.value[index] = {
-          ...localServer,
-          id: existing.id,
-        }
-      }
+      throw new Error('Local computer is managed automatically by the Electron app')
     } else {
       existing.name = patch.name.trim()
       existing.kind = 'remote'
@@ -358,6 +380,11 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const removeServer = async (serverId: string) => {
     if (isServerSelectionLocked.value) {
       throw new Error('The server is locked by the frontend configuration')
+    }
+
+    const existing = servers.value.find((server) => server.id === serverId)
+    if (isBuiltInLocalServer(existing)) {
+      throw new Error('Local computer cannot be removed')
     }
 
     if (servers.value.length === 1) {
@@ -430,11 +457,24 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     await persistServers()
   }
 
+  const listProjectUsers = async (projectId: string) => {
+    return (await (await getClient()).get(`/api/projects/${projectId}/users`)).data as ProjectUserAccessRecord[]
+  }
+
+  const updateProjectUserAccess = async (projectId: string, userId: string, access: ProjectUserAccess) => {
+    return (
+      await (await getClient()).put(`/api/projects/${projectId}/users/${userId}`, {
+        access,
+      })
+    ).data as ProjectUserAccessRecord
+  }
+
   const createDataSource = async (payload: {
     name: string
     type: DataSourceRecord['type']
     config: Record<string, unknown>
   }) => {
+    currentProjectId.value = normalizeSelectedId(currentProjectId.value)
     if (!currentProjectId.value) {
       throw new Error('No project selected')
     }
@@ -456,6 +496,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
       position?: number
     },
   ) => {
+    currentProjectId.value = normalizeSelectedId(currentProjectId.value)
     if (!currentProjectId.value) {
       throw new Error('No project selected')
     }
@@ -469,6 +510,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
 
   const deleteDataSource = async (dataSourceId: string) => {
+    currentProjectId.value = normalizeSelectedId(currentProjectId.value)
     if (!currentProjectId.value) {
       throw new Error('No project selected')
     }
@@ -488,6 +530,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     projects,
     currentProjectId,
     currentProject,
+    isBuiltInLocalServer,
     dataSources,
     getClient,
     resolveCurrentServer,
@@ -504,6 +547,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
     createProject,
     updateProject,
     deleteProject,
+    listProjectUsers,
+    updateProjectUserAccess,
     createDataSource,
     updateDataSource,
     deleteDataSource,

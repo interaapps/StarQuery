@@ -19,8 +19,8 @@ const browseSqliteFile = async () => {
   <div class="flex flex-col gap-2">
     <label class="text-sm opacity-70">SQLite file path</label>
     <div class="flex gap-2">
-      <InputText v-model="config.filePath" fluid readonly placeholder="Choose a local SQLite file" />
-      <Button label="Browse" icon="ti ti-folder-open" severity="secondary" @click="browseSqliteFile" />
+      <InputText size="small" v-model="config.filePath" fluid readonly placeholder="Choose a local SQLite file" />
+      <Button size="small" label="Browse" icon="ti ti-folder-open" severity="secondary" @click="browseSqliteFile" />
     </div>
   </div>
 </template>

@@ -3,7 +3,7 @@ import type { AppContext } from '../app-context.ts'
 import { serializeUser } from '../auth/serializers.ts'
 import {
   adminPermissionTargets,
-  dataSourcePermissionTargets,
+  dataSourceReadPermissionTargets,
   hasAnyPermission,
   projectPermissionTargets,
 } from '../auth/permissions.ts'
@@ -18,10 +18,7 @@ function canViewProject(req: AuthenticatedRequest, projectId: string) {
     ...projectPermissionTargets(projectId, 'view'),
     ...projectPermissionTargets(projectId, 'manage'),
     ...projectPermissionTargets(projectId, 'users'),
-    ...dataSourcePermissionTargets(projectId, '*', 'view'),
-    ...dataSourcePermissionTargets(projectId, '*', 'query'),
-    ...dataSourcePermissionTargets(projectId, '*', 'manage'),
-    ...dataSourcePermissionTargets(projectId, '*', 'table.edit'),
+    ...dataSourceReadPermissionTargets(projectId, '*'),
   ])
 }
 

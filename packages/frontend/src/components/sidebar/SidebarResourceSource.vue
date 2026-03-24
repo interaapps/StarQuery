@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import Button from 'primevue/button'
 import ContextMenu, { type ContextMenuMethods } from 'primevue/contextmenu'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import LogoLoadingSpinner from '@/components/LogoLoadingSpinner.vue'
+import SidebarSourceItemButton from '@/components/sidebar/source/SidebarSourceItemButton.vue'
+import SidebarSourceSection from '@/components/sidebar/source/SidebarSourceSection.vue'
 import { getRegisteredDataSourceDefinition } from '@/datasources/registry'
 import { loadDataSourceResources } from '@/datasources/shared-resource/browser'
 import { getErrorMessage } from '@/services/error-message'
-import { dataSourcePermissionTargets, projectPermissionTargets } from '@/services/permissions'
+import {
+  dataSourceConfigPermissionTargets,
+  dataSourceReadPermissionTargets,
+} from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
@@ -36,7 +39,9 @@ const selectedItem = ref<DataSourceResourceItem | null>(null)
 const sourceMenu = useTemplateRef<ContextMenuMethods>('sourceMenu')
 const itemMenu = useTemplateRef<ContextMenuMethods>('itemMenu')
 
-const sourceDefinition = computed(() => getRegisteredDataSourceDefinition(props.source.type, workspaceStore.serverInfo))
+const sourceDefinition = computed(() =>
+  getRegisteredDataSourceDefinition(props.source.type, workspaceStore.serverInfo),
+)
 const sourceIcon = computed(() => sourceDefinition.value.icon)
 const defaultBrowserPath = computed(() => {
   if (props.source.type !== 's3' && props.source.type !== 'minio') {
@@ -44,23 +49,22 @@ const defaultBrowserPath = computed(() => {
   }
 
   const bucket = props.source.config?.bucket
-  return typeof bucket === 'string' && bucket.trim() ? `${bucket.trim().replace(/^\/+|\/+$/g, '')}/` : ''
+  return typeof bucket === 'string' && bucket.trim()
+    ? `${bucket.trim().replace(/^\/+|\/+$/g, '')}/`
+    : ''
 })
 const canBrowseSource = computed(() =>
   workspaceStore.currentProjectId
-    ? authStore.hasPermission([
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'view', 'read'),
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'query', 'read'),
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'manage', 'write'),
-      ])
+    ? authStore.hasPermission(
+        dataSourceReadPermissionTargets(workspaceStore.currentProjectId, props.source.id),
+      )
     : false,
 )
 const canManageSource = computed(() =>
   workspaceStore.currentProjectId
-    ? authStore.hasPermission([
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'manage', 'write'),
-        ...projectPermissionTargets(workspaceStore.currentProjectId, 'manage', 'write'),
-      ])
+    ? authStore.hasPermission(
+        dataSourceConfigPermissionTargets(workspaceStore.currentProjectId, props.source.id),
+      )
     : false,
 )
 
@@ -194,56 +198,32 @@ function showItemMenu(event: MouseEvent, item: DataSourceResourceItem) {
 </script>
 
 <template>
-  <div class="rounded-xl border border-transparent hover:border-neutral-200 dark:hover:border-neutral-800 transition-colors">
-    <div class="flex items-center justify-between gap-2 px-2 py-1.5">
-      <Button
-        class="py-1 px-2 flex gap-2 items-center justify-between flex-1 rounded-md pr-1"
-        text
-        severity="secondary"
-        @click="toggleExpanded"
-        @contextmenu.prevent="showSourceMenu"
-        size="small"
-      >
-        <div class="flex gap-2 items-center">
-          <LogoLoadingSpinner v-if="isLoading" width="1rem" />
-          <i v-else :class="`ti ${isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`" />
-          <i :class="`ti ti-${sourceIcon}`" />
-          <span class="truncate">{{ source.name }}</span>
-        </div>
-      </Button>
-
-      <Button
-        icon="ti ti-folder-open"
-        size="small"
-        rounded
-        text
-        severity="secondary"
-        class="w-[1.75rem] h-[1.75rem]"
+  <SidebarSourceSection
+    v-model:expanded="isExpanded"
+    :loading="isLoading"
+    :source-icon="sourceIcon"
+    :name="source.name"
+    action-icon="ti ti-folder-open"
+    :action-disabled="!canBrowseSource"
+    @toggle="toggleExpanded"
+    @action="openBrowser()"
+    @source-contextmenu="showSourceMenu"
+  >
+    <template #items>
+      <SidebarSourceItemButton
+        v-for="item of items"
+        :key="item.id"
+        :icon="`ti ${item.kind === 'container' ? 'ti-folder' : 'ti-file'}`"
+        :label="item.name"
         :disabled="!canBrowseSource"
-        @click="openBrowser()"
+        @click="openBrowser(item.path)"
+        @contextmenu="showItemMenu($event, item)"
       />
-    </div>
+    </template>
 
-    <div v-if="isExpanded" class="pb-2 px-2">
-      <div class="flex flex-col gap-1 pl-5">
-        <Button
-          v-for="item of items"
-          :key="item.id"
-          class="py-1 px-2 flex gap-2 items-center w-full rounded-md pr-1 justify-start"
-          text
-          severity="secondary"
-          size="small"
-          :disabled="!canBrowseSource"
-          @click="openBrowser(item.path)"
-          @contextmenu.prevent="showItemMenu($event, item)"
-        >
-          <i :class="`ti ${item.kind === 'container' ? 'ti-folder' : 'ti-file'}`" />
-          <span class="truncate">{{ item.name }}</span>
-        </Button>
-      </div>
-    </div>
-
-    <ContextMenu ref="sourceMenu" :model="sourceMenuItems" />
-    <ContextMenu ref="itemMenu" :model="itemMenuItems" />
-  </div>
+    <template #overlay>
+      <ContextMenu ref="sourceMenu" :model="sourceMenuItems" />
+      <ContextMenu ref="itemMenu" :model="itemMenuItems" />
+    </template>
+  </SidebarSourceSection>
 </template>

@@ -38,6 +38,7 @@ export type SQLTableTabData = {
   sourceType?: DataSourceType
   tableName: string
   whereClause?: string
+  sortClause?: string
 }
 
 export type SQLQueryTabData = {

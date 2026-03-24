@@ -70,12 +70,12 @@ const passwordRequired = computed(() => props.mode === 'create')
       <div class="grid grid-cols-2 gap-4">
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Name</label>
-          <InputText v-model="name" fluid placeholder="Jane Admin" />
+          <InputText size="small" v-model="name" fluid placeholder="Jane Admin" />
         </div>
 
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Email</label>
-          <InputText v-model="email" fluid placeholder="jane@example.com" />
+          <InputText size="small" v-model="email" fluid placeholder="jane@example.com" />
         </div>
       </div>
 
@@ -84,7 +84,7 @@ const passwordRequired = computed(() => props.mode === 'create')
           <label class="text-sm opacity-70">
             {{ passwordRequired ? 'Password' : 'Password reset (optional)' }}
           </label>
-          <Password
+          <Password size="small"
             v-model="password"
             fluid
             toggle-mask
@@ -95,7 +95,7 @@ const passwordRequired = computed(() => props.mode === 'create')
 
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Roles</label>
-          <MultiSelect
+          <MultiSelect size="small"
             v-model="roleIds"
             :options="roleOptions"
             option-label="label"
@@ -122,7 +122,7 @@ const passwordRequired = computed(() => props.mode === 'create')
       </div>
 
       <div class="flex justify-end">
-        <Button
+        <Button size="small"
           :label="submitLabel"
           icon="ti ti-user-plus"
           :disabled="!name.trim() || !email.trim() || (passwordRequired && password.length < 8)"

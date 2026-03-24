@@ -30,7 +30,11 @@ const accessOptions = [
   { label: 'Write', value: 'write' },
 ] satisfies Array<{ label: string; value: Exclude<ProjectUserAccess, 'none'> }>
 
-const addableUsers = computed(() => members.value.filter((user) => user.workspaceAccess === 'none' && !user.disabled))
+const addableUsers = computed(() =>
+  [...members.value]
+    .filter((user) => user.workspaceAccess === 'none' && !user.disabled)
+    .sort((left, right) => `${left.name} ${left.email}`.localeCompare(`${right.name} ${right.email}`)),
+)
 const activeMembers = computed(() => members.value.filter((user) => user.workspaceAccess !== 'none'))
 
 const loadMembers = async () => {
@@ -41,6 +45,14 @@ const loadMembers = async () => {
   loading.value = true
   try {
     members.value = await workspaceStore.listProjectUsers(props.project.id)
+  } catch (error) {
+    members.value = []
+    toast.add({
+      severity: 'error',
+      summary: 'Workspace users could not be loaded',
+      detail: getErrorMessage(error, 'The server did not return the workspace users.'),
+      life: 3200,
+    })
   } finally {
     loading.value = false
   }
@@ -106,14 +118,17 @@ watch(
       <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex items-end gap-3">
         <div class="flex-1 flex flex-col gap-2">
           <label class="text-sm opacity-70">Add user</label>
-          <Select
+          <Select size="small"
             v-model="selectedUserId"
             :options="addableUsers"
             option-label="email"
             option-value="id"
             filter
+            :filter-fields="['name', 'email']"
             fluid
             placeholder="Select a user"
+            empty-filter-message="No matching users found"
+            empty-message="No available users found"
           >
             <template #option="{ option }">
               <div class="flex flex-col">
@@ -126,7 +141,7 @@ watch(
 
         <div class="w-40 flex flex-col gap-2">
           <label class="text-sm opacity-70">Access</label>
-          <Select
+          <Select size="small"
             v-model="selectedAccess"
             :options="accessOptions"
             option-label="label"
@@ -135,7 +150,7 @@ watch(
           />
         </div>
 
-        <Button
+        <Button size="small"
           label="Add user"
           icon="ti ti-user-plus"
           :disabled="!selectedUserId"
@@ -180,7 +195,7 @@ watch(
             />
 
             <div class="w-36">
-              <Select
+              <Select size="small"
                 :model-value="user.workspaceAccess"
                 :options="[
                   { label: 'Read', value: 'read' },
@@ -194,7 +209,7 @@ watch(
               />
             </div>
 
-            <Button
+            <Button size="small"
               icon="ti ti-user-minus"
               severity="secondary"
               text

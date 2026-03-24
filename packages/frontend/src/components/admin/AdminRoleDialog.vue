@@ -58,18 +58,18 @@ const submitLabel = computed(() => (props.mode === 'edit' ? 'Save role' : 'Creat
       <div class="grid grid-cols-2 gap-4">
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Name</label>
-          <InputText v-model="name" fluid placeholder="Readonly analyst" />
+          <InputText size="small" v-model="name" fluid placeholder="Readonly analyst" />
         </div>
 
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Slug</label>
-          <InputText v-model="slug" fluid placeholder="readonly-analyst" />
+          <InputText size="small" v-model="slug" fluid placeholder="readonly-analyst" />
         </div>
       </div>
 
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Description</label>
-        <Textarea v-model="description" auto-resize fluid :rows="2" placeholder="Can query reporting datasources only" />
+        <Textarea size="small" v-model="description" auto-resize fluid :rows="2" placeholder="Can query reporting datasources only" />
       </div>
 
       <div class="flex flex-col gap-2">
@@ -77,12 +77,12 @@ const submitLabel = computed(() => (props.mode === 'edit' ? 'Save role' : 'Creat
         <PermissionPatternField
           v-model="permissions"
           :helpers="permissionTemplates"
-          placeholder="datasource.query.project-id.datasource-id"
+          placeholder="project.manage.project-id.datasources.datasource-id:read"
         />
       </div>
 
       <div class="flex justify-end">
-        <Button
+        <Button size="small"
           :label="submitLabel"
           icon="ti ti-shield"
           :disabled="!name.trim()"

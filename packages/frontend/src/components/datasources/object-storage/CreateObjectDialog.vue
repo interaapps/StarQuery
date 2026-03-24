@@ -44,21 +44,21 @@ watch(
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Object path</label>
-        <InputText v-model="objectPath" fluid placeholder="bucket/path/file.txt" />
+        <InputText size="small" v-model="objectPath" fluid placeholder="bucket/path/file.txt" />
       </div>
 
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Content type</label>
-        <InputText v-model="contentType" fluid placeholder="text/plain" />
+        <InputText size="small" v-model="contentType" fluid placeholder="text/plain" />
       </div>
 
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Content</label>
-        <Textarea v-model="content" fluid auto-resize :rows="10" />
+        <Textarea size="small" v-model="content" fluid auto-resize :rows="10" />
       </div>
 
       <div class="flex justify-end">
-        <Button
+        <Button size="small"
           label="Create object"
           icon="ti ti-file-plus"
           :disabled="!objectPath.trim()"

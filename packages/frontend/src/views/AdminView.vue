@@ -22,7 +22,7 @@ import {
 } from '@/services/admin-api'
 import {
   adminPermissionTargets,
-  dataSourcePermissionTargets,
+  projectDataSourcePermissionTargets,
   projectPermissionTargets,
 } from '@/services/permissions'
 import { getErrorMessage } from '@/services/error-message'
@@ -91,11 +91,8 @@ const permissionTemplates = computed<PermissionTemplate[]>(() => {
     { label: 'Workspace create', value: 'project.create:write' },
     { label: 'Workspace manage all', value: 'project.manage.*:write' },
     { label: 'Workspace users all', value: 'project.users.*:write' },
-    { label: 'Datasource view all', value: 'datasource.view.*:read' },
-    { label: 'Datasource query read all', value: 'datasource.query.*:read' },
-    { label: 'Datasource query write all', value: 'datasource.query.*:write' },
-    { label: 'Datasource manage all', value: 'datasource.manage.*:write' },
-    { label: 'Table edit all', value: 'datasource.table.edit.*:write' },
+    { label: 'Datasource access all (read)', value: 'project.manage.*.datasources.*:read' },
+    { label: 'Datasource access all (write)', value: 'project.manage.*.datasources.*:write' },
   ]
 
   for (const project of data.value.projects) {
@@ -111,41 +108,34 @@ const permissionTemplates = computed<PermissionTemplate[]>(() => {
         label: `${project.name} users`,
         value: lastTarget(projectPermissionTargets(project.id, 'users', 'write'), `project.users.${project.id}:write`),
       })
+      helpers.push({
+        label: `${project.name} datasources (read)`,
+        value: lastTarget(
+          projectDataSourcePermissionTargets(project.id, '*', 'read'),
+          `project.manage.${project.id}.datasources.*:read`,
+        ),
+      })
+      helpers.push({
+        label: `${project.name} datasources (write)`,
+        value: lastTarget(
+          projectDataSourcePermissionTargets(project.id, '*', 'write'),
+          `project.manage.${project.id}.datasources.*:write`,
+        ),
+      })
 
       for (const source of data.value.dataSources.filter((entry) => entry.projectId === project.id)) {
         helpers.push({
-          label: `${project.name} / ${source.name} view`,
+          label: `${project.name} / ${source.name} datasource (read)`,
           value: lastTarget(
-            dataSourcePermissionTargets(project.id, source.id, 'view', 'read'),
-            `datasource.view.${project.id}.${source.id}:read`,
+            projectDataSourcePermissionTargets(project.id, source.id, 'read'),
+            `project.manage.${project.id}.datasources.${source.id}:read`,
           ),
         })
         helpers.push({
-          label: `${project.name} / ${source.name} query read`,
+          label: `${project.name} / ${source.name} datasource (write)`,
           value: lastTarget(
-            dataSourcePermissionTargets(project.id, source.id, 'query', 'read'),
-            `datasource.query.${project.id}.${source.id}:read`,
-          ),
-        })
-        helpers.push({
-          label: `${project.name} / ${source.name} query write`,
-          value: lastTarget(
-            dataSourcePermissionTargets(project.id, source.id, 'query', 'write'),
-            `datasource.query.${project.id}.${source.id}:write`,
-          ),
-        })
-        helpers.push({
-          label: `${project.name} / ${source.name} manage`,
-          value: lastTarget(
-            dataSourcePermissionTargets(project.id, source.id, 'manage', 'write'),
-            `datasource.manage.${project.id}.${source.id}:write`,
-          ),
-        })
-        helpers.push({
-          label: `${project.name} / ${source.name} table edit`,
-          value: lastTarget(
-            dataSourcePermissionTargets(project.id, source.id, 'table.edit', 'write'),
-            `datasource.table.edit.${project.id}.${source.id}:write`,
+            projectDataSourcePermissionTargets(project.id, source.id, 'write'),
+            `project.manage.${project.id}.datasources.${source.id}:write`,
           ),
         })
       }
@@ -436,7 +426,7 @@ onMounted(async () => {
           <h1 class="text-2xl font-semibold mt-1">Users, roles, and API keys</h1>
         </div>
 
-        <Button
+        <Button size="small"
           icon="ti ti-refresh"
           label="Refresh"
           severity="secondary"
@@ -467,7 +457,7 @@ onMounted(async () => {
             <p class="text-sm opacity-70">Bundle permission patterns into reusable access profiles.</p>
           </div>
 
-          <Button
+          <Button size="small"
             v-if="canManageRoles"
             icon="ti ti-plus"
             label="Add role"
@@ -488,14 +478,14 @@ onMounted(async () => {
               </div>
 
               <div v-if="canManageRoles" class="flex items-center gap-1">
-                <Button
+                <Button size="small"
                   icon="ti ti-edit"
                   text
                   rounded
                   severity="secondary"
                   @click="openEditRoleDialog(role)"
                 />
-                <Button
+                <Button size="small"
                   icon="ti ti-trash"
                   text
                   rounded
@@ -533,7 +523,7 @@ onMounted(async () => {
             <p class="text-sm opacity-70">Manage local users, direct permissions, and role assignments.</p>
           </div>
 
-          <Button
+          <Button size="small"
             v-if="canManageUsers"
             icon="ti ti-user-plus"
             label="Add user"
@@ -642,7 +632,7 @@ onMounted(async () => {
               {{ apiKey.expiresAt ? `Expires ${new Date(apiKey.expiresAt).toLocaleString()}` : 'No expiry' }}
             </div>
 
-            <Button
+            <Button size="small"
               v-if="canManageApiKeys"
               icon="ti ti-trash"
               text
@@ -692,7 +682,7 @@ onMounted(async () => {
         </div>
 
         <div class="flex justify-end">
-          <Button icon="ti ti-copy" label="Copy token" @click="copyLatestApiKey" />
+          <Button size="small" icon="ti ti-copy" label="Copy token" @click="copyLatestApiKey" />
         </div>
       </div>
     </Dialog>

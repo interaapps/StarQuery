@@ -7,7 +7,7 @@ import SidebarSQLSource from '@/components/sidebar/SidebarSQLSource.vue'
 import CreateDataSourceDialog from '@/components/sidebar/CreateDataSourceDialog.vue'
 import { isSqlDataSource } from '@/datasources/registry'
 import { getErrorMessage } from '@/services/error-message'
-import { dataSourcePermissionTargets, projectPermissionTargets } from '@/services/permissions'
+import { dataSourceConfigPermissionTargets } from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useToast } from 'primevue/usetoast'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
@@ -24,10 +24,9 @@ const editDialogVisible = ref(false)
 const editingSource = ref<DataSourceRecord | null>(null)
 const canCreateDataSource = computed(() =>
   workspaceStore.currentProjectId
-    ? authStore.hasPermission([
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, '*', 'manage', 'write'),
-        ...projectPermissionTargets(workspaceStore.currentProjectId, 'manage', 'write'),
-      ])
+    ? authStore.hasPermission(
+        dataSourceConfigPermissionTargets(workspaceStore.currentProjectId, '*'),
+      )
     : false,
 )
 
@@ -109,7 +108,7 @@ const updateDataSource = async (
       />
     </div>
 
-    <div class="flex flex-col gap-2 px-1">
+    <div class="flex flex-col gap-0 px-1">
       <div
         v-if="workspaceStore.serverError"
         class="rounded-xl border border-amber-500/20 bg-amber-500/8 px-3 py-2 text-xs text-amber-700 dark:text-amber-300"
@@ -118,13 +117,17 @@ const updateDataSource = async (
       </div>
 
       <SidebarSQLSource
-        v-for="source of workspaceStore.dataSources.filter((source) => isSqlDataSource(source.type, workspaceStore.serverInfo))"
+        v-for="source of workspaceStore.dataSources.filter((source) =>
+          isSqlDataSource(source.type, workspaceStore.serverInfo),
+        )"
         :key="source.id"
         :source="source"
         @edit-datasource="openEditDialog(source)"
       />
       <SidebarResourceSource
-        v-for="source of workspaceStore.dataSources.filter((source) => !isSqlDataSource(source.type, workspaceStore.serverInfo))"
+        v-for="source of workspaceStore.dataSources.filter(
+          (source) => !isSqlDataSource(source.type, workspaceStore.serverInfo),
+        )"
         :key="source.id"
         :source="source"
         @edit-datasource="openEditDialog(source)"
@@ -142,7 +145,11 @@ const updateDataSource = async (
     <CreateDataSourceDialog
       v-model:visible="editDialogVisible"
       :source="editingSource"
-      @update:visible="(nextVisible) => { if (!nextVisible) editingSource = null }"
+      @update:visible="
+        (nextVisible) => {
+          if (!nextVisible) editingSource = null
+        }
+      "
       @submit="(payload) => editingSource && updateDataSource(editingSource.id, payload)"
     />
   </div>

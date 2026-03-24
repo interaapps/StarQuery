@@ -23,10 +23,17 @@ import ObjectStoragePreviewPanel from '@/components/datasources/object-storage/O
 import ObjectStorageResourceTable from '@/components/datasources/object-storage/ObjectStorageResourceTable.vue'
 import { createBackendClient } from '@/services/backend-api'
 import { getErrorMessage } from '@/services/error-message'
-import { dataSourcePermissionTargets, projectPermissionTargets } from '@/services/permissions'
+import {
+  dataSourceReadPermissionTargets,
+  dataSourceWritePermissionTargets,
+} from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
-import type { DataSourceBrowserTabData, DataSourceResourceItem, DataSourceResourceListing } from '@/types/datasources'
+import type {
+  DataSourceBrowserTabData,
+  DataSourceResourceItem,
+  DataSourceResourceListing,
+} from '@/types/datasources'
 
 const LIST_PAGE_SIZE = 200
 
@@ -40,7 +47,9 @@ const workspaceStore = useWorkspaceStore()
 const client = createBackendClient(props.data.serverUrl)
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
 
-const sourceRecord = computed(() => workspaceStore.dataSources.find((source) => source.id === props.data.sourceId))
+const sourceRecord = computed(() =>
+  workspaceStore.dataSources.find((source) => source.id === props.data.sourceId),
+)
 const defaultBucket = computed(() => {
   const bucket = sourceRecord.value?.config?.bucket
   return typeof bucket === 'string' ? bucket.trim() : ''
@@ -62,18 +71,15 @@ const createDialogVisible = ref(false)
 const previewPanelWidth = ref(360)
 
 const canBrowseSource = computed(() =>
-  authStore.hasPermission([
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'view', 'read'),
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
-    ...projectPermissionTargets(props.data.projectId, 'manage', 'write'),
-  ]),
+  authStore.hasPermission(
+    dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
+  ),
 )
 
 const canWriteSource = computed(() =>
-  authStore.hasPermission([
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
-    ...projectPermissionTargets(props.data.projectId, 'manage', 'write'),
-  ]),
+  authStore.hasPermission(
+    dataSourceWritePermissionTargets(props.data.projectId, props.data.sourceId),
+  ),
 )
 
 const activeListing = computed(() => selectedListing.value ?? listing.value)
@@ -140,12 +146,13 @@ async function loadFolder(options?: {
     })
 
     currentFolderPath.value = response.path
-    listing.value = append && listing.value
-      ? {
-          ...response,
-          items: [...listing.value.items, ...response.items],
-        }
-      : response
+    listing.value =
+      append && listing.value
+        ? {
+            ...response,
+            items: [...listing.value.items, ...response.items],
+          }
+        : response
   } catch (error) {
     const detail = getErrorMessage(error, 'The datasource resources could not be loaded')
     toast.add({
@@ -448,7 +455,9 @@ watch(
 
 <template>
   <div class="h-full flex flex-col">
-    <div class="border-b border-neutral-200 dark:border-neutral-800 px-4 py-2 flex items-center gap-3">
+    <div
+      class="border-b border-neutral-200 dark:border-neutral-800 px-4 py-2 flex items-center gap-3"
+    >
       <div class="min-w-0 flex items-center gap-1 overflow-auto text-sm">
         <button
           v-for="(item, index) in breadcrumbSegments"
@@ -462,6 +471,7 @@ watch(
       </div>
       <div class="ml-auto flex items-center gap-2">
         <Button
+          size="small"
           icon="ti ti-arrow-up"
           text
           severity="secondary"
@@ -470,13 +480,27 @@ watch(
         />
         <InputText
           v-model="searchInput"
-          class="w-[16rem]"
+          class="w-[14rem]"
           placeholder="Search current folder"
           @keydown.enter.prevent="applySearch"
+          size="small"
         />
-        <Button icon="ti ti-search" text severity="secondary" @click="applySearch" />
-        <Button v-if="appliedSearch" icon="ti ti-x" text severity="secondary" @click="clearSearch" />
-        <Button icon="ti ti-refresh" text severity="secondary" @click="refreshCurrentView" />
+        <Button size="small" icon="ti ti-search" text severity="secondary" @click="applySearch" />
+        <Button
+          size="small"
+          v-if="appliedSearch"
+          icon="ti ti-x"
+          text
+          severity="secondary"
+          @click="clearSearch"
+        />
+        <Button
+          size="small"
+          icon="ti ti-refresh"
+          text
+          severity="secondary"
+          @click="refreshCurrentView"
+        />
       </div>
     </div>
 
@@ -484,16 +508,18 @@ watch(
       This server account is not allowed to browse this datasource.
     </Message>
 
-    <div class="border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between gap-3">
+    <div
+      class="border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between gap-3"
+    >
       <div class="min-w-0">
         <div class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Object Storage</div>
-        <div class="text-sm truncate mt-1">{{ currentFolderPath || 'Buckets' }}</div>
+        <div class="text-sm truncate">{{ currentFolderPath || 'Buckets' }}</div>
       </div>
 
       <div class="flex items-center gap-2">
         <Button
           icon="ti ti-file-plus"
-          label="Create object"
+          label="Create"
           size="small"
           outlined
           :disabled="!canWriteSource || isUploading || isDeleting"
@@ -501,11 +527,19 @@ watch(
         />
         <Button
           icon="ti ti-upload"
-          label="Upload file"
+          label="Upload"
           size="small"
           outlined
           :disabled="!canWriteSource || !hasFolderTarget || isUploading || isDeleting"
           @click="openUploadPicker"
+        />
+        <Button
+          icon="ti ti-trash"
+          label="Delete"
+          size="small"
+          outlined
+          :disabled="!canWriteSource || !deleteTargets.length || isDeleting || isUploading"
+          @click="deleteResources()"
         />
         <Button
           icon="ti ti-download"
@@ -513,15 +547,6 @@ watch(
           size="small"
           :disabled="!selectedItemPath || isDeleting"
           @click="downloadSelectedObject"
-        />
-        <Button
-          icon="ti ti-trash"
-          label="Delete"
-          size="small"
-          severity="danger"
-          outlined
-          :disabled="!canWriteSource || !deleteTargets.length || isDeleting || isUploading"
-          @click="deleteResources()"
         />
       </div>
     </div>
@@ -551,7 +576,11 @@ watch(
       />
 
       <div :style="{ width: `${previewPanelWidth}px` }" class="min-h-0 min-w-0 shrink-0">
-        <ObjectStoragePreviewPanel :listing="activeListing" :loading="isLoadingPreview" class="h-full" />
+        <ObjectStoragePreviewPanel
+          :listing="activeListing"
+          :loading="isLoadingPreview"
+          class="h-full"
+        />
       </div>
     </div>
 

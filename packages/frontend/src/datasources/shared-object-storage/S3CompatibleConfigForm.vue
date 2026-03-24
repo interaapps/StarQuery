@@ -35,22 +35,22 @@ const config = defineModel<{
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Endpoint</label>
-      <InputText v-model="config.endPoint" fluid placeholder="s3.amazonaws.com" />
+      <InputText size="small" v-model="config.endPoint" fluid placeholder="s3.amazonaws.com" />
     </div>
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Port</label>
-      <InputNumber v-model="config.port" fluid :use-grouping="false" />
+      <InputNumber size="small" v-model="config.port" fluid :use-grouping="false" />
     </div>
   </div>
 
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Access key</label>
-      <InputText v-model="config.accessKey" fluid />
+      <InputText size="small" v-model="config.accessKey" fluid />
     </div>
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Secret key</label>
-      <Password
+      <Password size="small"
         v-model="config.secretKey"
         fluid
         toggle-mask
@@ -63,7 +63,7 @@ const config = defineModel<{
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Session token</label>
-      <Password
+      <Password size="small"
         v-model="config.sessionToken"
         fluid
         toggle-mask
@@ -73,14 +73,14 @@ const config = defineModel<{
     </div>
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Region</label>
-      <InputText v-model="config.region" fluid placeholder="Optional" />
+      <InputText size="small" v-model="config.region" fluid placeholder="Optional" />
     </div>
   </div>
 
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Default bucket</label>
-      <InputText v-model="config.bucket" fluid placeholder="Optional" />
+      <InputText size="small" v-model="config.bucket" fluid placeholder="Optional" />
     </div>
     <div class="flex flex-col gap-2 justify-end">
       <div class="flex items-center gap-3 pt-6">

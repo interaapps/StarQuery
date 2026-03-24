@@ -1,6 +1,10 @@
 import type { Response } from 'express'
 import type { AppContext } from '../../app-context.ts'
-import { dataSourcePermissionTargets, hasAnyPermission, projectPermissionTargets } from '../../auth/permissions.ts'
+import {
+  dataSourceConfigPermissionTargets,
+  dataSourceReadPermissionTargets,
+  hasAnyPermission,
+} from '../../auth/permissions.ts'
 import type { AuthenticatedRequest } from '../../auth/request.ts'
 import type { DataSourceRecord } from '../../meta/types.ts'
 
@@ -25,13 +29,7 @@ export async function requireSource(context: AppContext, projectId: string, sour
 }
 
 export function canViewSource(req: AuthenticatedRequest, projectId: string, sourceId: string) {
-  return hasAnyPermission(req.auth.permissions, [
-    ...dataSourcePermissionTargets(projectId, sourceId, 'view'),
-    ...dataSourcePermissionTargets(projectId, sourceId, 'query'),
-    ...dataSourcePermissionTargets(projectId, sourceId, 'manage', 'write'),
-    ...dataSourcePermissionTargets(projectId, sourceId, 'table.edit', 'write'),
-    ...projectPermissionTargets(projectId, 'manage', 'write'),
-  ])
+  return hasAnyPermission(req.auth.permissions, dataSourceReadPermissionTargets(projectId, sourceId))
 }
 
 function stripSqlComments(sql: string) {
@@ -61,10 +59,7 @@ export function requireManagedSourcePermission(
   res: Response,
   source: DataSourceRecord,
 ) {
-  return hasAnyPermission(authReq.auth.permissions, [
-    ...dataSourcePermissionTargets(source.projectId, source.id, 'manage', 'write'),
-    ...projectPermissionTargets(source.projectId, 'manage', 'write'),
-  ])
+  return hasAnyPermission(authReq.auth.permissions, dataSourceConfigPermissionTargets(source.projectId, source.id))
     ? true
     : (res.status(403).json({ error: 'Forbidden' }), false)
 }

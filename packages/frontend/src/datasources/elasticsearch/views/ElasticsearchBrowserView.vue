@@ -13,13 +13,17 @@ import {
   runElasticsearchSearch,
   saveElasticsearchDocuments,
 } from '@/datasources/elasticsearch/browser'
+import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
 import ElasticsearchResultsTable from '@/components/datasources/elasticsearch/ElasticsearchResultsTable.vue'
 import JsonEditor from '@/components/editors/JsonEditor.vue'
 import SQLActivityPanel, { type SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
 import { createBackendClient } from '@/services/backend-api'
 import { getErrorMessage } from '@/services/error-message'
-import { dataSourcePermissionTargets } from '@/services/permissions'
+import {
+  dataSourceReadPermissionTargets,
+  dataSourceWritePermissionTargets,
+} from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import type { DataSourceBrowserTabData, ElasticsearchSearchResult } from '@/types/datasources'
 import type { SQLTableColumn, SQLTableRowDraft } from '@/types/sql'
@@ -45,9 +49,10 @@ const from = ref(0)
 const size = ref(10)
 const trackTotalHits = ref(true)
 const logs = ref<SQLActivityEntry[]>([])
-const logsVisible = ref(true)
+const logsVisible = ref(false)
 const logsHeight = ref(160)
 const editorVisible = ref(true)
+const resultsVisible = ref(true)
 const requestPlaceholder = `{
   "from": 0,
   "size": 10,
@@ -58,17 +63,14 @@ const requestPlaceholder = `{
 }`
 
 const canSearch = computed(() =>
-  authStore.hasPermission([
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'read'),
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'view', 'read'),
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
-  ]),
+  authStore.hasPermission(
+    dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
+  ),
 )
 const canEditDocuments = computed(() =>
-  authStore.hasPermission([
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'write'),
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
-  ]),
+  authStore.hasPermission(
+    dataSourceWritePermissionTargets(props.data.projectId, props.data.sourceId),
+  ),
 )
 const hasSelectedIndex = computed(() => Boolean(selectedIndex.value))
 const hasPendingChanges = computed(() => rows.value.some((row) => row.state !== 'clean'))
@@ -145,12 +147,7 @@ async function runSearchForIndex(index = selectedIndex.value) {
       title: 'Invalid JSON',
       message: detail,
     })
-    toast.add({
-      severity: 'error',
-      summary: 'Invalid JSON',
-      detail,
-      life: 2600,
-    })
+    logsVisible.value = true
     return
   }
 
@@ -321,19 +318,19 @@ watch(
     </Message>
 
     <div class="min-h-0 flex flex-1 flex-col overflow-hidden">
-      <div class="border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between gap-3">
-        <div class="min-w-0">
+      <div
+        class="border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between gap-3"
+      >
+        <div class="min-w-0 space-y-0.5">
           <div class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Elasticsearch</div>
-          <div class="truncate text-sm mt-1">
+          <div class="truncate text-sm">
             {{ selectedIndex || 'No index selected' }}
-          </div>
-          <div class="text-xs opacity-55 mt-1 truncate">
-            {{ props.data.sourceName }}
           </div>
         </div>
 
         <div class="flex items-center gap-2">
           <Button
+            size="small"
             icon="ti ti-refresh"
             text
             severity="secondary"
@@ -342,7 +339,7 @@ watch(
           />
           <Button
             :icon="`ti ti-player-play ${isRunningSearch ? 'animate-pulse' : ''}`"
-            label="Run search"
+            label="Run"
             size="small"
             :loading="isRunningSearch"
             :disabled="!selectedIndex || !canSearch || isSaving"
@@ -356,34 +353,56 @@ watch(
       </Message>
 
       <template v-else>
-        <div class="border-b border-neutral-200 dark:border-neutral-800">
-          <div class="px-3 py-2 flex items-center justify-between">
+        <CollapsiblePanel
+          v-model:expanded="editorVisible"
+          title="Request Body"
+          root-class="border-b border-neutral-200 dark:border-neutral-800"
+          body-class="border-t border-neutral-200 dark:border-neutral-800"
+        >
+          <template #title>
             <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Request Body</span>
-            <Button
-              :icon="`ti ${editorVisible ? 'ti-minus' : 'ti-plus'}`"
-              size="small"
-              text
-              severity="secondary"
-              @click="editorVisible = !editorVisible"
-            />
-          </div>
+          </template>
 
-          <div v-if="editorVisible" class="border-t border-neutral-200 dark:border-neutral-800">
-            <div class="grid grid-cols-[repeat(3,minmax(0,10rem))_auto_auto_1fr] gap-3 px-3 py-3 items-end">
+          <template #default>
+            <div
+              class="grid grid-cols-[repeat(3,minmax(0,10rem))_auto_auto_1fr] gap-3 px-3 py-3 items-end"
+            >
               <div class="flex flex-col gap-2">
                 <label class="text-sm opacity-70">From</label>
-                <InputNumber v-model="from" fluid :min="0" :use-grouping="false" />
+                <InputNumber v-model="from" fluid :min="0" :use-grouping="false" size="small" />
               </div>
               <div class="flex flex-col gap-2">
                 <label class="text-sm opacity-70">Size</label>
-                <InputNumber v-model="size" fluid :min="1" :max="1000" :use-grouping="false" />
+                <InputNumber
+                  v-model="size"
+                  fluid
+                  :min="1"
+                  :max="1000"
+                  :use-grouping="false"
+                  size="small"
+                />
               </div>
               <div class="flex items-center gap-3 pt-7">
                 <ToggleSwitch v-model="trackTotalHits" input-id="elasticsearch-track-total-hits" />
-                <label for="elasticsearch-track-total-hits" class="text-sm opacity-70">Track total hits</label>
+                <label for="elasticsearch-track-total-hits" class="text-sm opacity-70"
+                  >Track total hits</label
+                >
               </div>
-              <Button label="Format JSON" icon="ti ti-braces" outlined size="small" @click="formatRequestBody" />
-              <Button label="Reset" icon="ti ti-restore" text severity="secondary" size="small" @click="resetRequestBody" />
+              <Button
+                label="Format JSON"
+                icon="ti ti-braces"
+                outlined
+                size="small"
+                @click="formatRequestBody"
+              />
+              <Button
+                label="Reset"
+                icon="ti ti-restore"
+                text
+                severity="secondary"
+                size="small"
+                @click="resetRequestBody"
+              />
             </div>
 
             <JsonEditor
@@ -393,8 +412,8 @@ watch(
               class="w-full"
               @submit="runSearchForIndex()"
             />
-          </div>
-        </div>
+          </template>
+        </CollapsiblePanel>
 
         <ResizeKnob
           v-if="editorVisible"
@@ -405,17 +424,32 @@ watch(
           class="border-b border-neutral-200 dark:border-neutral-800"
         />
 
-        <div class="border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
+        <CollapsiblePanel
+          v-model:expanded="resultsVisible"
+          :root-class="
+            resultsVisible
+              ? 'border-b border-neutral-200 dark:border-neutral-800 min-h-0 flex flex-1 flex-col'
+              : 'border-b border-neutral-200 dark:border-neutral-800 shrink-0'
+          "
+          body-class="border-t border-neutral-200 dark:border-neutral-800 min-h-0 flex-1 overflow-hidden"
+        >
+          <template #title>
             <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Results</span>
+          </template>
+
+          <template #meta>
             <span v-if="resultSummary" class="text-xs opacity-55 mono">
               {{ resultSummary.returned }} returned
-              <template v-if="resultSummary.total !== null"> / {{ resultSummary.total }} total</template>
-              <template v-if="resultSummary.tookMs !== null"> • {{ resultSummary.tookMs }} ms</template>
+              <template v-if="resultSummary.total !== null">
+                / {{ resultSummary.total }} total</template
+              >
+              <template v-if="resultSummary.tookMs !== null">
+                • {{ resultSummary.tookMs }} ms</template
+              >
             </span>
-          </div>
+          </template>
 
-          <div class="flex items-center gap-2">
+          <template #actions>
             <Button
               icon="ti ti-plus"
               label="Add"
@@ -451,11 +485,9 @@ watch(
               :disabled="!canEditDocuments || !hasPendingChanges || isRunningSearch"
               @click="saveDocuments"
             />
-          </div>
-        </div>
+          </template>
 
-        <div class="min-h-0 flex-1 overflow-hidden">
-          <div class="h-full p-3">
+          <div class="h-full">
             <ElasticsearchResultsTable
               ref="resultsTable"
               v-model:columns="columns"
@@ -466,7 +498,7 @@ watch(
               class="h-full"
             />
           </div>
-        </div>
+        </CollapsiblePanel>
 
         <ResizeKnob
           v-if="logsVisible && logs.length"
@@ -477,36 +509,32 @@ watch(
           class="border-t border-neutral-200 dark:border-neutral-800"
         />
 
-        <div
-          v-if="logs.length && logsVisible"
-          :style="{ height: `${logsHeight}px` }"
-          class="border-t border-neutral-200 dark:border-neutral-800"
+        <CollapsiblePanel
+          v-if="logs.length"
+          v-model:expanded="logsVisible"
+          root-class="border-t border-neutral-200 dark:border-neutral-800 shrink-0"
+          body-class="border-t border-neutral-200 dark:border-neutral-800"
         >
-          <SQLActivityPanel :entries="logs" empty-message="No Elasticsearch logs yet." flat class="h-full">
-            <template #actions>
-              <Button
-                icon="ti ti-minus"
-                size="small"
-                text
-                severity="secondary"
-                @click="logsVisible = false"
-              />
-            </template>
-          </SQLActivityPanel>
-        </div>
-        <div
-          v-else-if="logs.length && !logsVisible"
-          class="border-t border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between"
-        >
-          <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Logs</span>
-          <Button
-            icon="ti ti-plus"
-            size="small"
-            text
-            severity="secondary"
-            @click="logsVisible = true"
-          />
-        </div>
+          <template #title>
+            <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Logs</span>
+          </template>
+
+          <template #meta>
+            <span class="text-xs opacity-50 mono"
+              >{{ logs.length }} entr{{ logs.length === 1 ? 'y' : 'ies' }}</span
+            >
+          </template>
+
+          <div :style="{ height: `${logsHeight}px` }">
+            <SQLActivityPanel
+              :entries="logs"
+              empty-message="No Elasticsearch logs yet."
+              flat
+              hide-header
+              class="h-full"
+            />
+          </div>
+        </CollapsiblePanel>
       </template>
     </div>
   </div>

@@ -1,14 +1,27 @@
-FROM node:24-alpine
+FROM node:24-bookworm-slim AS deps
 
 WORKDIR /app
 
 RUN corepack enable
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/backend/package.json packages/backend/package.json
 
 RUN pnpm install --filter backend... --frozen-lockfile --prod
 
+FROM node:24-bookworm-slim
+
+WORKDIR /app
+
+RUN corepack enable
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY --from=deps /app/pnpm-workspace.yaml ./pnpm-workspace.yaml
 COPY packages/backend packages/backend
 
 WORKDIR /app/packages/backend

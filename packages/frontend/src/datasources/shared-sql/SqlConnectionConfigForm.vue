@@ -21,22 +21,22 @@ const config = defineModel<{
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Host</label>
-      <InputText v-model="config.host" fluid />
+      <InputText size="small" v-model="config.host" fluid />
     </div>
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Port</label>
-      <InputNumber v-model="config.port" fluid :use-grouping="false" />
+      <InputNumber size="small" v-model="config.port" fluid :use-grouping="false" />
     </div>
   </div>
 
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">User</label>
-      <InputText v-model="config.user" fluid />
+      <InputText size="small" v-model="config.user" fluid />
     </div>
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Password</label>
-      <Password
+      <Password size="small"
         v-model="config.password"
         fluid
         toggle-mask
@@ -48,6 +48,6 @@ const config = defineModel<{
 
   <div class="flex flex-col gap-2">
     <label class="text-sm opacity-70">Database</label>
-    <InputText v-model="config.database" fluid />
+    <InputText size="small" v-model="config.database" fluid />
   </div>
 </template>

@@ -212,7 +212,7 @@ const applySchema = async () => {
       <div class="flex items-start justify-between gap-4">
         <div class="flex flex-col gap-2 flex-1">
           <label class="text-sm opacity-70">Table name</label>
-          <InputText
+          <InputText size="small"
             v-model="state.schema.name"
             fluid
             :disabled="mode === 'edit'"
@@ -287,7 +287,7 @@ const applySchema = async () => {
           {{ mode === 'create' ? 'The preview runs as normal SQL after you confirm.' : 'Changed sections are diffed into ALTER / DROP / CREATE statements.' }}
         </div>
 
-        <Button
+        <Button size="small"
           :label="mode === 'create' ? 'Create table' : 'Apply changes'"
           :icon="mode === 'create' ? 'ti ti-database-plus' : 'ti ti-device-floppy'"
           :loading="isSaving"

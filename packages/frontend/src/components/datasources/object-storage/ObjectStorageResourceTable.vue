@@ -64,7 +64,8 @@ const onScroll = () => {
   }
 
   const threshold = 120
-  const remaining = scrollContainer.scrollHeight - (scrollContainer.scrollTop + scrollContainer.clientHeight)
+  const remaining =
+    scrollContainer.scrollHeight - (scrollContainer.scrollTop + scrollContainer.clientHeight)
   if (remaining <= threshold) {
     emit('load-more')
   }
@@ -73,7 +74,9 @@ const onScroll = () => {
 const attachScrollListener = async () => {
   await nextTick()
 
-  const nextContainer = tableRoot.value?.querySelector('.p-datatable-table-container') as HTMLElement | null
+  const nextContainer = tableRoot.value?.querySelector(
+    '.p-datatable-table-container',
+  ) as HTMLElement | null
   if (scrollContainer === nextContainer) {
     return
   }
@@ -104,11 +107,11 @@ onBeforeUnmount(() => {
     <DataTable
       v-model:selection="selection"
       :value="items"
-    data-key="id"
-    scrollable
-    scroll-height="flex"
+      data-key="id"
+      scrollable
+      scroll-height="flex"
       size="small"
-      class="h-full"
+      class="h-full text-sm"
       :meta-key-selection="false"
       @row-click="handleRowClick"
       @row-dblclick="handleRowDoubleClick"
@@ -116,7 +119,9 @@ onBeforeUnmount(() => {
       <Column selection-mode="multiple" header-style="width: 3rem" />
       <Column header="" style="width: 3rem">
         <template #body="{ data }">
-          <i :class="`ti ${data.kind === 'container' ? 'ti-folder' : 'ti-file'}`" />
+          <div class="flex items-center justify-center">
+            <i :class="`text-base ti ${data.kind === 'container' ? 'ti-folder' : 'ti-file'}`" />
+          </div>
         </template>
       </Column>
       <Column field="name" header="Name">
@@ -145,12 +150,12 @@ onBeforeUnmount(() => {
       </Column>
       <Column header="Type" style="width: 7rem">
         <template #body="{ data }">
-          <Tag :value="data.kind" severity="secondary" />
+          <Tag :value="data.kind" severity="secondary" size="small" class="text-xs font-medium" />
         </template>
       </Column>
       <Column header="" style="width: 8rem">
         <template #body="{ data }">
-          <div class="flex items-center justify-end gap-1">
+          <div class="flex items-center justify-end gap-0">
             <Button
               v-if="data.kind === 'container'"
               icon="ti ti-folder-open"
@@ -186,9 +191,7 @@ onBeforeUnmount(() => {
         <div v-if="loading" class="flex min-h-[10rem] items-center justify-center">
           <LogoLoadingSpinner width="2rem" />
         </div>
-        <div v-else class="py-6 text-center opacity-60">
-          No objects found.
-        </div>
+        <div v-else class="py-6 text-center opacity-60">No objects found.</div>
       </template>
 
       <template #footer>

@@ -18,17 +18,17 @@ const config = defineModel<{
 <template>
   <div class="flex flex-col gap-2">
     <label class="text-sm opacity-70">Node URL</label>
-    <InputText v-model="config.node" fluid placeholder="http://127.0.0.1:9200" />
+    <InputText size="small" v-model="config.node" fluid placeholder="http://127.0.0.1:9200" />
   </div>
 
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Username</label>
-      <InputText v-model="config.username" fluid />
+      <InputText size="small" v-model="config.username" fluid />
     </div>
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Password</label>
-      <Password
+      <Password size="small"
         v-model="config.password"
         fluid
         toggle-mask
@@ -41,7 +41,7 @@ const config = defineModel<{
   <div class="grid grid-cols-2 gap-3">
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">API key</label>
-      <Password
+      <Password size="small"
         v-model="config.apiKey"
         fluid
         toggle-mask
@@ -51,7 +51,7 @@ const config = defineModel<{
     </div>
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">Default index</label>
-      <InputText v-model="config.index" fluid placeholder="Optional" />
+      <InputText size="small" v-model="config.index" fluid placeholder="Optional" />
     </div>
   </div>
 </template>

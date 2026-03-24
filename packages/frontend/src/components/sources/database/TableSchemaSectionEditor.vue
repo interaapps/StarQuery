@@ -160,11 +160,11 @@ const removeEntry = (index: number) => {
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Name</label>
-            <InputText v-model="column.name" fluid />
+            <InputText size="small" v-model="column.name" fluid />
           </div>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Type</label>
-            <InputText v-model="column.type" fluid />
+            <InputText size="small" v-model="column.type" fluid />
           </div>
         </div>
 
@@ -204,17 +204,17 @@ const removeEntry = (index: number) => {
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Name</label>
-            <InputText v-model="key.name" fluid />
+            <InputText size="small" v-model="key.name" fluid />
           </div>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Type</label>
-            <Select v-model="key.type" :options="keyTypeOptions" option-label="label" option-value="value" fluid />
+            <Select size="small" v-model="key.type" :options="keyTypeOptions" option-label="label" option-value="value" fluid />
           </div>
         </div>
 
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Columns</label>
-          <InputText v-model="key.columns" fluid placeholder="id, tenant_id" />
+          <InputText size="small" v-model="key.columns" fluid placeholder="id, tenant_id" />
         </div>
       </div>
     </div>
@@ -233,29 +233,29 @@ const removeEntry = (index: number) => {
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Name</label>
-            <InputText v-model="foreignKey.name" fluid />
+            <InputText size="small" v-model="foreignKey.name" fluid />
           </div>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Columns</label>
-            <InputText v-model="foreignKey.columns" fluid placeholder="user_id" />
+            <InputText size="small" v-model="foreignKey.columns" fluid placeholder="user_id" />
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Referenced table</label>
-            <InputText v-model="foreignKey.referencedTable" fluid placeholder="users" />
+            <InputText size="small" v-model="foreignKey.referencedTable" fluid placeholder="users" />
           </div>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Referenced columns</label>
-            <InputText v-model="foreignKey.referencedColumns" fluid placeholder="id" />
+            <InputText size="small" v-model="foreignKey.referencedColumns" fluid placeholder="id" />
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">On delete</label>
-            <Select
+            <Select size="small"
               v-model="foreignKey.onDelete"
               :options="foreignKeyActionOptions"
               option-label="label"
@@ -265,7 +265,7 @@ const removeEntry = (index: number) => {
           </div>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">On update</label>
-            <Select
+            <Select size="small"
               v-model="foreignKey.onUpdate"
               :options="foreignKeyActionOptions"
               option-label="label"
@@ -291,11 +291,11 @@ const removeEntry = (index: number) => {
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Name</label>
-            <InputText v-model="indexEntry.name" fluid />
+            <InputText size="small" v-model="indexEntry.name" fluid />
           </div>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Columns</label>
-            <InputText v-model="indexEntry.columns" fluid placeholder="created_at, user_id" />
+            <InputText size="small" v-model="indexEntry.columns" fluid placeholder="created_at, user_id" />
           </div>
         </div>
 
@@ -306,7 +306,7 @@ const removeEntry = (index: number) => {
           </label>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Method</label>
-            <InputText
+            <InputText size="small"
               v-model="indexEntry.method"
               fluid
               :placeholder="sourceType === 'postgres' ? 'btree' : sourceType === 'mysql' ? 'BTREE' : 'Optional'"
@@ -329,7 +329,7 @@ const removeEntry = (index: number) => {
 
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Name</label>
-          <InputText v-model="check.name" fluid />
+          <InputText size="small" v-model="check.name" fluid />
         </div>
 
         <div class="flex flex-col gap-2">
@@ -352,7 +352,7 @@ const removeEntry = (index: number) => {
 
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Name</label>
-          <InputText v-model="trigger.name" fluid />
+          <InputText size="small" v-model="trigger.name" fluid />
         </div>
 
         <div class="flex flex-col gap-2">
@@ -382,18 +382,18 @@ const removeEntry = (index: number) => {
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Name</label>
-            <InputText v-model="column.name" fluid />
+            <InputText size="small" v-model="column.name" fluid />
           </div>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Type</label>
-            <InputText v-model="column.type" fluid />
+            <InputText size="small" v-model="column.type" fluid />
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Storage</label>
-            <Select
+            <Select size="small"
               v-model="column.storage"
               :options="virtualStorageOptions"
               option-label="label"
@@ -429,28 +429,28 @@ const removeEntry = (index: number) => {
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Name</label>
-            <InputText v-model="relation.name" fluid />
+            <InputText size="small" v-model="relation.name" fluid />
           </div>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Columns</label>
-            <InputText v-model="relation.columns" fluid placeholder="user_id" />
+            <InputText size="small" v-model="relation.columns" fluid placeholder="user_id" />
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Referenced table</label>
-            <InputText v-model="relation.referencedTable" fluid placeholder="users" />
+            <InputText size="small" v-model="relation.referencedTable" fluid placeholder="users" />
           </div>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Referenced columns</label>
-            <InputText v-model="relation.referencedColumns" fluid placeholder="id" />
+            <InputText size="small" v-model="relation.referencedColumns" fluid placeholder="id" />
           </div>
         </div>
 
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Display columns</label>
-          <InputText v-model="relation.displayColumns" fluid placeholder="name, email" />
+          <InputText size="small" v-model="relation.displayColumns" fluid placeholder="name, email" />
         </div>
       </div>
     </div>

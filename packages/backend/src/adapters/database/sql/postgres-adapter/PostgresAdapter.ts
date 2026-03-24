@@ -176,7 +176,7 @@ export class PostgresAdapter extends DefaultSQLAdapter {
     where?: string
   }): Promise<SQLTableRowPage> {
     const page = Math.max(input.page, 1)
-    const pageSize = Math.min(Math.max(input.pageSize, 1), 200)
+    const pageSize = Math.max(input.pageSize, 1)
     const details = await this.getTableDetails(input.table)
     const sortBy = input.sortBy && details.columns.find((column) => column.name === input.sortBy) ? input.sortBy : details.primaryKeys[0] ?? details.columns[0]?.name
     const sortDirection = input.sortDirection === 'desc' ? 'desc' : 'asc'

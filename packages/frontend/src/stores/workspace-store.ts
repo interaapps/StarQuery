@@ -160,8 +160,13 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   }
 
   const persistServers = async () => {
+    const persistedServers =
+      isElectronDesktop()
+        ? servers.value.filter((server) => !isBuiltInLocalServer(server))
+        : servers.value
+
     await saveDesktopWorkspaceConfig({
-      servers: servers.value,
+      servers: persistedServers,
       currentServerId: normalizeSelectedId(currentServerId.value) ?? undefined,
       currentProjectId: normalizeSelectedId(currentProjectId.value) ?? undefined,
     })

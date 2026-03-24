@@ -1,11 +1,19 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHashHistory, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
 import OnboardingView from '../views/OnboardingView.vue'
 import AdminView from '../views/AdminView.vue'
 
+function createAppHistory() {
+  if (typeof window !== 'undefined' && window.location.protocol === 'file:') {
+    return createWebHashHistory()
+  }
+
+  return createWebHistory(import.meta.env.BASE_URL)
+}
+
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createAppHistory(),
   routes: [
     {
       path: '/',

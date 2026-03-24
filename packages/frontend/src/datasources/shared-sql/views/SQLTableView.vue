@@ -2,19 +2,25 @@
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import type { SQLNamespace } from '@codemirror/lang-sql'
 import Button from 'primevue/button'
-import Message from 'primevue/message'
 import Select from 'primevue/select'
+import Message from 'primevue/message'
 import { useToast } from 'primevue/usetoast'
 import { buildSqlCompletionCatalog } from '@/datasources/shared-sql/completion'
-import { buildTableQuery, normalizeWhereClause } from '@/datasources/shared-sql/query'
+import {
+  buildTableQuery,
+  normalizeOrderByClause,
+  normalizeWhereClause,
+  quoteIdentifier,
+} from '@/datasources/shared-sql/query'
+import CollapsibleActivityPanel from '@/components/sql/CollapsibleActivityPanel.vue'
 import LoadingContainer from '@/components/LoadingContainer.vue'
-import SQLActivityPanel, { type SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
+import type { SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
 import SQLEditor from '@/components/editors/SQLEditor.vue'
 import ExtendedDataTable from '@/components/table/ExtendedDataTable.vue'
 import { createBackendClient } from '@/services/backend-api'
 import { getErrorMessage } from '@/services/error-message'
-import { dataSourcePermissionTargets } from '@/services/permissions'
+import { dataSourceReadPermissionTargets } from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
@@ -29,6 +35,7 @@ import type {
 } from '@/types/sql'
 
 const props = defineProps<{
+  tabId?: string
   data: SQLTableTabData
 }>()
 
@@ -47,10 +54,10 @@ const rows = ref<SQLTableRowDraft[]>([])
 const page = ref(1)
 const pageSize = ref(50)
 const total = ref(0)
-const sortBy = ref<string | undefined>()
-const sortDirection = ref<'asc' | 'desc'>('asc')
 const whereInput = ref(props.data.whereClause ?? '')
 const appliedWhereClause = ref(props.data.whereClause?.trim() ?? '')
+const sortInput = ref(props.data.sortClause ?? '')
+const appliedSortClause = ref(props.data.sortClause?.trim() ?? '')
 const activityLogs = ref<SQLActivityEntry[]>([])
 const logsVisible = ref(true)
 const logsHeight = ref(160)
@@ -163,6 +170,14 @@ const buildDraftRows = (resultRows: Record<string, unknown>[]) =>
 
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const dirtyRows = computed(() => rows.value.filter((row) => row.state !== 'clean'))
+const defaultSortColumn = computed(
+  () => tableDetails.value?.primaryKeys[0] ?? tableDetails.value?.columns[0]?.name ?? null,
+)
+const defaultSortClause = computed(() =>
+  defaultSortColumn.value
+    ? `${quoteIdentifier(defaultSortColumn.value, sourceType.value)} ASC`
+    : '',
+)
 
 const isGeneratedDefaultValue = (value: unknown) => {
   if (typeof value !== 'string') {
@@ -195,30 +210,23 @@ const sourceType = computed<DataSourceType>(
   () => props.data.sourceType ?? sourceRecord.value?.type ?? 'mysql',
 )
 const canQueryTable = computed(() =>
-  authStore.hasPermission([
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'read'),
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'write'),
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
-  ]),
+  authStore.hasPermission(
+    dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
+  ),
 )
 const canEditTable = computed(() =>
-  authStore.hasPermission([
-    ...dataSourcePermissionTargets(
-      props.data.projectId,
-      props.data.sourceId,
-      'table.edit',
-      'write',
-    ),
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
-  ]),
+  authStore.hasPermission(
+    dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
+  ),
 )
 
 const tabIndex = computed(() =>
-  tabsStore.tabs.findIndex(
-    (tab) =>
-      isSqlTableTab(tab) &&
-      tab.data.sourceId === props.data.sourceId &&
-      tab.data.tableName === props.data.tableName,
+  tabsStore.tabs.findIndex((tab) =>
+    props.tabId
+      ? tab.id === props.tabId
+      : isSqlTableTab(tab) &&
+        tab.data.sourceId === props.data.sourceId &&
+        tab.data.tableName === props.data.tableName,
   ),
 )
 
@@ -260,16 +268,16 @@ const fetchTableDetails = async () => {
     completionDefaultSchema.value = catalog.defaultSchema
   }
 
-  if (!sortBy.value) {
-    sortBy.value = details.primaryKeys[0] ?? details.columns[0]?.name
+  if (!appliedSortClause.value && defaultSortClause.value) {
+    sortInput.value = props.data.sortClause?.trim() || defaultSortClause.value
+    appliedSortClause.value = props.data.sortClause?.trim() || defaultSortClause.value
   }
 }
 
 const loadRows = async (options?: {
   page?: number
   pageSize?: number
-  sortBy?: string
-  sortDirection?: 'asc' | 'desc'
+  sortClause?: string
   whereClause?: string
 }) => {
   isLoading.value = true
@@ -277,9 +285,10 @@ const loadRows = async (options?: {
 
   const requestedPage = options?.page ?? page.value
   const requestedPageSize = options?.pageSize ?? pageSize.value
-  const requestedSortBy = options?.sortBy ?? sortBy.value
-  const requestedSortDirection = options?.sortDirection ?? sortDirection.value
+  const requestedSortClause =
+    options?.sortClause ?? appliedSortClause.value ?? defaultSortClause.value
   const requestedWhereClause = options?.whereClause ?? appliedWhereClause.value
+  let executedQuery: string | undefined
 
   try {
     if (!tableDetails.value) {
@@ -290,25 +299,21 @@ const loadRows = async (options?: {
       throw new Error('The table definition could not be loaded')
     }
 
-    const resolvedSortBy =
-      requestedSortBy &&
-      tableDetails.value.columns.some((column) => column.name === requestedSortBy)
-        ? requestedSortBy
-        : (tableDetails.value.primaryKeys[0] ?? tableDetails.value.columns[0]?.name)
-
-    if (!resolvedSortBy) {
+    const fallbackOrderByClause = defaultSortClause.value
+    if (!fallbackOrderByClause) {
       throw new Error('The table does not expose any sortable columns')
     }
 
     const query = buildTableQuery({
       sourceType: sourceType.value,
       tableName: props.data.tableName,
-      sortBy: resolvedSortBy,
-      sortDirection: requestedSortDirection === 'desc' ? 'desc' : 'asc',
+      orderByClause: requestedSortClause,
+      fallbackOrderByClause,
       page: requestedPage,
       pageSize: requestedPageSize,
       whereClause: requestedWhereClause,
     })
+    executedQuery = query
 
     const response = (
       await client.post(
@@ -347,12 +352,12 @@ const loadRows = async (options?: {
     rows.value = buildDraftRows(rowsResult.rows)
     total.value = Number.isFinite(nextTotal) ? nextTotal : 0
     page.value = requestedPage
-    pageSize.value = Math.min(Math.max(requestedPageSize, 1), 200)
-    sortBy.value = resolvedSortBy
-    sortDirection.value = requestedSortDirection === 'desc' ? 'desc' : 'asc'
+    pageSize.value = Math.max(requestedPageSize, 1)
+    appliedSortClause.value = normalizeOrderByClause(requestedSortClause) ?? fallbackOrderByClause
     return {
       ok: true,
       durationMs: Math.round(performance.now() - startedAt),
+      query,
     }
   } catch (error) {
     const detail = getErrorMessage(error, 'The table rows could not be loaded')
@@ -361,6 +366,7 @@ const loadRows = async (options?: {
       level: 'error',
       title: 'Load failed',
       message: detail,
+      sql: executedQuery,
       durationMs: Math.round(performance.now() - startedAt),
     })
 
@@ -373,6 +379,7 @@ const loadRows = async (options?: {
     return {
       ok: false,
       durationMs: Math.round(performance.now() - startedAt),
+      query: executedQuery,
     }
   } finally {
     isLoading.value = false
@@ -498,15 +505,6 @@ const discardChanges = async () => {
   })
 }
 
-const updateSorting = async (columnName: string) => {
-  if (!canQueryTable.value) return
-  if (guardPendingChanges()) return
-  await loadRows({
-    sortBy: columnName,
-    page: 1,
-  })
-}
-
 const changePage = async (nextPage: number) => {
   if (!canQueryTable.value) return
   if (guardPendingChanges()) return
@@ -521,14 +519,6 @@ const changePageSize = async (nextPageSize: number) => {
   await loadRows({
     pageSize: nextPageSize,
     page: 1,
-  })
-}
-
-const toggleSortDirection = async () => {
-  if (!canQueryTable.value) return
-  if (guardPendingChanges()) return
-  await loadRows({
-    sortDirection: sortDirection.value === 'asc' ? 'desc' : 'asc',
   })
 }
 
@@ -570,6 +560,75 @@ const applyWhereClause = async () => {
     level: 'success',
     title: 'Filter applied',
     message: normalizedWhereClause ? `WHERE ${normalizedWhereClause}` : 'Filter cleared',
+    sql: result.query,
+    durationMs: result.durationMs,
+  })
+}
+
+const applySortClause = async () => {
+  if (!canQueryTable.value) return
+  if (guardPendingChanges()) return
+
+  let normalizedSortClause = ''
+
+  try {
+    normalizedSortClause = normalizeOrderByClause(sortInput.value) ?? defaultSortClause.value
+  } catch (error) {
+    pushLog({
+      level: 'error',
+      title: 'Invalid ORDER BY',
+      message: error instanceof Error ? error.message : 'The ORDER BY clause is invalid',
+    })
+    toast.add({
+      severity: 'error',
+      summary: 'Invalid ORDER BY',
+      detail: error instanceof Error ? error.message : 'The ORDER BY clause is invalid',
+      life: 2800,
+    })
+    return
+  }
+
+  if (!normalizedSortClause) {
+    return
+  }
+
+  sortInput.value = normalizedSortClause
+  const result = await loadRows({
+    sortClause: normalizedSortClause,
+    page: 1,
+  })
+  if (!result.ok) return
+
+  appliedSortClause.value = normalizedSortClause
+  updateTabData({ sortClause: normalizedSortClause || undefined })
+  pushLog({
+    level: 'success',
+    title: 'Sort applied',
+    message: `ORDER BY ${normalizedSortClause}`,
+    sql: result.query,
+    durationMs: result.durationMs,
+  })
+}
+
+const resetSortClause = async () => {
+  if (!canQueryTable.value) return
+  if (guardPendingChanges()) return
+  if (!defaultSortClause.value) return
+
+  sortInput.value = defaultSortClause.value
+  const result = await loadRows({
+    sortClause: defaultSortClause.value,
+    page: 1,
+  })
+  if (!result.ok) return
+
+  appliedSortClause.value = defaultSortClause.value
+  updateTabData({ sortClause: defaultSortClause.value || undefined })
+  pushLog({
+    level: 'info',
+    title: 'Sort reset',
+    message: `ORDER BY ${defaultSortClause.value}`,
+    sql: result.query,
     durationMs: result.durationMs,
   })
 }
@@ -596,6 +655,7 @@ const clearWhereClause = async () => {
     level: 'info',
     title: 'Filter cleared',
     message: 'The table filter has been removed.',
+    sql: result.query,
     durationMs: result.durationMs,
   })
 }
@@ -623,6 +683,7 @@ onMounted(async () => {
     >
       <div class="flex items-center gap-0.5">
         <Button
+          size="small"
           :icon="`ti ti-refresh ${isLoading ? 'animate-spin' : ''}`"
           class="size-[1.8rem]"
           rounded
@@ -632,6 +693,7 @@ onMounted(async () => {
           @click="refreshTable"
         />
         <Button
+          size="small"
           icon="ti ti-device-floppy"
           class="size-[1.8rem]"
           rounded
@@ -642,6 +704,7 @@ onMounted(async () => {
           aria-label="Save changes"
         />
         <Button
+          size="small"
           icon="ti ti-reload"
           class="size-[1.8rem]"
           rounded
@@ -652,6 +715,7 @@ onMounted(async () => {
           aria-label="Discard"
         />
         <Button
+          size="small"
           @click="() => extendedDataTable?.addRow()"
           icon="ti ti-plus"
           class="h-[1.8rem] w-[1.8rem]"
@@ -661,6 +725,7 @@ onMounted(async () => {
           :disabled="!canEditTable"
         />
         <Button
+          size="small"
           @click="() => extendedDataTable?.deleteSelectedRows()"
           icon="ti ti-trash"
           class="h-[1.8rem] w-[1.8rem]"
@@ -679,7 +744,7 @@ onMounted(async () => {
     </div>
 
     <div
-      class="border-b border-neutral-200 dark:border-neutral-800 flex flex-wrap px-3 py-2 items-center gap-3"
+      class="border-b border-neutral-200 dark:border-neutral-800 flex flex-wrap px-3 py-0 items-center gap-3"
     >
       <div class="flex items-center gap-2 min-w-0 flex-[1.4]">
         <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Where</span>
@@ -707,25 +772,37 @@ onMounted(async () => {
         />
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-2 min-w-0 flex-[1.2]">
         <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Sort</span>
-        <Select
-          :model-value="sortBy"
-          :options="columns.map((column) => ({ label: column.name, value: column.name }))"
-          option-label="label"
-          option-value="value"
-          size="small"
-          class="min-w-[12rem]"
-          :disabled="!canQueryTable"
-          @update:model-value="(value) => value && updateSorting(value)"
-        />
+        <div
+          class="flex-1 min-w-[16rem] rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-2"
+        >
+          <SQLEditor
+            v-model="sortInput"
+            class="w-full"
+            placeholder="created_at DESC, id ASC"
+            :source-type="sourceType"
+            :schema="completionSchema"
+            :default-schema="completionDefaultSchema"
+            :default-table="props.data.tableName"
+            @enter="applySortClause"
+          />
+        </div>
         <Button
-          :icon="`ti ${sortDirection === 'asc' ? 'ti-sort-ascending' : 'ti-sort-descending'}`"
+          icon="ti ti-check"
           size="small"
           text
           severity="secondary"
           :disabled="!canQueryTable"
-          @click="toggleSortDirection"
+          @click="applySortClause"
+        />
+        <Button
+          icon="ti ti-rotate-2"
+          size="small"
+          text
+          severity="secondary"
+          :disabled="!canQueryTable || !defaultSortClause"
+          @click="resetSortClause"
         />
       </div>
     </div>
@@ -753,7 +830,7 @@ onMounted(async () => {
           />
 
           <div
-            class="flex items-center gap-1 bg-white absolute bottom-6 left-[50%] translate-x-[-50%] border-1 p-1 px-1 rounded-xl h-fit border-neutral-200 dark:border-neutral-800"
+            class="flex items-center gap-1 bg-white absolute bottom-6 left-[50%] translate-x-[-50%] border-1 py-0 px-0.5 rounded-xl h-fit border-neutral-200 dark:border-neutral-800"
           >
             <Button
               icon="ti ti-chevron-left"
@@ -762,13 +839,15 @@ onMounted(async () => {
               severity="secondary"
               :disabled="!canQueryTable || page <= 1"
               @click="changePage(page - 1)"
+              rounded
             />
             <Select
               :model-value="pageSize"
-              :options="[5, 10, 15, 25, 50, 100]"
+              :options="[5, 10, 15, 25, 50, 100, 200, 500, 1000, 2000]"
               size="small"
               class="border-0"
               :disabled="!canQueryTable"
+              input-class="px-0 text-xs"
               @update:model-value="(value) => value && changePageSize(value)"
             />
             <span class="text-xs mono opacity-60">Page {{ page }} / {{ pageCount }}</span>
@@ -779,6 +858,7 @@ onMounted(async () => {
               severity="secondary"
               :disabled="!canQueryTable || page >= pageCount"
               @click="changePage(page + 1)"
+              rounded
             />
           </div>
         </div>
@@ -792,42 +872,14 @@ onMounted(async () => {
           class="border-t border-neutral-200 dark:border-neutral-800"
         />
 
-        <div
-          v-if="activityLogs.length && logsVisible"
-          class="border-t border-neutral-200 dark:border-neutral-800"
-          :style="{ height: `${logsHeight}px` }"
-        >
-          <SQLActivityPanel
-            :entries="activityLogs"
-            empty-message="No table logs yet."
-            flat
-            class="h-full"
-          >
-            <template #actions>
-              <Button
-                icon="ti ti-minus"
-                size="small"
-                text
-                severity="secondary"
-                @click="logsVisible = false"
-              />
-            </template>
-          </SQLActivityPanel>
-        </div>
-
-        <div
-          v-else-if="activityLogs.length && !logsVisible"
-          class="border-t border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between"
-        >
-          <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Logs</span>
-          <Button
-            icon="ti ti-plus"
-            size="small"
-            text
-            severity="secondary"
-            @click="logsVisible = true"
-          />
-        </div>
+        <CollapsibleActivityPanel
+          v-model:expanded="logsVisible"
+          :entries="activityLogs"
+          empty-message="No table logs yet."
+          expanded-class="border-t border-neutral-200 dark:border-neutral-800"
+          panel-class="h-full"
+          :expanded-style="{ height: `${logsHeight}px` }"
+        />
       </div>
     </div>
 
@@ -841,6 +893,7 @@ onMounted(async () => {
       </span>
       <span v-if="hasPendingChanges">Unsaved changes on current page</span>
       <span v-else-if="appliedWhereClause">Filtered by: {{ appliedWhereClause }}</span>
+      <span v-else-if="appliedSortClause">Sorted by: {{ appliedSortClause }}</span>
       <span v-else>Everything saved</span>
     </div>
   </div>

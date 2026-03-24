@@ -41,7 +41,10 @@ const editorKind = computed<EditorKind>(() => {
     return 'datetime'
   }
 
-  if (/\btime\b/.test(normalizedType.value) && !/\b(timestamp|datetime)\b/.test(normalizedType.value)) {
+  if (
+    /\btime\b/.test(normalizedType.value) &&
+    !/\b(timestamp|datetime)\b/.test(normalizedType.value)
+  ) {
     return 'time'
   }
 
@@ -106,8 +109,13 @@ const parseDateValue = (value: unknown, kind: EditorKind) => {
 }
 
 const syncEditorValue = () => {
-  if (editorKind.value === 'text' || editorKind.value === 'textarea' || editorKind.value === 'enum') {
-    textValue.value = props.modelValue === null || props.modelValue === undefined ? '' : String(props.modelValue)
+  if (
+    editorKind.value === 'text' ||
+    editorKind.value === 'textarea' ||
+    editorKind.value === 'enum'
+  ) {
+    textValue.value =
+      props.modelValue === null || props.modelValue === undefined ? '' : String(props.modelValue)
     return
   }
 
@@ -132,7 +140,10 @@ const getInputElement = (): HTMLInputElement | HTMLTextAreaElement | null => {
     return candidate.$el
   }
 
-  return candidate.$el.querySelector('textarea, input') as HTMLInputElement | HTMLTextAreaElement | null
+  return candidate.$el.querySelector('textarea, input') as
+    | HTMLInputElement
+    | HTMLTextAreaElement
+    | null
 }
 
 const focusTextInput = (attempts = 4) => {
@@ -230,6 +241,12 @@ onMounted(() => {
 defineExpose({
   focusEditor,
 })
+
+const inputClass =
+  'block w-full border-primary-500 bg-white dark:bg-neutral-950 ' +
+  'rounded-none mono text-xs leading-5 max-h-[13.25rem] overflow-auto align-top select-text ' +
+  '!m-0 !mb-0 !px-1.5 !py-0.5 border-0 bg-transparent ' +
+  'ring-2 ring-primary-500 ring-offset-0 ring-opacity-100 outline-none z-10000 relative rounded-xs bg-primary/5'
 </script>
 
 <template>
@@ -237,7 +254,7 @@ defineExpose({
     v-if="editorKind === 'text'"
     ref="textInput"
     v-model="textValue"
-    class="w-full h-full border border-primary-500 bg-white dark:bg-neutral-950 p-1.5 px-2 outline-none"
+    :class="inputClass"
     autofocus
     @input="emitTextUpdate"
     @blur="$emit('commit')"
@@ -247,10 +264,11 @@ defineExpose({
   />
 
   <Textarea
+    size="small"
     v-else-if="editorKind === 'textarea'"
     ref="textInput"
     v-model="textValue"
-    class="block w-full border border-primary-500 bg-white dark:bg-neutral-950 rounded-none mono text-sm leading-5 max-h-[13.25rem] overflow-auto align-top select-text !m-0 !mb-0 !px-2 !py-1.5"
+    :class="inputClass"
     auto-resize
     rows="1"
     autofocus
@@ -274,9 +292,10 @@ defineExpose({
     @mousedown.stop
   >
     <InputText
+      size="small"
       ref="textInput"
       v-model="textValue"
-      class="w-full h-full rounded-none rounded-l-md border-primary-500"
+      :class="inputClass"
       placeholder="Enum value"
       @input="emitEnumUpdate"
       @blur="onEnumInputBlur"
@@ -288,6 +307,7 @@ defineExpose({
       severity="secondary"
       class="h-full rounded-none rounded-r-md border border-l-0 border-primary-500"
       @mousedown.prevent.stop
+      size="small"
       @click="openEnumMenu"
     />
     <Menu ref="enumMenu" popup :model="enumMenuItems" />
@@ -297,7 +317,8 @@ defineExpose({
     v-else
     ref="datePicker"
     :model-value="dateValue"
-    class="w-full h-full"
+    class="w-full h-full text-xs"
+    :input-class="inputClass"
     size="small"
     fluid
     show-icon

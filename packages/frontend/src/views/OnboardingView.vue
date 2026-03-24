@@ -68,19 +68,19 @@ const submitOnboarding = async () => {
         <div class="grid grid-cols-2 gap-4">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Name</label>
-            <InputText v-model="name" fluid placeholder="Server Admin" />
+            <InputText size="small" v-model="name" fluid placeholder="Server Admin" />
           </div>
 
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Email</label>
-            <InputText v-model="email" fluid placeholder="admin@example.com" />
+            <InputText size="small" v-model="email" fluid placeholder="admin@example.com" />
           </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Password</label>
-            <Password
+            <Password size="small"
               v-model="password"
               fluid
               toggle-mask
@@ -91,7 +91,7 @@ const submitOnboarding = async () => {
 
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Confirm password</label>
-            <Password
+            <Password size="small"
               v-model="confirmPassword"
               fluid
               toggle-mask
@@ -116,7 +116,7 @@ const submitOnboarding = async () => {
         </div>
 
         <div class="flex justify-end pt-2">
-          <Button
+          <Button size="small"
             label="Create admin account"
             icon="ti ti-shield-check"
             :loading="authStore.loading"

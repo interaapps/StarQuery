@@ -102,7 +102,10 @@ const syncRouteWithAuth = async () => {
     return
   }
 
-  if (route.name === 'admin' && !authStore.hasPermission(adminPermissionTargets('access', 'read'))) {
+  if (
+    route.name === 'admin' &&
+    !authStore.hasPermission(adminPermissionTargets('access', 'read'))
+  ) {
     await router.replace({ name: 'home' })
   }
 }
@@ -158,7 +161,13 @@ watch(
 )
 
 watch(
-  () => [authStore.status.enabled, authStore.requiresLogin, authStore.requiresOnboarding, authStore.currentUser?.id, route.name],
+  () => [
+    authStore.status.enabled,
+    authStore.requiresLogin,
+    authStore.requiresOnboarding,
+    authStore.currentUser?.id,
+    route.name,
+  ],
   async () => {
     await syncRouteWithAuth()
   },
@@ -422,6 +431,7 @@ const logout = async () => {
                   ? 'border-primary-500/30 bg-primary-500/20 text-primary-500'
                   : 'border-transparent bg-neutral-500/5 text-neutral-500/80'
               "
+              style="-electron-corner-smoothing: system-ui"
               @click="selectProject(project.id)"
               @contextmenu.prevent="showProjectMenu($event, project)"
             >
@@ -464,11 +474,13 @@ const logout = async () => {
                 <div class="text-sm opacity-70">{{ authStore.currentUser.email }}</div>
               </div>
 
-              <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs opacity-70">
+              <div
+                class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs opacity-70"
+              >
                 {{ workspaceStore.currentServer?.name || 'Current server' }}
               </div>
 
-              <Button
+              <Button size="small"
                 v-if="authStore.hasPermission(adminPermissionTargets('access', 'read'))"
                 label="Admin page"
                 icon="ti ti-shield"
@@ -477,7 +489,7 @@ const logout = async () => {
                 class="justify-start"
                 @click="goToAdmin"
               />
-              <Button
+              <Button size="small"
                 label="Sign out"
                 icon="ti ti-logout-2"
                 severity="secondary"
@@ -509,7 +521,7 @@ const logout = async () => {
               <button
                 v-for="server of workspaceStore.servers"
                 :key="server.id"
-                class="w-full flex items-center gap-3 rounded-xl px-3 py-2 text-left transition-colors"
+                class="w-full flex items-center gap-2 rounded-md px-2 py-1 text-left transition-colors"
                 :class="
                   workspaceStore.currentServerId === server.id
                     ? 'bg-primary-500/15 text-primary-500'
@@ -518,13 +530,13 @@ const logout = async () => {
                 @click="selectServer(server.id)"
               >
                 <i :class="`ti ${getServerIcon(server.kind)}`" />
-                <span class="truncate flex-1">{{ server.name }}</span>
+                <span class="truncate flex-1 text-sm">{{ server.name }}</span>
                 <div class="flex items-center gap-1">
                   <i
                     v-if="workspaceStore.currentServerId === server.id"
                     class="ti ti-check text-sm"
                   />
-                  <Button
+                  <Button size="small"
                     icon="ti ti-edit"
                     text
                     rounded
@@ -533,7 +545,7 @@ const logout = async () => {
                     :disabled="isManagedLocalServer(server)"
                     @click.stop="openEditServerDialog(server)"
                   />
-                  <Button
+                  <Button size="small"
                     icon="ti ti-trash"
                     text
                     rounded
@@ -553,15 +565,13 @@ const logout = async () => {
                 severity="secondary"
                 text
                 class="justify-start"
+                size="small"
                 @click="openAddServerDialog"
               />
             </div>
           </Popover>
 
-          <ContextMenu
-            ref="projectMenu"
-            :model="projectMenuItems"
-          />
+          <ContextMenu ref="projectMenu" :model="projectMenuItems" />
         </div>
       </div>
     </div>

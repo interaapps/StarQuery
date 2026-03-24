@@ -51,16 +51,16 @@ const submitLabel = computed(() => (props.mode === 'edit' ? 'Save server' : 'Add
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Display name</label>
-        <InputText v-model="name" fluid placeholder="Production EU" />
+        <InputText size="small" v-model="name" fluid placeholder="Production EU" />
       </div>
 
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Base URL</label>
-        <InputText v-model="url" fluid placeholder="http://127.0.0.1:3000" />
+        <InputText size="small" v-model="url" fluid placeholder="http://127.0.0.1:3000" />
       </div>
 
       <div class="flex justify-end">
-        <Button
+        <Button size="small"
           :label="submitLabel"
           icon="ti ti-server-2"
           :disabled="!canSubmit"

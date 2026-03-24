@@ -14,6 +14,9 @@
   font-family: 'Plus Jakarta Sans Variable', sans-serif;
 }
 
+* {
+  -electron-corner-smoothing: system-ui;
+}
 
 .mono, .highlighted * {
   font-family: 'JetBrains Mono Variable', monospace;
@@ -24,7 +27,7 @@
 }
 
 .electron.electron-mac .app-left-rail {
-  padding-top: 3.75rem;
+  padding-top: 2rem;
 }
 
 .electron.electron-mac .app-logo-link {

@@ -44,12 +44,12 @@ const submitLabel = computed(() => 'Create API key')
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Key name</label>
-        <InputText v-model="name" fluid placeholder="CI integration" />
+        <InputText size="small" v-model="name" fluid placeholder="CI integration" />
       </div>
 
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Expires in days</label>
-        <InputNumber
+        <InputNumber size="small"
           v-model="expiresInDays"
           fluid
           :min="0"
@@ -62,7 +62,7 @@ const submitLabel = computed(() => 'Create API key')
       </div>
 
       <div class="flex justify-end">
-        <Button
+        <Button size="small"
           :label="submitLabel"
           icon="ti ti-key"
           :disabled="!name.trim()"

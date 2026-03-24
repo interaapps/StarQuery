@@ -110,12 +110,12 @@ const canSubmit = computed(() =>
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Datasource name</label>
-        <InputText v-model="name" fluid placeholder="warehouse" />
+        <InputText size="small" v-model="name" fluid placeholder="warehouse" />
       </div>
 
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Type</label>
-        <Select v-model="type" :options="typeOptions" option-label="label" option-value="value" fluid />
+        <Select size="small" v-model="type" :options="typeOptions" option-label="label" option-value="value" fluid />
       </div>
 
       <Component
@@ -130,7 +130,7 @@ const canSubmit = computed(() =>
       </div>
 
       <div class="flex justify-end">
-        <Button
+        <Button size="small"
           :label="isEditing ? 'Save datasource' : 'Create datasource'"
           :icon="isEditing ? 'ti ti-device-floppy' : 'ti ti-database-plus'"
           :disabled="!canSubmit"

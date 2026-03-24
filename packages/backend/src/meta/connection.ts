@@ -4,19 +4,12 @@ import mysql from 'mysql2/promise'
 import { drizzle as drizzleMysql } from 'drizzle-orm/mysql2'
 import { drizzle as drizzleSqliteProxy } from 'drizzle-orm/sqlite-proxy'
 import type { AppConfig } from '../config/app-config.ts'
+import { loadSqliteDatabaseConstructor, type SqliteDatabaseLike } from '../shared/sqlite-driver.ts'
 import { mysqlMetaSchema } from './schema/mysql.ts'
 import { sqliteMetaSchema } from './schema/sqlite.ts'
 
 type SqliteMethod = 'run' | 'all' | 'values' | 'get'
-type SqliteConnection = {
-  prepare: (query: string) => {
-    run: (...params: unknown[]) => unknown
-    get: (...params: unknown[]) => unknown
-    all: (...params: unknown[]) => unknown[]
-  }
-  exec: (query: string) => void
-  close: () => void
-}
+type SqliteConnection = SqliteDatabaseLike
 
 export type MetaDatabaseConnection = {
   driver: AppConfig['metaStore']['driver']
@@ -79,7 +72,7 @@ function executeSqlite(connection: SqliteConnection, statement: string, params: 
 }
 
 async function createSqliteConnection(config: AppConfig): Promise<MetaDatabaseConnection> {
-  const { DatabaseSync } = await import('node:sqlite')
+  const DatabaseSync = await loadSqliteDatabaseConstructor()
   const sqlitePath = config.metaStore.sqlitePath
   fs.mkdirSync(path.dirname(sqlitePath), { recursive: true })
 

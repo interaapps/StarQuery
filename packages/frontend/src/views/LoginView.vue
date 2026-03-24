@@ -67,12 +67,12 @@ const startOpenIdLogin = async () => {
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Email</label>
-          <InputText v-model="email" fluid autocomplete="username" placeholder="you@example.com" />
+          <InputText size="small" v-model="email" fluid autocomplete="username" placeholder="you@example.com" />
         </div>
 
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Password</label>
-          <Password
+          <Password size="small"
             v-model="password"
             fluid
             toggle-mask
@@ -96,7 +96,7 @@ const startOpenIdLogin = async () => {
         </div>
 
         <div class="flex flex-col gap-3 pt-2">
-          <Button
+          <Button size="small"
             label="Sign in"
             icon="ti ti-login-2"
             :loading="authStore.loading"
@@ -104,7 +104,7 @@ const startOpenIdLogin = async () => {
             @click="submitLogin"
           />
 
-          <Button
+          <Button size="small"
             v-if="authStore.status.openIdEnabled"
             label="Continue with OpenID"
             icon="ti ti-id-badge-2"

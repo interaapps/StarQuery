@@ -1,4 +1,3 @@
-import { DatabaseSync, type SQLInputValue, type SQLOutputValue } from 'node:sqlite'
 import {
   DefaultSQLAdapter,
   type QueryResult,
@@ -10,9 +9,13 @@ import {
 import { assertIdentifier } from '../shared/identifier.ts'
 import { splitSqlStatements } from '../shared/sql-statements.ts'
 import { normalizeWhereClause } from '../shared/where-clause.ts'
+import { loadSqliteDatabaseConstructor, type SqliteDatabaseLike } from '../../../../shared/sqlite-driver.ts'
+
+type SqliteInputValue = null | string | number | bigint | Uint8Array | Buffer
+type SqliteOutputValue = unknown
 
 export class SqliteAdapter extends DefaultSQLAdapter {
-  private db!: DatabaseSync
+  private db!: SqliteDatabaseLike
 
   constructor(
     private options: {
@@ -29,7 +32,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
 
   private buildWhereClause(row: Record<string, unknown>, keys: string[]) {
     const clauses: string[] = []
-    const params: SQLInputValue[] = []
+    const params: SqliteInputValue[] = []
 
     for (const key of keys) {
       assertIdentifier(key)
@@ -59,7 +62,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
     return details.primaryKeys.length ? details.primaryKeys : details.columns.map((column) => column.name)
   }
 
-  private toSqlInputValue(value: unknown): SQLInputValue {
+  private toSqlInputValue(value: unknown): SqliteInputValue {
     if (value === null || value === undefined) {
       return null
     }
@@ -69,7 +72,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
     }
 
     if (ArrayBuffer.isView(value)) {
-      return value as SQLInputValue
+      return value as SqliteInputValue
     }
 
     if (typeof value === 'boolean') {
@@ -91,7 +94,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
     return values.map((value) => this.toSqlInputValue(value))
   }
 
-  private normalizeOutputValue(value: SQLOutputValue): unknown {
+  private normalizeOutputValue(value: SqliteOutputValue): unknown {
     return value
   }
 
@@ -112,6 +115,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
   }
 
   async connect() {
+    const DatabaseSync = await loadSqliteDatabaseConstructor()
     this.db = new DatabaseSync(this.options.filePath)
   }
 
@@ -174,7 +178,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
     where?: string
   }): Promise<SQLTableRowPage> {
     const page = Math.max(input.page, 1)
-    const pageSize = Math.min(Math.max(input.pageSize, 1), 200)
+    const pageSize = Math.max(input.pageSize, 1)
     const details = await this.getTableDetails(input.table)
     const sortBy = input.sortBy && details.columns.find((column) => column.name === input.sortBy) ? input.sortBy : details.primaryKeys[0] ?? details.columns[0]?.name
     const sortDirection = input.sortDirection === 'desc' ? 'desc' : 'asc'
@@ -230,7 +234,10 @@ export class SqliteAdapter extends DefaultSQLAdapter {
       }
     }
 
-    const result = statement.run(...sqlParams)
+    const result = statement.run(...sqlParams) as {
+      changes?: number | bigint
+      lastInsertRowid?: number | bigint
+    }
     return {
       type: 'RESULT',
       result: {

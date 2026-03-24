@@ -1,19 +1,55 @@
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted } from 'vue'
 import WorkspaceTabsBar from '@/components/workspace/WorkspaceTabsBar.vue'
 import ElasticsearchBrowserView from '@/datasources/elasticsearch/views/ElasticsearchBrowserView.vue'
 import ObjectStorageBrowserView from '@/datasources/shared-object-storage/views/ObjectStorageBrowserView.vue'
 import DataSourceBrowserView from '@/datasources/shared-resource/views/DataSourceBrowserView.vue'
 import SQLQueryView from '@/datasources/shared-sql/views/SQLQueryView.vue'
 import SqlTableView from '@/datasources/shared-sql/views/SQLTableView.vue'
+import { isElectronDesktop } from '@/services/desktop-config'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { isResourceBrowserTab, isSqlQueryTab, isSqlTableTab } from '@/types/tabs'
 
 const tabsStore = useTabsStore()
+
+function handleWindowKeydown(event: KeyboardEvent) {
+  if (!isElectronDesktop() || !tabsStore.tabs.length) {
+    return
+  }
+
+  const isCloseShortcut =
+    (event.ctrlKey || event.metaKey) &&
+    !event.shiftKey &&
+    !event.altKey &&
+    event.key.toLowerCase() === 'w'
+
+  if (!isCloseShortcut) {
+    return
+  }
+
+  event.preventDefault()
+  event.stopPropagation()
+  tabsStore.closeCurrentTab()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleWindowKeydown, true)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleWindowKeydown, true)
+})
 </script>
 
 <template>
   <div class="flex flex-col w-full h-full">
-    <WorkspaceTabsBar v-model:current-tab="tabsStore.currentTab" :tabs="tabsStore.tabs" @close="tabsStore.closeTab" />
+    <WorkspaceTabsBar
+      v-model:current-tab="tabsStore.currentTab"
+      :tabs="tabsStore.tabs"
+      @close="tabsStore.closeTab"
+      @close-others="tabsStore.closeOtherTabs"
+      @close-tabs-to-right="tabsStore.closeTabsToRight"
+    />
 
     <div
       v-if="!tabsStore.tabs.length"
@@ -37,7 +73,7 @@ const tabsStore = useTabsStore()
 
     <template v-for="(tab, index) of tabsStore.tabs">
       <div v-show="index === tabsStore.currentTab" class="h-full">
-        <SqlTableView class="h-full" v-if="isSqlTableTab(tab)" :data="tab.data" />
+        <SqlTableView class="h-full" v-if="isSqlTableTab(tab)" :tab-id="tab.id" :data="tab.data" />
         <SQLQueryView class="h-full" v-else-if="isSqlQueryTab(tab)" :data="tab.data" />
         <ElasticsearchBrowserView
           class="h-full"

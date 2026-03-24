@@ -69,7 +69,7 @@ watch(text, (value) => {
 
 <template>
   <div class="flex flex-col gap-3">
-    <Textarea
+    <Textarea size="small"
       v-model="text"
       auto-resize
       fluid

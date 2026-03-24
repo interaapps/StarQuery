@@ -50,21 +50,21 @@ const submitLabel = computed(() => (props.mode === 'edit' ? 'Save workspace' : '
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Project name</label>
-        <InputText v-model="name" fluid placeholder="Analytics" />
+        <InputText size="small" v-model="name" fluid placeholder="Analytics" />
       </div>
 
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Slug</label>
-        <InputText v-model="slug" fluid placeholder="analytics" />
+        <InputText size="small" v-model="slug" fluid placeholder="analytics" />
       </div>
 
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Description</label>
-        <InputText v-model="description" fluid placeholder="Shared reporting workspace" />
+        <InputText size="small" v-model="description" fluid placeholder="Shared reporting workspace" />
       </div>
 
       <div class="flex justify-end">
-        <Button
+        <Button size="small"
           :label="submitLabel"
           icon="ti ti-folder-plus"
           :disabled="!name.trim()"

@@ -2,7 +2,7 @@ import type { Express, Response } from 'express'
 import type { AppContext } from '../../app-context.ts'
 import type { AuthenticatedRequest } from '../../auth/request.ts'
 import { requirePermission } from '../../auth/middleware.ts'
-import { dataSourcePermissionTargets } from '../../auth/permissions.ts'
+import { dataSourceReadPermissionTargets } from '../../auth/permissions.ts'
 import type {
   SQLCreateTableColumnInput,
   SQLSaveTableChangesInput,
@@ -11,7 +11,7 @@ import { normalizeWhereClause } from '../../adapters/database/sql/shared/where-c
 import { isSqlDataSourceType } from '../registry.ts'
 import { withSqlAdapter } from './adapter.ts'
 import { sendSourceError } from '../../routes/source-route-errors.ts'
-import { isReadOnlySql, requireSource } from '../../routes/sources/shared.ts'
+import { requireSource } from '../../routes/sources/shared.ts'
 
 function ensureSqlSource(
   source: Awaited<ReturnType<typeof requireSource>>,
@@ -36,11 +36,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     if (!requiredSource) return
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'view', 'read'),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'query', 'read'),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceReadPermissionTargets(requiredSource.projectId, requiredSource.id))
     ) {
       return
     }
@@ -54,11 +50,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     if (!requiredSource) return
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'view', 'read'),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'query', 'read'),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceReadPermissionTargets(requiredSource.projectId, requiredSource.id))
     ) {
       return
     }
@@ -72,11 +64,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     if (!requiredSource) return
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'view', 'read'),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'query', 'read'),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceReadPermissionTargets(requiredSource.projectId, requiredSource.id))
     ) {
       return
     }
@@ -111,10 +99,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     if (!requiredSource) return
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'table.edit', 'write'),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceReadPermissionTargets(requiredSource.projectId, requiredSource.id))
     ) {
       return
     }
@@ -143,10 +128,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     if (!requiredSource) return
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'table.edit', 'write'),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceReadPermissionTargets(requiredSource.projectId, requiredSource.id))
     ) {
       return
     }
@@ -165,10 +147,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     if (!requiredSource) return
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'table.edit', 'write'),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceReadPermissionTargets(requiredSource.projectId, requiredSource.id))
     ) {
       return
     }
@@ -197,13 +176,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     const requiredSource = ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res)
     if (!requiredSource) return
 
-    const queryAccess = isReadOnlySql(String(req.body?.query ?? '')) ? 'read' : 'write'
-    if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'query', queryAccess),
-        ...dataSourcePermissionTargets(requiredSource.projectId, requiredSource.id, 'manage', 'write'),
-      ])
-    ) {
+    if (!requirePermission(authReq, res, dataSourceReadPermissionTargets(requiredSource.projectId, requiredSource.id))) {
       return
     }
 

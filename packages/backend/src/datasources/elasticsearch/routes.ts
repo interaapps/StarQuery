@@ -2,7 +2,7 @@ import type { Express } from 'express'
 import type { AppContext } from '../../app-context.ts'
 import { requirePermission } from '../../auth/middleware.ts'
 import type { AuthenticatedRequest } from '../../auth/request.ts'
-import { dataSourcePermissionTargets, projectPermissionTargets } from '../../auth/permissions.ts'
+import { dataSourceReadPermissionTargets, dataSourceWritePermissionTargets } from '../../auth/permissions.ts'
 import { normalizeDataSourceConfig } from '../registry.ts'
 import {
   ElasticsearchResourceAdapter,
@@ -62,12 +62,7 @@ export function registerElasticsearchSourceRoutes(app: Express, context: AppCont
     }
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'query', 'read'),
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'view', 'read'),
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'manage', 'write'),
-        ...projectPermissionTargets(source.projectId, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceReadPermissionTargets(source.projectId, source.id))
     ) {
       return
     }
@@ -127,11 +122,7 @@ export function registerElasticsearchSourceRoutes(app: Express, context: AppCont
     }
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'query', 'write'),
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'manage', 'write'),
-        ...projectPermissionTargets(source.projectId, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceWritePermissionTargets(source.projectId, source.id))
     ) {
       return
     }

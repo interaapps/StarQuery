@@ -91,7 +91,7 @@ watch(
     <div class="border-b border-neutral-200 dark:border-neutral-800 px-4 py-2 flex items-center gap-3">
       <Breadcrumb :home="{ icon: 'ti ti-home', command: () => navigateTo('') }" :model="breadcrumbItems" />
       <div class="ml-auto">
-        <Button icon="ti ti-refresh" text severity="secondary" @click="navigateTo(currentPath)" />
+        <Button size="small" icon="ti ti-refresh" text severity="secondary" @click="navigateTo(currentPath)" />
       </div>
     </div>
 

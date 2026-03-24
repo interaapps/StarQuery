@@ -24,6 +24,10 @@ function withPermissionAccess(targets: string[], access?: PermissionAccess) {
   return Array.from(new Set(targets.map((target) => applyPermissionAccess(target, access))))
 }
 
+function uniqueTargets(targets: string[]) {
+  return Array.from(new Set(targets))
+}
+
 export function permissionPatternMatches(pattern: string, requiredPermission: string) {
   if (pattern === '*') {
     return true
@@ -72,6 +76,54 @@ export function dataSourcePermissionTargets(
     ],
     access,
   )
+}
+
+export function projectDataSourcePermissionTargets(
+  projectId: string,
+  sourceId: string | '*',
+  access?: PermissionAccess,
+) {
+  const targets = [
+    `project.manage.${projectId}.datasources`,
+    `project.manage.${projectId}.datasources.*`,
+  ]
+
+  if (sourceId !== '*') {
+    targets.push(`project.manage.${projectId}.datasources.${sourceId}`)
+  }
+
+  return withPermissionAccess(targets, access)
+}
+
+export function dataSourceReadPermissionTargets(projectId: string, sourceId: string | '*') {
+  return uniqueTargets([
+    ...projectDataSourcePermissionTargets(projectId, sourceId, 'read'),
+    ...projectDataSourcePermissionTargets(projectId, sourceId, 'write'),
+    ...dataSourcePermissionTargets(projectId, sourceId, 'view', 'read'),
+    ...dataSourcePermissionTargets(projectId, sourceId, 'query', 'read'),
+    ...dataSourcePermissionTargets(projectId, sourceId, 'query', 'write'),
+    ...dataSourcePermissionTargets(projectId, sourceId, 'manage', 'write'),
+    ...dataSourcePermissionTargets(projectId, sourceId, 'table.edit', 'write'),
+    ...projectPermissionTargets(projectId, 'manage', 'write'),
+  ])
+}
+
+export function dataSourceWritePermissionTargets(projectId: string, sourceId: string | '*') {
+  return uniqueTargets([
+    ...projectDataSourcePermissionTargets(projectId, sourceId, 'write'),
+    ...dataSourcePermissionTargets(projectId, sourceId, 'query', 'write'),
+    ...dataSourcePermissionTargets(projectId, sourceId, 'manage', 'write'),
+    ...dataSourcePermissionTargets(projectId, sourceId, 'table.edit', 'write'),
+    ...projectPermissionTargets(projectId, 'manage', 'write'),
+  ])
+}
+
+export function dataSourceConfigPermissionTargets(projectId: string, sourceId: string | '*') {
+  return uniqueTargets([
+    ...projectDataSourcePermissionTargets(projectId, sourceId, 'write'),
+    ...dataSourcePermissionTargets(projectId, sourceId, 'manage', 'write'),
+    ...projectPermissionTargets(projectId, 'manage', 'write'),
+  ])
 }
 
 export function adminPermissionTargets(

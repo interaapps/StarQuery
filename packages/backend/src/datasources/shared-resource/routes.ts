@@ -2,7 +2,7 @@ import type { Express } from 'express'
 import type { AppContext } from '../../app-context.ts'
 import type { AuthenticatedRequest } from '../../auth/request.ts'
 import { requirePermission } from '../../auth/middleware.ts'
-import { dataSourcePermissionTargets } from '../../auth/permissions.ts'
+import { dataSourceReadPermissionTargets } from '../../auth/permissions.ts'
 import { getDataSourceDefinition } from '../registry.ts'
 import { withResourceAdapter } from './adapter.ts'
 import { sendSourceError } from '../../routes/source-route-errors.ts'
@@ -30,11 +30,7 @@ export function registerResourceSourceRoutes(app: Express, context: AppContext) 
     }
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'view', 'read'),
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'query', 'read'),
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceReadPermissionTargets(source.projectId, source.id))
     ) {
       return
     }

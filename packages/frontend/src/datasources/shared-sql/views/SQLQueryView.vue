@@ -5,13 +5,16 @@ import Button from 'primevue/button'
 import Message from 'primevue/message'
 import { useToast } from 'primevue/usetoast'
 import { loadSqlCompletionCatalog } from '@/datasources/shared-sql/completion'
+import { splitSqlStatements } from '@/datasources/shared-sql/statements'
+import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
+import CollapsibleActivityPanel from '@/components/sql/CollapsibleActivityPanel.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
-import SQLActivityPanel, { type SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
+import type { SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
 import SQLEditor from '@/components/editors/SQLEditor.vue'
 import ExtendedDataTable from '@/components/table/ExtendedDataTable.vue'
 import { createBackendClient } from '@/services/backend-api'
 import { getErrorMessage } from '@/services/error-message'
-import { dataSourcePermissionTargets } from '@/services/permissions'
+import { dataSourceReadPermissionTargets } from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
 import type {
@@ -62,11 +65,7 @@ const hasOutput = computed(() => results.value.length > 0)
 const sourceRecord = computed(() => workspaceStore.dataSources.find((source) => source.id === props.data.sourceId))
 const sourceType = computed(() => props.data.sourceType ?? sourceRecord.value?.type ?? 'mysql')
 const canRunQuery = computed(() =>
-  authStore.hasPermission([
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'read'),
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'query', 'write'),
-    ...dataSourcePermissionTargets(props.data.projectId, props.data.sourceId, 'manage', 'write'),
-  ]),
+  authStore.hasPermission(dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId)),
 )
 
 const loadCompletion = async () => {
@@ -104,6 +103,7 @@ const runQuery = async () => {
   const startedAt = performance.now()
 
   try {
+    const statements = splitSqlStatements(query.value)
     const response = (
       await client.post(
         `/api/projects/${props.data.projectId}/sources/${props.data.sourceId}/query`,
@@ -116,6 +116,7 @@ const runQuery = async () => {
     results.value = response.results
     const durationMs = Math.round(performance.now() - startedAt)
     logs.value = response.results.map((result, index) => {
+      const statementSql = statements[index] ?? query.value.trim()
       if (result.type === 'SELECT') {
         return {
           id: `log-${index}`,
@@ -123,6 +124,7 @@ const runQuery = async () => {
           level: 'info',
           title: 'Result set returned',
           message: `${result.rows.length} row(s) returned`,
+          sql: statementSql,
           durationMs,
         } satisfies SQLActivityEntry
       }
@@ -133,6 +135,7 @@ const runQuery = async () => {
         level: 'success',
         title: 'Statement executed',
         message: `${result.result?.affectedRows ?? 0} row(s) affected`,
+        sql: statementSql,
         durationMs,
       } satisfies SQLActivityEntry
     })
@@ -153,6 +156,7 @@ const runQuery = async () => {
         level: 'error',
         title: 'Query failed',
         message: detail,
+        sql: query.value.trim() || undefined,
         durationMs,
       },
     ]
@@ -204,19 +208,17 @@ watch(sourceRecord, async (nextSource) => {
       This server account can open the console but cannot run SQL on this datasource.
     </Message>
 
-    <div class="border-b border-neutral-200 dark:border-neutral-800">
-      <div class="px-3 py-2 flex items-center justify-between">
+    <CollapsiblePanel
+      v-model:expanded="editorVisible"
+      title="Editor"
+      root-class="border-b border-neutral-200 dark:border-neutral-800"
+      body-class="overflow-hidden"
+    >
+      <template #title>
         <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Editor</span>
-        <Button
-          :icon="`ti ${editorVisible ? 'ti-minus' : 'ti-plus'}`"
-          size="small"
-          text
-          severity="secondary"
-          @click="editorVisible = !editorVisible"
-        />
-      </div>
+      </template>
 
-      <div v-if="editorVisible" class="overflow-hidden">
+      <template #default>
         <SQLEditor
           v-model="query"
           multiline
@@ -226,8 +228,8 @@ watch(sourceRecord, async (nextSource) => {
           :default-schema="completionDefaultSchema"
           class="w-full"
         />
-      </div>
-    </div>
+      </template>
+    </CollapsiblePanel>
 
     <ResizeKnob
       v-if="editorVisible"
@@ -240,32 +242,14 @@ watch(sourceRecord, async (nextSource) => {
 
     <div class="min-h-0 flex-1 overflow-hidden">
       <div v-if="!hasOutput" class="h-full flex flex-col">
-        <div v-if="logs.length && logsVisible" class="min-h-0 flex-1">
-          <SQLActivityPanel :entries="logs" empty-message="No query logs yet." flat class="h-full">
-            <template #actions>
-              <Button
-                icon="ti ti-minus"
-                size="small"
-                text
-                severity="secondary"
-                @click="logsVisible = false"
-              />
-            </template>
-          </SQLActivityPanel>
-        </div>
-        <div
-          v-else-if="logs.length && !logsVisible"
-          class="border-t border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between"
-        >
-          <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Logs</span>
-          <Button
-            icon="ti ti-plus"
-            size="small"
-            text
-            severity="secondary"
-            @click="logsVisible = true"
-          />
-        </div>
+        <CollapsibleActivityPanel
+          v-if="logs.length"
+          v-model:expanded="logsVisible"
+          :entries="logs"
+          empty-message="No query logs yet."
+          expanded-class="min-h-0 flex-1"
+          panel-class="h-full"
+        />
         <Message v-else severity="secondary" :closable="false">
           Run a query from the selected datasource to inspect one or more result sets here.
         </Message>
@@ -297,38 +281,15 @@ watch(sourceRecord, async (nextSource) => {
           </section>
         </div>
 
-        <section v-if="logs.length && logsVisible" class="border-t border-neutral-200 dark:border-neutral-800 shrink-0">
-          <SQLActivityPanel
-            :entries="logs"
-            empty-message="No query logs yet."
-            flat
-            class="h-[12rem]"
-          >
-            <template #actions>
-              <Button
-                icon="ti ti-minus"
-                size="small"
-                text
-                severity="secondary"
-                @click="logsVisible = false"
-              />
-            </template>
-          </SQLActivityPanel>
-        </section>
-
-        <div
-          v-else-if="logs.length && !logsVisible"
-          class="border-t border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between shrink-0"
-        >
-          <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Logs</span>
-          <Button
-            icon="ti ti-plus"
-            size="small"
-            text
-            severity="secondary"
-            @click="logsVisible = true"
-          />
-        </div>
+        <CollapsibleActivityPanel
+          v-if="logs.length"
+          v-model:expanded="logsVisible"
+          :entries="logs"
+          empty-message="No query logs yet."
+          expanded-class="border-t border-neutral-200 dark:border-neutral-800 shrink-0"
+          collapsed-class="border-t border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between shrink-0"
+          panel-class="h-[12rem]"
+        />
       </div>
     </div>
   </div>

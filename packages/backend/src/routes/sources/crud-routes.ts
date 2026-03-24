@@ -2,7 +2,7 @@ import type { Express } from 'express'
 import type { AppContext } from '../../app-context.ts'
 import type { AuthenticatedRequest } from '../../auth/request.ts'
 import { requireAuthenticated, requirePermission } from '../../auth/middleware.ts'
-import { dataSourcePermissionTargets, projectPermissionTargets } from '../../auth/permissions.ts'
+import { dataSourceConfigPermissionTargets } from '../../auth/permissions.ts'
 import { getDataSourceDefinition, isKnownDataSourceType } from '../../datasources/definitions.ts'
 import { normalizeDataSourceConfig } from '../../datasources/config.ts'
 import type { DataSourceRecord } from '../../meta/types.ts'
@@ -27,10 +27,7 @@ export function registerSourceCrudRoutes(app: Express, context: AppContext) {
     if (!project) return
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(project.id, '*', 'manage', 'write'),
-        ...projectPermissionTargets(project.id, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceConfigPermissionTargets(project.id, '*'))
     ) {
       return
     }
@@ -71,10 +68,7 @@ export function registerSourceCrudRoutes(app: Express, context: AppContext) {
     if (!source) return
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'manage', 'write'),
-        ...projectPermissionTargets(source.projectId, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceConfigPermissionTargets(source.projectId, source.id))
     ) {
       return
     }
@@ -110,10 +104,7 @@ export function registerSourceCrudRoutes(app: Express, context: AppContext) {
     if (!source) return
 
     if (
-      !requirePermission(authReq, res, [
-        ...dataSourcePermissionTargets(source.projectId, source.id, 'manage', 'write'),
-        ...projectPermissionTargets(source.projectId, 'manage', 'write'),
-      ])
+      !requirePermission(authReq, res, dataSourceConfigPermissionTargets(source.projectId, source.id))
     ) {
       return
     }

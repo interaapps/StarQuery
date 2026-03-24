@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, useTemplateRef } from 'vue'
-import Button from 'primevue/button'
 import ContextMenu, { type ContextMenuMethods } from 'primevue/contextmenu'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
-import LogoLoadingSpinner from '@/components/LogoLoadingSpinner.vue'
+import SidebarSourceItemButton from '@/components/sidebar/source/SidebarSourceItemButton.vue'
+import SidebarSourceSection from '@/components/sidebar/source/SidebarSourceSection.vue'
 import CreateSQLTableDialog from '@/components/sources/database/CreateSQLTableDialog.vue'
 import EditSQLTableDialog from '@/components/sources/database/EditSQLTableDialog.vue'
 import { getRegisteredDataSourceDefinition } from '@/datasources/registry'
-import { dataSourcePermissionTargets, projectPermissionTargets } from '@/services/permissions'
+import {
+  dataSourceConfigPermissionTargets,
+  dataSourceReadPermissionTargets,
+} from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
@@ -40,34 +43,37 @@ const editTableVisible = ref(false)
 const sourceMenu = useTemplateRef<ContextMenuMethods>('sourceMenu')
 const tableMenu = useTemplateRef<ContextMenuMethods>('tableMenu')
 
-const sourceIcon = computed(() => getRegisteredDataSourceDefinition(props.source.type, workspaceStore.serverInfo).icon)
+const sourceIcon = computed(
+  () => getRegisteredDataSourceDefinition(props.source.type, workspaceStore.serverInfo).icon,
+)
 const canQuerySource = computed(() =>
   workspaceStore.currentProjectId
-    ? authStore.hasPermission([
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'query', 'read'),
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'query', 'write'),
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'manage', 'write'),
-      ])
+    ? authStore.hasPermission(
+        dataSourceReadPermissionTargets(workspaceStore.currentProjectId, props.source.id),
+      )
     : false,
 )
 const canManageSource = computed(() =>
   workspaceStore.currentProjectId
-    ? authStore.hasPermission([
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'manage', 'write'),
-        ...projectPermissionTargets(workspaceStore.currentProjectId, 'manage', 'write'),
-      ])
+    ? authStore.hasPermission(
+        dataSourceConfigPermissionTargets(workspaceStore.currentProjectId, props.source.id),
+      )
     : false,
 )
 const canEditTables = computed(() =>
   workspaceStore.currentProjectId
-    ? authStore.hasPermission([
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'table.edit', 'write'),
-        ...dataSourcePermissionTargets(workspaceStore.currentProjectId, props.source.id, 'manage', 'write'),
-      ])
+    ? authStore.hasPermission(
+        dataSourceReadPermissionTargets(workspaceStore.currentProjectId, props.source.id),
+      )
     : false,
 )
 const sourceMenuItems = computed(() => [
-  { label: 'Run SQL', icon: 'ti ti-terminal-2', command: openQueryConsole, disabled: !canQuerySource.value },
+  {
+    label: 'Run SQL',
+    icon: 'ti ti-terminal-2',
+    command: openQueryConsole,
+    disabled: !canQuerySource.value,
+  },
   {
     label: 'Edit datasource',
     icon: 'ti ti-settings-cog',
@@ -117,7 +123,9 @@ const loadTables = async () => {
   try {
     const client = await workspaceStore.getClient()
     tables.value = (
-      await client.get(`/api/projects/${workspaceStore.currentProjectId}/sources/${props.source.id}/tables`)
+      await client.get(
+        `/api/projects/${workspaceStore.currentProjectId}/sources/${props.source.id}/tables`,
+      )
     ).data
   } finally {
     isLoading.value = false
@@ -149,7 +157,9 @@ const openTable = async (tableName: string) => {
   }
 
   tabsStore.openNewTab({
-    id: `database.sql.table:${tabData.serverId}:${tabData.projectId}:${tabData.sourceId}:${tableName}`,
+    id: tabsStore.createTransientTabId(
+      `database.sql.table:${tabData.serverId}:${tabData.projectId}:${tabData.sourceId}:${tableName}`,
+    ),
     name: tableName,
     type: 'database.sql.table',
     data: tabData,
@@ -172,7 +182,9 @@ const openQueryConsole = async () => {
   }
 
   tabsStore.openNewTab({
-    id: `database.sql.query:${tabData.serverId}:${tabData.projectId}:${tabData.sourceId}:${Date.now()}`,
+    id: tabsStore.createTransientTabId(
+      `database.sql.query:${tabData.serverId}:${tabData.projectId}:${tabData.sourceId}`,
+    ),
     name: `SQL • ${props.source.name}`,
     type: 'database.sql.query',
     data: tabData,
@@ -215,10 +227,14 @@ const dropTable = async (tableName: string) => {
     acceptClass: 'p-button-danger',
     accept: async () => {
       const client = await workspaceStore.getClient()
-      await client.delete(`/api/projects/${workspaceStore.currentProjectId}/sources/${props.source.id}/tables/${tableName}`)
+      await client.delete(
+        `/api/projects/${workspaceStore.currentProjectId}/sources/${props.source.id}/tables/${tableName}`,
+      )
       tabsStore.closeTabsMatching(
         (tab) =>
-          isSqlTableTab(tab) && tab.data.sourceId === props.source.id && tab.data.tableName === tableName,
+          isSqlTableTab(tab) &&
+          tab.data.sourceId === props.source.id &&
+          tab.data.tableName === tableName,
       )
       await loadTables()
       toast.add({
@@ -246,71 +262,43 @@ const showTableMenu = (event: MouseEvent, tableName: string) => {
 </script>
 
 <template>
-  <div class="rounded-xl border border-transparent hover:border-neutral-200 dark:hover:border-neutral-800 transition-colors">
-    <div class="flex items-center justify-between gap-2 px-2 py-1.5">
-      <Button
-        class="py-1 px-2 flex gap-2 items-center justify-between flex-1 rounded-md pr-1"
-        text
-        severity="secondary"
-        @click="toggleExpanded"
-        @contextmenu.prevent="showSourceMenu"
-        size="small"
-      >
-        <div class="flex gap-2 items-center">
-          <LogoLoadingSpinner v-if="isLoading" width="1rem" />
-          <i v-else :class="`ti ${isExpanded ? 'ti-chevron-down' : 'ti-chevron-right'}`" />
-          <i :class="`ti ti-${sourceIcon}`" />
-          <span class="truncate">{{ source.name }}</span>
-        </div>
-      </Button>
-
-      <Button
-        icon="ti ti-terminal-2"
-        size="small"
-        rounded
-        text
-        severity="secondary"
-        class="w-[1.75rem] h-[1.75rem]"
+  <SidebarSourceSection
+    v-model:expanded="isExpanded"
+    :loading="isLoading"
+    :source-icon="sourceIcon"
+    :name="source.name"
+    action-icon="ti ti-terminal-2"
+    :action-disabled="!canQuerySource"
+    @toggle="toggleExpanded"
+    @action="openQueryConsole"
+    @source-contextmenu="showSourceMenu"
+  >
+    <template #items>
+      <SidebarSourceItemButton
+        v-for="table of tables"
+        :key="table.name"
+        icon="ti ti-table"
+        :label="table.name"
         :disabled="!canQuerySource"
-        @click="openQueryConsole"
+        @click="openTable(table.name)"
+        @contextmenu="showTableMenu($event, table.name)"
       />
-    </div>
+    </template>
 
-    <div v-if="isExpanded" class="pb-2 px-2">
-      <div class="flex flex-col gap-1 pl-5">
-        <Button
-          v-for="table of tables"
-          :key="table.name"
-          class="py-1 px-2 flex gap-2 items-center w-full rounded-md pr-1 justify-start"
-          text
-          severity="secondary"
-          size="small"
-          :disabled="!canQuerySource"
-          @click="openTable(table.name)"
-          @contextmenu.prevent="showTableMenu($event, table.name)"
-        >
-          <i class="ti ti-table" />
-          <span class="truncate">{{ table.name }}</span>
-        </Button>
-      </div>
-    </div>
-
-    <ContextMenu
-      ref="sourceMenu"
-      :model="sourceMenuItems"
-    />
-
-    <ContextMenu
-      ref="tableMenu"
-      :model="tableMenuItems"
-    />
-
-    <CreateSQLTableDialog v-model:visible="createTableVisible" :source="source" @applied="createTable" />
-    <EditSQLTableDialog
-      v-model:visible="editTableVisible"
-      :source="source"
-      :table-name="selectedTableName"
-      @applied="onTableEdited"
-    />
-  </div>
+    <template #overlay>
+      <ContextMenu ref="sourceMenu" :model="sourceMenuItems" />
+      <ContextMenu ref="tableMenu" :model="tableMenuItems" />
+      <CreateSQLTableDialog
+        v-model:visible="createTableVisible"
+        :source="source"
+        @applied="createTable"
+      />
+      <EditSQLTableDialog
+        v-model:visible="editTableVisible"
+        :source="source"
+        :table-name="selectedTableName"
+        @applied="onTableEdited"
+      />
+    </template>
+  </SidebarSourceSection>
 </template>

@@ -143,6 +143,14 @@ const focusGrid = () => {
   gridContainer.value?.focus()
 }
 
+const restoreGridFocusAfterEdit = () => {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      focusGrid()
+    })
+  })
+}
+
 const finishPendingEdit = (nextCell?: CellPosition) => {
   if (!editingCell.value) return
 
@@ -359,6 +367,7 @@ const commitEditing = () => {
 
 const cancelEditing = () => {
   editingCell.value = null
+  restoreGridFocusAfterEdit()
 }
 
 const addRow = () => {
@@ -744,19 +753,19 @@ defineExpose({
             v-for="(column, columnIndex) of columns"
             :key="column.field"
             align="left"
-            class="border border-neutral-200 dark:border-neutral-800 font-normal mono text-sm relative border-t-0 select-none"
+            class="border border-neutral-200 dark:border-neutral-800 font-normal mono text-xs relative border-t-0 select-none"
             :class="{ 'bg-black/5 dark:bg-white/10': isColumnSelected(columnIndex) }"
             :style="{ width: `${widths[column.field] || 220}px` }"
             @click="selectColumn(columnIndex)"
           >
-            <div class="flex items-center gap-2 justify-between px-3 py-1">
+            <div class="flex items-center gap-2 justify-between px-2 py-1">
               <div class="flex items-center gap-2 min-w-0">
                 <i
                   :class="`ti ${column.primaryKey ? 'ti-key text-amber-500' : 'ti-columns-3 opacity-50'}`"
                 />
                 <div class="flex flex-col min-w-0">
                   <span class="truncate">{{ column.name }}</span>
-                  <span class="truncate text-xs opacity-45 mt-[-4px]">{{
+                  <span class="truncate text-[10px] opacity-45 mt-[-2px]">{{
                     column.type || 'column'
                   }}</span>
                 </div>
@@ -784,7 +793,7 @@ defineExpose({
           }"
         >
           <td
-            class="border border-neutral-200 dark:border-neutral-800 px-3 text-center sticky left-0 z-10 bg-neutral-50 dark:bg-neutral-900 mono text-sm border-l-0"
+            class="border border-neutral-200 dark:border-neutral-800 px-3 text-center sticky left-0 z-10 bg-neutral-50 dark:bg-neutral-900 mono text-xs border-l-0"
             @click="selectRow(rowIndex)"
           >
             <div class="flex items-center gap-2 py-1">
@@ -805,7 +814,7 @@ defineExpose({
           <td
             v-for="(column, columnIndex) of columns"
             :key="column.field"
-            class="border border-neutral-200 dark:border-neutral-800 mono text-sm align-top"
+            class="border border-neutral-200 dark:border-neutral-800 mono text-xs align-top"
             :class="{
               'bg-primary-500/18 ring-inset ring-1 ring-primary-500/30': isCellSelected(
                 rowIndex,
@@ -838,7 +847,7 @@ defineExpose({
 
             <div
               v-else
-              class="px-1.5 py-1 min-h-[1.8rem] max-w-full overflow-hidden whitespace-nowrap truncate"
+              class="px-1.5 py-1 min-h-[1.5rem] max-w-full overflow-hidden whitespace-nowrap truncate"
               :class="{
                 'text-primary-500/80': row.state === 'new',
                 'text-amber-500/90': row.state === 'modified',
@@ -883,7 +892,7 @@ defineExpose({
 
     <ContextMenu
       ref="contextMenu"
-      class="text-sm"
+      class="text-xs"
       :pt="{ itemLink: 'p-2 px-3' }"
       :model="contextMenuItems"
     />

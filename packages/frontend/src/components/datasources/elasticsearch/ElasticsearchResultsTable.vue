@@ -64,9 +64,9 @@ defineExpose({
     <Message v-if="!loading && !result" severity="secondary" :closable="false">
       Run a search to inspect documents from this index.
     </Message>
-    <Message v-else-if="!loading && !rows.length" severity="secondary" :closable="false">
-      No documents matched this query.
-    </Message>
+    <div v-else-if="!loading && !rows.length" class="flex items-center justify-center h-full">
+      <p class="opacity-50">No documents matched this query.</p>
+    </div>
     <ExtendedDataTable
       v-else
       ref="extendedDataTable"

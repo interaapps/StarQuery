@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Button from 'primevue/button'
 import Tag from 'primevue/tag'
+import SectionLabel from '@/components/common/SectionLabel.vue'
 import type { DataSourceResourceItem } from '@/types/datasources'
 
 defineProps<{
@@ -16,7 +17,7 @@ const selectedIndex = defineModel<string>('selectedIndex', {
 <template>
   <div class="h-full flex flex-col">
     <div class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
-      <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Indices</span>
+      <SectionLabel text="Indices" class="opacity-60" />
       <span class="text-xs opacity-50 mono">{{ items.length }}</span>
     </div>
 
@@ -25,7 +26,7 @@ const selectedIndex = defineModel<string>('selectedIndex', {
     </div>
 
     <div v-else class="flex-1 min-h-0 overflow-auto p-2 flex flex-col gap-1">
-      <Button
+      <Button size="small"
         v-for="item in items"
         :key="item.id"
         text

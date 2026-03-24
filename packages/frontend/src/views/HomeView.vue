@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import WorkspaceTabsBar from '@/components/workspace/WorkspaceTabsBar.vue'
-import SqlTableView from '@/views/SQLTableView.vue'
-import SQLQueryView from '@/views/SQLQueryView.vue'
-import DataSourceBrowserView from '@/views/DataSourceBrowserView.vue'
-import ElasticsearchBrowserView from '@/views/ElasticsearchBrowserView.vue'
-import ObjectStorageBrowserView from '@/views/ObjectStorageBrowserView.vue'
+import ElasticsearchBrowserView from '@/datasources/elasticsearch/views/ElasticsearchBrowserView.vue'
+import ObjectStorageBrowserView from '@/datasources/shared-object-storage/views/ObjectStorageBrowserView.vue'
+import DataSourceBrowserView from '@/datasources/shared-resource/views/DataSourceBrowserView.vue'
+import SQLQueryView from '@/datasources/shared-sql/views/SQLQueryView.vue'
+import SqlTableView from '@/datasources/shared-sql/views/SQLTableView.vue'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { isResourceBrowserTab, isSqlQueryTab, isSqlTableTab } from '@/types/tabs'
 
@@ -17,7 +17,7 @@ const tabsStore = useTabsStore()
 
     <div
       v-if="!tabsStore.tabs.length"
-      class="w-full h-full flex items-center justify-center region-drag"
+      class="w-full h-full flex items-center justify-center"
     >
       <div class="flex flex-col items-center">
         <div class="relative animate-[spin_60s_linear_infinite] select-none opacity-20">

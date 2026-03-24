@@ -5,13 +5,13 @@ import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import { useToast } from 'primevue/usetoast'
 import TableSchemaSectionEditor from '@/components/sources/database/TableSchemaSectionEditor.vue'
-import { getErrorMessage } from '@/services/error-message'
 import {
   createEmptyTableSchemaState,
   loadTableSchemaState,
   serializeVirtualForeignKeys,
-} from '@/services/table-schema-metadata'
-import { buildCreateTableStatements, buildEditTableStatements } from '@/services/table-schema-sql'
+} from '@/datasources/shared-sql/schema/metadata'
+import { buildCreateTableStatements, buildEditTableStatements } from '@/datasources/shared-sql/schema/sql'
+import { getErrorMessage } from '@/services/error-message'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
 import {
   TABLE_SCHEMA_SECTIONS,

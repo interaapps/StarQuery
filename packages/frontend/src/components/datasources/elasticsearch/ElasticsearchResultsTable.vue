@@ -3,7 +3,7 @@ import { ref, useTemplateRef, watch } from 'vue'
 import Message from 'primevue/message'
 import LogoLoadingSpinner from '@/components/LogoLoadingSpinner.vue'
 import ExtendedDataTable from '@/components/table/ExtendedDataTable.vue'
-import { buildElasticsearchResultTable } from '@/services/elasticsearch-browser'
+import { buildElasticsearchResultTable } from '@/datasources/elasticsearch/browser'
 import type { ElasticsearchSearchResult } from '@/types/datasources'
 import type { SQLTableColumn, SQLTableRowDraft } from '@/types/sql'
 

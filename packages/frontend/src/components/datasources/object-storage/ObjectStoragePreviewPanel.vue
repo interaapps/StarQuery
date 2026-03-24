@@ -5,7 +5,7 @@ import DataTable from 'primevue/datatable'
 import Message from 'primevue/message'
 import LogoLoadingSpinner from '@/components/LogoLoadingSpinner.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
-import { formatBytes } from '@/services/byte-format'
+import { formatBytes } from '@/datasources/shared-object-storage/byte-format'
 import type { DataSourceResourceListing } from '@/types/datasources'
 
 const props = withDefaults(

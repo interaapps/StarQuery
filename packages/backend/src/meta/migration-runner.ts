@@ -1,48 +1,15 @@
+import { fileURLToPath } from 'node:url'
+import { migrate as migrateMySql } from 'drizzle-orm/mysql2/migrator'
+import { migrate as migrateSqliteProxy } from 'drizzle-orm/sqlite-proxy/migrator'
 import type { MetaDatabaseConnection } from './connection.ts'
-import { META_MIGRATIONS, type MetaMigrationContext } from './migrations.ts'
 
-function quoteIdentifier(connection: MetaDatabaseConnection, identifier: string) {
-  if (connection.driver === 'mysql') {
-    return `\`${identifier.replace(/`/g, '``')}\``
-  }
+const MYSQL_MIGRATIONS_FOLDER = fileURLToPath(new URL('./drizzle/mysql', import.meta.url))
+const SQLITE_MIGRATIONS_FOLDER = fileURLToPath(new URL('./drizzle/sqlite', import.meta.url))
+const DRIZZLE_MIGRATIONS_TABLE = '__drizzle_migrations'
+const META_TABLES = ['users', 'projects', 'data_sources', 'roles', 'user_roles', 'auth_tokens', 'oidc_states']
 
-  return `"${identifier.replace(/"/g, '""')}"`
-}
-
-async function ensureMigrationTable(connection: MetaDatabaseConnection) {
-  if (connection.driver === 'mysql') {
-    await connection.execute(`
-      CREATE TABLE IF NOT EXISTS meta_migrations (
-        id VARCHAR(255) NOT NULL PRIMARY KEY,
-        executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-    return
-  }
-
-  await connection.execute(`
-    CREATE TABLE IF NOT EXISTS meta_migrations (
-      id TEXT NOT NULL PRIMARY KEY,
-      executed_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    )
-  `)
-}
-
-async function getExecutedMigrationIds(connection: MetaDatabaseConnection) {
-  const rows = await connection.db
-    .select({ id: connection.schema.metaMigrations.id })
-    .from(connection.schema.metaMigrations)
-    .orderBy(connection.schema.metaMigrations.id)
-
-  return rows
-    .map((row: Record<string, unknown>) => row.id)
-    .filter((value: unknown): value is string => typeof value === 'string')
-}
-
-async function markMigrationExecuted(connection: MetaDatabaseConnection, migrationId: string) {
-  await connection.db.insert(connection.schema.metaMigrations).values({
-    id: migrationId,
-  })
+function getMigrationsFolder(connection: MetaDatabaseConnection) {
+  return connection.driver === 'mysql' ? MYSQL_MIGRATIONS_FOLDER : SQLITE_MIGRATIONS_FOLDER
 }
 
 async function tableExists(connection: MetaDatabaseConnection, tableName: string) {
@@ -61,74 +28,69 @@ async function tableExists(connection: MetaDatabaseConnection, tableName: string
     return Number(total ?? 0) > 0
   }
 
-  const rows = await connection.execute(
-    `SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
-    [tableName],
-  )
-
+  const rows = await connection.execute(`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [tableName])
   return Array.isArray(rows) && rows.length > 0
 }
 
-async function columnExists(connection: MetaDatabaseConnection, tableName: string, columnName: string) {
-  if (connection.driver === 'mysql') {
-    const rows = await connection.execute(
-      `
-        SELECT COUNT(*) AS total
-        FROM information_schema.columns
-        WHERE table_schema = DATABASE()
-          AND table_name = ?
-          AND column_name = ?
-      `,
-      [tableName, columnName],
-    )
+async function countRows(connection: MetaDatabaseConnection, tableName: string) {
+  const rows = await connection.execute(`SELECT COUNT(*) AS total FROM ${tableName}`)
+  const total = Array.isArray(rows) && rows[0] && typeof rows[0] === 'object' ? (rows[0] as any).total : 0
+  return Number(total ?? 0)
+}
 
-    const total = Array.isArray(rows) && rows[0] && typeof rows[0] === 'object' ? (rows[0] as any).total : 0
-    return Number(total ?? 0) > 0
+async function hasExistingMetaTables(connection: MetaDatabaseConnection) {
+  for (const tableName of META_TABLES) {
+    if (await tableExists(connection, tableName)) {
+      return true
+    }
   }
 
-  const rows = await connection.execute(`PRAGMA table_info(${quoteIdentifier(connection, tableName)})`)
-  if (!Array.isArray(rows)) {
+  return false
+}
+
+async function hasDrizzleMigrationEntries(connection: MetaDatabaseConnection) {
+  if (!(await tableExists(connection, DRIZZLE_MIGRATIONS_TABLE))) {
     return false
   }
 
-  return rows.some((row) => row && typeof row === 'object' && (row as Record<string, unknown>).name === columnName)
+  return (await countRows(connection, DRIZZLE_MIGRATIONS_TABLE)) > 0
 }
 
-function createMigrationContext(connection: MetaDatabaseConnection): MetaMigrationContext {
-  return {
-    driver: connection.driver,
-    execute: async (statement, params = []) => {
-      const result = await connection.execute(statement, params)
-      return Array.isArray(result) ? result : []
-    },
-    ensureColumn: async (tableName, columnName, definitionByDriver) => {
-      if (!(await tableExists(connection, tableName))) {
-        throw new Error(`Cannot add column ${columnName} because table ${tableName} does not exist`)
-      }
+async function applyDrizzleMigrations(connection: MetaDatabaseConnection) {
+  const config = { migrationsFolder: getMigrationsFolder(connection) }
 
-      if (await columnExists(connection, tableName, columnName)) {
-        return
-      }
-
-      await connection.execute(
-        `ALTER TABLE ${quoteIdentifier(connection, tableName)} ADD COLUMN ${definitionByDriver[connection.driver]}`,
-      )
-    },
-    tableExists: (tableName) => tableExists(connection, tableName),
+  if (connection.driver === 'mysql') {
+    await migrateMySql(connection.db, config)
+    return
   }
+
+  await migrateSqliteProxy(
+    connection.db,
+    async (queries) => {
+      for (const query of queries) {
+        const statement = query.trim()
+        if (!statement) {
+          continue
+        }
+
+        await connection.execute(statement)
+      }
+    },
+    config,
+  )
 }
 
 export async function runMetaMigrations(connection: MetaDatabaseConnection) {
-  await ensureMigrationTable(connection)
-  const executedMigrationIds = new Set(await getExecutedMigrationIds(connection))
-  const context = createMigrationContext(connection)
-
-  for (const migration of META_MIGRATIONS) {
-    if (executedMigrationIds.has(migration.id)) {
-      continue
-    }
-
-    await migration.up(context)
-    await markMigrationExecuted(connection, migration.id)
+  if (await hasDrizzleMigrationEntries(connection)) {
+    await applyDrizzleMigrations(connection)
+    return
   }
+
+  if (await hasExistingMetaTables(connection)) {
+    throw new Error(
+      `Existing meta tables were found without ${DRIZZLE_MIGRATIONS_TABLE}. This pre-Drizzle meta schema is no longer supported. Please reset the meta database and try again.`,
+    )
+  }
+
+  await applyDrizzleMigrations(connection)
 }

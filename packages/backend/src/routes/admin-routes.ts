@@ -7,7 +7,7 @@ import { serializeAuthToken, serializeRole, serializeUser } from '../auth/serial
 import { requireAdminAccess, requirePermission } from '../auth/middleware.ts'
 import { createRawAuthToken } from '../auth/tokens.ts'
 import type { RoleRecord, UserWithRolesRecord } from '../meta/types.ts'
-import { sanitizeDataSourceRecord } from './data-source-secrets.ts'
+import { sanitizeDataSourceRecord } from '../datasources/shared/secrets.ts'
 
 function userHasAdminAccess(user: UserWithRolesRecord, rolesOverride = user.roles, permissionsOverride = user.permissions) {
   return hasAnyPermission(

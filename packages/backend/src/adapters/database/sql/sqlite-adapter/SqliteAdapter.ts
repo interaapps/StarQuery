@@ -1,4 +1,4 @@
-import { DatabaseSync } from 'node:sqlite'
+import { DatabaseSync, type SQLInputValue, type SQLOutputValue } from 'node:sqlite'
 import {
   DefaultSQLAdapter,
   type QueryResult,
@@ -29,7 +29,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
 
   private buildWhereClause(row: Record<string, unknown>, keys: string[]) {
     const clauses: string[] = []
-    const params: unknown[] = []
+    const params: SQLInputValue[] = []
 
     for (const key of keys) {
       assertIdentifier(key)
@@ -39,7 +39,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
         clauses.push(`${this.quoteIdentifier(key)} IS NULL`)
       } else {
         clauses.push(`${this.quoteIdentifier(key)} = ?`)
-        params.push(value)
+        params.push(this.toSqlInputValue(value))
       }
     }
 
@@ -57,6 +57,58 @@ export class SqliteAdapter extends DefaultSQLAdapter {
 
     const details = await this.getTableDetails(table)
     return details.primaryKeys.length ? details.primaryKeys : details.columns.map((column) => column.name)
+  }
+
+  private toSqlInputValue(value: unknown): SQLInputValue {
+    if (value === null || value === undefined) {
+      return null
+    }
+
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'bigint') {
+      return value
+    }
+
+    if (ArrayBuffer.isView(value)) {
+      return value as SQLInputValue
+    }
+
+    if (typeof value === 'boolean') {
+      return value ? 1 : 0
+    }
+
+    if (value instanceof Date) {
+      return value.toISOString()
+    }
+
+    if (typeof value === 'object') {
+      return JSON.stringify(value)
+    }
+
+    return String(value)
+  }
+
+  private toSqlParams(values: unknown[]) {
+    return values.map((value) => this.toSqlInputValue(value))
+  }
+
+  private normalizeOutputValue(value: SQLOutputValue): unknown {
+    return value
+  }
+
+  private normalizeRunCount(value: number | bigint | undefined) {
+    if (typeof value === 'bigint') {
+      return Number(value)
+    }
+
+    return value ?? 0
+  }
+
+  private normalizeInsertId(value: number | bigint | undefined) {
+    if (typeof value === 'bigint') {
+      return value <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(value) : value.toString()
+    }
+
+    return value
   }
 
   async connect() {
@@ -159,10 +211,17 @@ export class SqliteAdapter extends DefaultSQLAdapter {
   async execute(sqlText: string, params: unknown[] = []): Promise<QueryResult> {
     const trimmed = sqlText.trim().toLowerCase()
     const statement = this.db.prepare(sqlText)
+    const sqlParams = this.toSqlParams(params)
 
     if (trimmed.startsWith('select') || trimmed.startsWith('pragma') || trimmed.startsWith('with')) {
-      const rows = statement.all(...params) as Record<string, unknown>[]
-      const columns = statement.columns().map((column) => column.name)
+      const rows = statement
+        .all(...sqlParams)
+        .map((row) =>
+          Object.fromEntries(
+            Object.entries(row).map(([key, value]) => [key, this.normalizeOutputValue(value)]),
+          ),
+        ) as Record<string, unknown>[]
+      const columns = rows.length ? Object.keys(rows[0] ?? {}) : []
 
       return {
         type: 'SELECT',
@@ -171,12 +230,12 @@ export class SqliteAdapter extends DefaultSQLAdapter {
       }
     }
 
-    const result = statement.run(...params)
+    const result = statement.run(...sqlParams)
     return {
       type: 'RESULT',
       result: {
-        affectedRows: result.changes,
-        insertId: result.lastInsertRowid,
+        affectedRows: this.normalizeRunCount(result.changes),
+        insertId: this.normalizeInsertId(result.lastInsertRowid),
       },
     }
   }
@@ -265,7 +324,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
           .prepare(
             `INSERT INTO ${this.quoteIdentifier(input.table)} (${keys.map((key) => this.quoteIdentifier(key)).join(', ')}) VALUES (${keys.map(() => '?').join(', ')})`,
           )
-          .run(...keys.map((key) => row[key]))
+          .run(...this.toSqlParams(keys.map((key) => row[key])))
       }
 
       for (const row of updatedRows) {
@@ -277,7 +336,7 @@ export class SqliteAdapter extends DefaultSQLAdapter {
           .prepare(
             `UPDATE ${this.quoteIdentifier(input.table)} SET ${changeKeys.map((key) => `${this.quoteIdentifier(key)} = ?`).join(', ')} WHERE ${where.sql}`,
           )
-          .run(...changeKeys.map((key) => row.changes[key]), ...where.params)
+          .run(...this.toSqlParams(changeKeys.map((key) => row.changes[key])), ...where.params)
       }
 
       for (const row of deletedRows) {

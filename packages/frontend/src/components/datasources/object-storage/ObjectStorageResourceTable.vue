@@ -5,7 +5,7 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Tag from 'primevue/tag'
 import LogoLoadingSpinner from '@/components/LogoLoadingSpinner.vue'
-import { formatBytes } from '@/services/byte-format'
+import { formatBytes } from '@/datasources/shared-object-storage/byte-format'
 import type { DataSourceResourceItem } from '@/types/datasources'
 
 const props = withDefaults(

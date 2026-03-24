@@ -5,8 +5,8 @@ import ContextMenu, { type ContextMenuMethods } from 'primevue/contextmenu'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import LogoLoadingSpinner from '@/components/LogoLoadingSpinner.vue'
-import { loadDataSourceResources } from '@/services/data-source-browser'
-import { getDataSourceDefinition } from '@/services/data-source-definitions'
+import { getRegisteredDataSourceDefinition } from '@/datasources/registry'
+import { loadDataSourceResources } from '@/datasources/shared-resource/browser'
 import { getErrorMessage } from '@/services/error-message'
 import { dataSourcePermissionTargets, projectPermissionTargets } from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
@@ -36,7 +36,7 @@ const selectedItem = ref<DataSourceResourceItem | null>(null)
 const sourceMenu = useTemplateRef<ContextMenuMethods>('sourceMenu')
 const itemMenu = useTemplateRef<ContextMenuMethods>('itemMenu')
 
-const sourceDefinition = computed(() => getDataSourceDefinition(props.source.type, workspaceStore.serverInfo))
+const sourceDefinition = computed(() => getRegisteredDataSourceDefinition(props.source.type, workspaceStore.serverInfo))
 const sourceIcon = computed(() => sourceDefinition.value.icon)
 const defaultBrowserPath = computed(() => {
   if (props.source.type !== 's3' && props.source.type !== 'minio') {

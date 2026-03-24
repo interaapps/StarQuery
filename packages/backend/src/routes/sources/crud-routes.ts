@@ -6,7 +6,7 @@ import { dataSourcePermissionTargets, projectPermissionTargets } from '../../aut
 import { getDataSourceDefinition, isKnownDataSourceType } from '../../datasources/definitions.ts'
 import { normalizeDataSourceConfig } from '../../datasources/config.ts'
 import type { DataSourceRecord } from '../../meta/types.ts'
-import { mergeDataSourceConfig, sanitizeDataSourceRecord } from '../data-source-secrets.ts'
+import { mergeDataSourceConfig, sanitizeDataSourceRecord } from '../../datasources/shared/secrets.ts'
 import { canViewSource, requireProject, requireSource } from './shared.ts'
 
 export function registerSourceCrudRoutes(app: Express, context: AppContext) {

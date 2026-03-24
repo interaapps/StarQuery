@@ -24,7 +24,7 @@
 }
 
 .electron.electron-mac .app-left-rail {
-  padding-top: 2rem;
+  padding-top: 3.75rem;
 }
 
 .electron.electron-mac .app-logo-link {
@@ -36,5 +36,27 @@
 }
 
 .region-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+.electron .p-component-overlay,
+.electron .p-dialog-mask,
+.electron .p-dialog-mask *,
+.electron .p-dialog,
+.electron .p-dialog *,
+.electron .p-confirmdialog,
+.electron .p-confirmdialog *,
+.electron .p-popover,
+.electron .p-popover *,
+.electron .p-menu,
+.electron .p-menu *,
+.electron .p-select-overlay,
+.electron .p-select-overlay *,
+.electron .p-datepicker,
+.electron .p-datepicker *,
+.electron .p-toast,
+.electron .p-toast *,
+.electron .p-tooltip,
+.electron .p-tooltip * {
   -webkit-app-region: no-drag;
 }

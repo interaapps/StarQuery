@@ -128,7 +128,34 @@ const getInputElement = (): HTMLInputElement | HTMLTextAreaElement | null => {
     return null
   }
 
+  if (candidate.$el instanceof HTMLInputElement || candidate.$el instanceof HTMLTextAreaElement) {
+    return candidate.$el
+  }
+
   return candidate.$el.querySelector('textarea, input') as HTMLInputElement | HTMLTextAreaElement | null
+}
+
+const focusTextInput = (attempts = 4) => {
+  const input = getInputElement()
+  if (!input) {
+    if (attempts > 0) {
+      requestAnimationFrame(() => focusTextInput(attempts - 1))
+    }
+    return
+  }
+
+  input.focus({ preventScroll: true })
+
+  if (input instanceof HTMLTextAreaElement) {
+    const cursorPosition = input.value.length
+    input.setSelectionRange(cursorPosition, cursorPosition)
+  } else {
+    input.select()
+  }
+
+  if (document.activeElement !== input && attempts > 0) {
+    requestAnimationFrame(() => focusTextInput(attempts - 1))
+  }
 }
 
 watch(
@@ -143,9 +170,7 @@ const focusEditor = async () => {
   await nextTick()
 
   if (editorKind.value === 'text' || editorKind.value === 'textarea') {
-    const input = getInputElement()
-    input?.focus()
-    input?.select()
+    requestAnimationFrame(() => focusTextInput())
     return
   }
 
@@ -213,6 +238,7 @@ defineExpose({
     ref="textInput"
     v-model="textValue"
     class="w-full h-full border border-primary-500 bg-white dark:bg-neutral-950 p-1.5 px-2 outline-none"
+    autofocus
     @input="emitTextUpdate"
     @blur="$emit('commit')"
     @keydown.enter.prevent="$emit('commit')"
@@ -224,9 +250,10 @@ defineExpose({
     v-else-if="editorKind === 'textarea'"
     ref="textInput"
     v-model="textValue"
-    class="w-full border border-primary-500 bg-white dark:bg-neutral-950 rounded-none mono text-sm leading-5 max-h-[13.25rem] overflow-auto select-text"
+    class="block w-full border border-primary-500 bg-white dark:bg-neutral-950 rounded-none mono text-sm leading-5 max-h-[13.25rem] overflow-auto align-top select-text !m-0 !mb-0 !px-2 !py-1.5"
     auto-resize
     rows="1"
+    autofocus
     @input="emitTextUpdate"
     @blur="$emit('commit')"
     @keydown.enter.exact.stop

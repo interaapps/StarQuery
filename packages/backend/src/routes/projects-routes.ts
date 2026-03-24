@@ -11,6 +11,7 @@ import type { AuthenticatedRequest } from '../auth/request.ts'
 import { requireAuthenticated, requirePermission } from '../auth/middleware.ts'
 import { toSlug } from '../meta/utils.ts'
 import { applyProjectUserAccess, getProjectUserAccess, type ProjectUserAccess } from './project-user-access.ts'
+import { requireProject } from './sources/shared.ts'
 
 function canViewProject(req: AuthenticatedRequest, projectId: string) {
   return hasAnyPermission(req.auth.permissions, [

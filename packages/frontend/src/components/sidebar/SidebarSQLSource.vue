@@ -7,7 +7,7 @@ import { useToast } from 'primevue/usetoast'
 import LogoLoadingSpinner from '@/components/LogoLoadingSpinner.vue'
 import CreateSQLTableDialog from '@/components/sources/database/CreateSQLTableDialog.vue'
 import EditSQLTableDialog from '@/components/sources/database/EditSQLTableDialog.vue'
-import { getDataSourceDefinition } from '@/services/data-source-definitions'
+import { getRegisteredDataSourceDefinition } from '@/datasources/registry'
 import { dataSourcePermissionTargets, projectPermissionTargets } from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useTabsStore } from '@/stores/tabs-store.ts'
@@ -40,7 +40,7 @@ const editTableVisible = ref(false)
 const sourceMenu = useTemplateRef<ContextMenuMethods>('sourceMenu')
 const tableMenu = useTemplateRef<ContextMenuMethods>('tableMenu')
 
-const sourceIcon = computed(() => getDataSourceDefinition(props.source.type, workspaceStore.serverInfo).icon)
+const sourceIcon = computed(() => getRegisteredDataSourceDefinition(props.source.type, workspaceStore.serverInfo).icon)
 const canQuerySource = computed(() =>
   workspaceStore.currentProjectId
     ? authStore.hasPermission([

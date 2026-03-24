@@ -20,7 +20,7 @@ withDefaults(
     emptyMessage: 'No log entries yet.',
     title: 'Logs',
     expandedClass: '',
-    collapsedClass: 'border-t border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between',
+    collapsedClass: 'border-t app-border px-3 py-2 flex items-center justify-between',
     panelClass: '',
     expandedStyle: undefined,
   },

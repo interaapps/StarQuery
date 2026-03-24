@@ -28,7 +28,7 @@ const config = defineModel<{
 </script>
 
 <template>
-  <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs opacity-65">
+  <div class="rounded-xl border app-border px-3 py-2 text-xs opacity-65">
     {{ props.providerLabel }}
   </div>
 

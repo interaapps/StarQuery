@@ -88,7 +88,7 @@ watch(
 
 <template>
   <div class="h-full flex flex-col">
-    <div class="border-b border-neutral-200 dark:border-neutral-800 px-4 py-2 flex items-center gap-3">
+    <div class="border-b app-border px-4 py-2 flex items-center gap-3">
       <Breadcrumb :home="{ icon: 'ti ti-home', command: () => navigateTo('') }" :model="breadcrumbItems" />
       <div class="ml-auto">
         <Button size="small" icon="ti ti-refresh" text severity="secondary" @click="navigateTo(currentPath)" />
@@ -96,7 +96,7 @@ watch(
     </div>
 
     <div class="grid h-full min-h-0 grid-cols-[minmax(0,1fr)_minmax(18rem,28rem)]">
-      <div class="min-h-0 border-r border-neutral-200 dark:border-neutral-800">
+      <div class="min-h-0 border-r app-border">
         <DataTable
           :value="listing?.items ?? []"
           :loading="isLoading"

@@ -47,13 +47,16 @@ const submitOnboarding = async () => {
 </script>
 
 <template>
-  <div class="h-full w-full flex items-center justify-center px-6 py-10">
-    <div class="w-full max-w-[32rem] rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-950/90 shadow-sm px-6 py-6">
+  <div class="h-full w-full flex items-center justify-center px-6 py-10 region-drag">
+    <div
+      class="w-full max-w-[32rem] rounded-2xl border app-border bg-white/90 dark:bg-neutral-950/90 shadow-sm px-6 py-6 region-no-drag"
+    >
       <div class="flex flex-col gap-2 mb-6">
         <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Onboarding</span>
         <h1 class="text-2xl font-semibold">Create the first admin user</h1>
         <p class="text-sm opacity-70">
-          {{ workspaceStore.currentServer?.name || 'This server' }} does not have any users yet. The first account gets full admin access.
+          {{ workspaceStore.currentServer?.name || 'This server' }} does not have any users yet. The
+          first account gets full admin access.
         </p>
       </div>
 
@@ -80,7 +83,8 @@ const submitOnboarding = async () => {
         <div class="grid grid-cols-2 gap-4">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Password</label>
-            <Password size="small"
+            <Password
+              size="small"
               v-model="password"
               fluid
               toggle-mask
@@ -91,7 +95,8 @@ const submitOnboarding = async () => {
 
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Confirm password</label>
-            <Password size="small"
+            <Password
+              size="small"
               v-model="confirmPassword"
               fluid
               toggle-mask
@@ -116,7 +121,8 @@ const submitOnboarding = async () => {
         </div>
 
         <div class="flex justify-end pt-2">
-          <Button size="small"
+          <Button
+            size="small"
             label="Create admin account"
             icon="ti ti-shield-check"
             :loading="authStore.loading"

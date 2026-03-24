@@ -57,7 +57,7 @@ const submitLabel = computed(() => 'Create API key')
         />
       </div>
 
-      <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-sm opacity-70">
+      <div class="rounded-xl border app-border px-3 py-2 text-sm opacity-70">
         The full token is only shown once after creation.
       </div>
 

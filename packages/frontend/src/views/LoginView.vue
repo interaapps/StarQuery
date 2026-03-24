@@ -47,11 +47,15 @@ const startOpenIdLogin = async () => {
 </script>
 
 <template>
-  <div class="h-full w-full flex items-center justify-center px-6 py-10">
-    <div class="w-full max-w-[30rem] rounded-2xl border border-neutral-200 dark:border-neutral-800 bg-white/90 dark:bg-neutral-950/90 shadow-sm px-6 py-6">
+  <div class="h-full w-full flex items-center justify-center px-6 py-10 region-drag">
+    <div
+      class="w-full max-w-[30rem] rounded-2xl border app-border bg-white/90 dark:bg-neutral-950/90 shadow-sm px-6 py-6 region-no-drag"
+    >
       <div class="flex flex-col gap-2 mb-6">
         <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Sign in</span>
-        <h1 class="text-2xl font-semibold">Connect to {{ workspaceStore.currentServer?.name || 'StarQuery' }}</h1>
+        <h1 class="text-2xl font-semibold">
+          Connect to {{ workspaceStore.currentServer?.name || 'StarQuery' }}
+        </h1>
         <p class="text-sm opacity-70">
           Sign in to load workspaces, datasources, and admin features from this server.
         </p>
@@ -67,12 +71,19 @@ const startOpenIdLogin = async () => {
       <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Email</label>
-          <InputText size="small" v-model="email" fluid autocomplete="username" placeholder="you@example.com" />
+          <InputText
+            size="small"
+            v-model="email"
+            fluid
+            autocomplete="username"
+            placeholder="you@example.com"
+          />
         </div>
 
         <div class="flex flex-col gap-2">
           <label class="text-sm opacity-70">Password</label>
-          <Password size="small"
+          <Password
+            size="small"
             v-model="password"
             fluid
             toggle-mask
@@ -96,7 +107,8 @@ const startOpenIdLogin = async () => {
         </div>
 
         <div class="flex flex-col gap-3 pt-2">
-          <Button size="small"
+          <Button
+            size="small"
             label="Sign in"
             icon="ti ti-login-2"
             :loading="authStore.loading"
@@ -104,7 +116,8 @@ const startOpenIdLogin = async () => {
             @click="submitLogin"
           />
 
-          <Button size="small"
+          <Button
+            size="small"
             v-if="authStore.status.openIdEnabled"
             label="Continue with OpenID"
             icon="ti ti-id-badge-2"

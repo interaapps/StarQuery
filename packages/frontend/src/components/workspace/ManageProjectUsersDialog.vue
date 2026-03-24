@@ -115,7 +115,7 @@ watch(
     :style="{ width: '44rem' }"
   >
     <div class="flex flex-col gap-4">
-      <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex items-end gap-3">
+      <div class="rounded-xl border app-border p-3 flex items-end gap-3">
         <div class="flex-1 flex flex-col gap-2">
           <label class="text-sm opacity-70">Add user</label>
           <Select size="small"
@@ -165,14 +165,14 @@ watch(
 
         <div
           v-if="loading"
-          class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-4 py-6 text-sm opacity-65"
+          class="rounded-xl border app-border px-4 py-6 text-sm opacity-65"
         >
           Loading workspace users...
         </div>
 
         <div
           v-else-if="!activeMembers.length"
-          class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-4 py-6 text-sm opacity-65"
+          class="rounded-xl border app-border px-4 py-6 text-sm opacity-65"
         >
           No workspace users have been assigned yet.
         </div>
@@ -181,7 +181,7 @@ watch(
           <div
             v-for="user of activeMembers"
             :key="user.id"
-            class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-3 flex items-center gap-3"
+            class="rounded-xl border app-border px-3 py-3 flex items-center gap-3"
           >
             <div class="flex-1 min-w-0">
               <div class="font-medium truncate">{{ user.name }}</div>

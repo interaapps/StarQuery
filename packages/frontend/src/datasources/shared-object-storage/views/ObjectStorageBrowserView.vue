@@ -456,7 +456,7 @@ watch(
 <template>
   <div class="h-full flex flex-col">
     <div
-      class="border-b border-neutral-200 dark:border-neutral-800 px-4 py-2 flex items-center gap-3"
+      class="border-b app-border px-4 py-2 flex items-center gap-3"
     >
       <div class="min-w-0 flex items-center gap-1 overflow-auto text-sm">
         <button
@@ -509,7 +509,7 @@ watch(
     </Message>
 
     <div
-      class="border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between gap-3"
+      class="border-b app-border px-3 py-2 flex items-center justify-between gap-3"
     >
       <div class="min-w-0">
         <div class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Object Storage</div>
@@ -552,7 +552,7 @@ watch(
     </div>
 
     <div class="min-h-0 flex flex-1 overflow-hidden">
-      <div class="min-h-0 min-w-0 flex-1 border-r border-neutral-200 dark:border-neutral-800">
+      <div class="min-h-0 min-w-0 flex-1 border-r app-border">
         <ObjectStorageResourceTable
           v-model:selection="selectedResources"
           :items="listing?.items ?? []"
@@ -572,7 +572,7 @@ watch(
         v-model:width="previewPanelWidth"
         :min-width="220"
         invert
-        class="border-r border-neutral-200 dark:border-neutral-800"
+        class="border-r app-border"
       />
 
       <div :style="{ width: `${previewPanelWidth}px` }" class="min-h-0 min-w-0 shrink-0">

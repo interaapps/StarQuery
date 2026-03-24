@@ -1,13 +1,7 @@
 import type { DataSourceType } from '@/types/sql'
+import { quoteSqlIdentifier } from '@/datasources/shared-sql/dialect'
 
-const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
 const FORBIDDEN_SQL_FRAGMENT_TOKENS = [';', '--', '/*', '*/', '\u0000']
-
-function assertIdentifier(identifier: string) {
-  if (!IDENTIFIER_PATTERN.test(identifier)) {
-    throw new Error(`Invalid identifier: ${identifier}`)
-  }
-}
 
 export function normalizeWhereClause(where?: string) {
   const trimmed = where?.trim()
@@ -50,13 +44,7 @@ export function normalizeOrderByClause(orderBy?: string) {
 }
 
 export function quoteIdentifier(identifier: string, sourceType: DataSourceType) {
-  assertIdentifier(identifier)
-
-  if (sourceType === 'mysql') {
-    return `\`${identifier.replace(/`/g, '``')}\``
-  }
-
-  return `"${identifier.replace(/"/g, '""')}"`
+  return quoteSqlIdentifier(identifier, sourceType)
 }
 
 export function buildTableQuery(input: {

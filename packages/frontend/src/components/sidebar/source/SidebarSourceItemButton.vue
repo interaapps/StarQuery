@@ -21,10 +21,11 @@ const emit = defineEmits<{
 <template>
   <Button
     class="flex w-full items-center justify-start text-sm rounded-md px-2 py-1 pr-1 truncate"
+    :pt="{ label: 'font-normal' }"
     :icon
     :label
     text
-    severity="secondary"
+    severity="contrast"
     size="small"
     :disabled="props.disabled"
     @click="emit('click')"

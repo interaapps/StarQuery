@@ -12,6 +12,29 @@
 
 :root {
   font-family: 'Plus Jakarta Sans Variable', sans-serif;
+  --app-border-color: var(--color-neutral-200);
+  --app-bg: #FFF;
+}
+
+.dark {
+  --app-border-color: var(--color-neutral-800);
+  --app-bg: #121212;
+}
+
+.electron-mac {
+  font-family: system-ui;
+}
+
+.electron-mac.dark {
+  --app-bg: #181818;
+}
+
+
+.electron-mac .sidenav-elements {
+  --app-border-color: #00000011;
+}
+.electron-mac.dark  .sidenav-elements {
+  --app-border-color: #FFFFFF11;
 }
 
 * {
@@ -62,4 +85,33 @@
 .electron .p-tooltip,
 .electron .p-tooltip * {
   -webkit-app-region: no-drag;
+}
+
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+@utility app-border {
+  border-color: var(--app-border-color);
+}
+
+@utility app-border-bg {
+  background-color: var(--app-border-color);
+}
+
+@utility app-bg {
+  background-color: var(--app-bg);
+}
+
+.app-bg-no-mac,
+.sidenav-elements{
+  background-color: var(--app-bg);
+}
+.electron-mac .app-bg-no-mac,
+.electron-mac .sidenav-elements {
+  background-color: transparent;
 }

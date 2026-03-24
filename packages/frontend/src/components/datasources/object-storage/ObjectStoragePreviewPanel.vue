@@ -57,7 +57,7 @@ const propertyRows = computed(() => {
     </div>
 
     <template v-else>
-      <div class="border-b border-neutral-200 dark:border-neutral-800 px-4 py-3">
+      <div class="border-b app-border px-4 py-3">
         <div v-if="listing?.details" class="flex flex-col gap-1">
           <div class="text-sm font-semibold">{{ listing.details.name }}</div>
           <div class="text-xs opacity-60 mono break-all">{{ listing.details.path }}</div>
@@ -69,7 +69,7 @@ const propertyRows = computed(() => {
 
       <div class="min-h-0 flex-1 overflow-hidden">
         <section :style="{ height: `${previewHeight}px` }" class="flex min-h-0 flex-col overflow-hidden">
-          <div class="border-b border-neutral-200 dark:border-neutral-800 px-4 py-2">
+          <div class="border-b app-border px-4 py-2">
             <div class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Preview</div>
           </div>
 
@@ -99,11 +99,11 @@ const propertyRows = computed(() => {
           direction="vertical"
           :min-height="180"
           :max-height="560"
-          class="border-y border-neutral-200 dark:border-neutral-800"
+          class="border-y app-border"
         />
 
         <section class="flex min-h-0 flex-1 flex-col overflow-hidden">
-          <div class="border-b border-neutral-200 dark:border-neutral-800 px-4 py-2">
+          <div class="border-b app-border px-4 py-2">
             <div class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Properties</div>
           </div>
 

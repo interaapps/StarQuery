@@ -62,10 +62,14 @@ const toColumns = (columns: string[]): SQLTableColumn[] =>
 
 const resultSets = computed(() => results.value.filter((result) => result.type === 'SELECT'))
 const hasOutput = computed(() => results.value.length > 0)
-const sourceRecord = computed(() => workspaceStore.dataSources.find((source) => source.id === props.data.sourceId))
+const sourceRecord = computed(() =>
+  workspaceStore.dataSources.find((source) => source.id === props.data.sourceId),
+)
 const sourceType = computed(() => props.data.sourceType ?? sourceRecord.value?.type ?? 'mysql')
 const canRunQuery = computed(() =>
-  authStore.hasPermission(dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId)),
+  authStore.hasPermission(
+    dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
+  ),
 )
 
 const loadCompletion = async () => {
@@ -184,9 +188,7 @@ watch(sourceRecord, async (nextSource) => {
 
 <template>
   <div class="flex flex-col h-full">
-    <div
-      class="border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between px-3 py-2"
-    >
+    <div class="border-b app-border flex items-center justify-between px-3 py-2">
       <div class="flex items-center gap-3">
         <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">{{
           props.data.sourceName
@@ -211,7 +213,7 @@ watch(sourceRecord, async (nextSource) => {
     <CollapsiblePanel
       v-model:expanded="editorVisible"
       title="Editor"
-      root-class="border-b border-neutral-200 dark:border-neutral-800"
+      root-class="border-b app-border"
       body-class="overflow-hidden"
     >
       <template #title>
@@ -237,7 +239,7 @@ watch(sourceRecord, async (nextSource) => {
       direction="vertical"
       :min-height="180"
       :max-height="680"
-      class="border-b border-neutral-200 dark:border-neutral-800"
+      class="border-b app-border"
     />
 
     <div class="min-h-0 flex-1 overflow-hidden">
@@ -250,21 +252,24 @@ watch(sourceRecord, async (nextSource) => {
           expanded-class="min-h-0 flex-1"
           panel-class="h-full"
         />
-        <Message v-else severity="secondary" :closable="false">
-          Run a query from the selected datasource to inspect one or more result sets here.
-        </Message>
+        <div v-else class="h-full flex flex-col items-center justify-center gap-3 opacity-50">
+          <p class="opacity-60">
+            Run a query from the selected datasource to inspect one or more result sets here.
+          </p>
+        </div>
       </div>
 
       <div v-else class="h-full flex flex-col gap-4">
-        <div v-if="resultSets.length" class="min-h-0 flex-1 overflow-auto flex flex-col gap-4 px-3 py-3 pr-4">
+        <div
+          v-if="resultSets.length"
+          class="min-h-0 flex-1 overflow-auto flex flex-col gap-4 px-3 py-3 pr-4"
+        >
           <section
             v-for="(result, index) in resultSets"
             :key="index"
-            class="rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden shrink-0"
+            class="rounded-2xl border app-border overflow-hidden shrink-0"
           >
-            <div
-              class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between"
-            >
+            <div class="px-3 py-2 border-b app-border flex items-center justify-between">
               <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">
                 Result {{ index + 1 }}
               </span>
@@ -286,8 +291,8 @@ watch(sourceRecord, async (nextSource) => {
           v-model:expanded="logsVisible"
           :entries="logs"
           empty-message="No query logs yet."
-          expanded-class="border-t border-neutral-200 dark:border-neutral-800 shrink-0"
-          collapsed-class="border-t border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between shrink-0"
+          expanded-class="border-t app-border shrink-0"
+          collapsed-class="border-t app-border px-3 py-2 flex items-center justify-between shrink-0"
           panel-class="h-[12rem]"
         />
       </div>

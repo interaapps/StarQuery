@@ -4,6 +4,8 @@ import Checkbox from 'primevue/checkbox'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import SQLEditor from '@/components/editors/SQLEditor.vue'
+import { computed } from 'vue'
+import { getSqlTableSchemaUi } from '@/datasources/shared-sql/dialect'
 import {
   createCheckDraft,
   createColumnDraft,
@@ -26,6 +28,8 @@ const props = defineProps<{
   sourceType: DataSourceType
   mode: TableSchemaMode
 }>()
+
+const ui = computed(() => getSqlTableSchemaUi(props.sourceType, props.mode))
 
 const keyTypeOptions = [
   { label: 'Primary key', value: 'primary' },
@@ -143,7 +147,7 @@ const removeEntry = (index: number) => {
       <div
         v-for="(column, index) in schema.columns"
         :key="column.id"
-        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex flex-col gap-3"
+        class="rounded-xl border app-border p-3 flex flex-col gap-3"
       >
         <div class="flex items-center justify-between gap-3">
           <div class="text-sm font-medium">{{ column.name || `Column ${index + 1}` }}</div>
@@ -194,7 +198,7 @@ const removeEntry = (index: number) => {
       <div
         v-for="(key, index) in schema.keys"
         :key="key.id"
-        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex flex-col gap-3"
+        class="rounded-xl border app-border p-3 flex flex-col gap-3"
       >
         <div class="flex items-center justify-between gap-3">
           <div class="text-sm font-medium">{{ key.name || `Key ${index + 1}` }}</div>
@@ -223,7 +227,7 @@ const removeEntry = (index: number) => {
       <div
         v-for="(foreignKey, index) in schema.foreignKeys"
         :key="foreignKey.id"
-        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex flex-col gap-3"
+        class="rounded-xl border app-border p-3 flex flex-col gap-3"
       >
         <div class="flex items-center justify-between gap-3">
           <div class="text-sm font-medium">{{ foreignKey.name || `Foreign key ${index + 1}` }}</div>
@@ -281,7 +285,7 @@ const removeEntry = (index: number) => {
       <div
         v-for="(indexEntry, index) in schema.indexes"
         :key="indexEntry.id"
-        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex flex-col gap-3"
+        class="rounded-xl border app-border p-3 flex flex-col gap-3"
       >
         <div class="flex items-center justify-between gap-3">
           <div class="text-sm font-medium">{{ indexEntry.name || `Index ${index + 1}` }}</div>
@@ -306,10 +310,11 @@ const removeEntry = (index: number) => {
           </label>
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Method</label>
-            <InputText size="small"
+            <InputText
+              size="small"
               v-model="indexEntry.method"
               fluid
-              :placeholder="sourceType === 'postgres' ? 'btree' : sourceType === 'mysql' ? 'BTREE' : 'Optional'"
+              :placeholder="ui.indexMethodPlaceholder"
             />
           </div>
         </div>
@@ -320,7 +325,7 @@ const removeEntry = (index: number) => {
       <div
         v-for="(check, index) in schema.checks"
         :key="check.id"
-        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex flex-col gap-3"
+        class="rounded-xl border app-border p-3 flex flex-col gap-3"
       >
         <div class="flex items-center justify-between gap-3">
           <div class="text-sm font-medium">{{ check.name || `Check ${index + 1}` }}</div>
@@ -343,7 +348,7 @@ const removeEntry = (index: number) => {
       <div
         v-for="(trigger, index) in schema.triggers"
         :key="trigger.id"
-        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex flex-col gap-3"
+        class="rounded-xl border app-border p-3 flex flex-col gap-3"
       >
         <div class="flex items-center justify-between gap-3">
           <div class="text-sm font-medium">{{ trigger.name || `Trigger ${index + 1}` }}</div>
@@ -372,7 +377,7 @@ const removeEntry = (index: number) => {
       <div
         v-for="(column, index) in schema.virtualColumns"
         :key="column.id"
-        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex flex-col gap-3"
+        class="rounded-xl border app-border p-3 flex flex-col gap-3"
       >
         <div class="flex items-center justify-between gap-3">
           <div class="text-sm font-medium">{{ column.name || `Virtual column ${index + 1}` }}</div>
@@ -393,13 +398,14 @@ const removeEntry = (index: number) => {
         <div class="grid grid-cols-2 gap-3">
           <div class="flex flex-col gap-2">
             <label class="text-sm opacity-70">Storage</label>
-            <Select size="small"
+            <Select
+              size="small"
               v-model="column.storage"
               :options="virtualStorageOptions"
               option-label="label"
               option-value="value"
               fluid
-              :disabled="sourceType === 'postgres'"
+              :disabled="ui.virtualColumnStorageLocked"
             />
           </div>
           <label class="flex items-center gap-2 text-sm pt-7">
@@ -419,7 +425,7 @@ const removeEntry = (index: number) => {
       <div
         v-for="(relation, index) in schema.virtualForeignKeys"
         :key="relation.id"
-        class="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3 flex flex-col gap-3"
+        class="rounded-xl border app-border p-3 flex flex-col gap-3"
       >
         <div class="flex items-center justify-between gap-3">
           <div class="text-sm font-medium">{{ relation.name || `Virtual foreign key ${index + 1}` }}</div>

@@ -2,7 +2,6 @@
 import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
 import type { SQLNamespace } from '@codemirror/lang-sql'
 import Button from 'primevue/button'
-import Select from 'primevue/select'
 import Message from 'primevue/message'
 import { useToast } from 'primevue/usetoast'
 import { buildSqlCompletionCatalog } from '@/datasources/shared-sql/completion'
@@ -12,6 +11,7 @@ import {
   normalizeWhereClause,
   quoteIdentifier,
 } from '@/datasources/shared-sql/query'
+import DataPaginationBar from '@/components/common/DataPaginationBar.vue'
 import CollapsibleActivityPanel from '@/components/sql/CollapsibleActivityPanel.vue'
 import LoadingContainer from '@/components/LoadingContainer.vue'
 import type { SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
@@ -169,6 +169,7 @@ const buildDraftRows = (resultRows: Record<string, unknown>[]) =>
   })
 
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+const paginationSummary = computed(() => `${total.value} row${total.value === 1 ? '' : 's'}`)
 const dirtyRows = computed(() => rows.value.filter((row) => row.state !== 'clean'))
 const defaultSortColumn = computed(
   () => tableDetails.value?.primaryKeys[0] ?? tableDetails.value?.columns[0]?.name ?? null,
@@ -679,7 +680,7 @@ onMounted(async () => {
 <template>
   <div class="flex flex-col w-full h-full">
     <div
-      class="border-b border-neutral-200 dark:border-neutral-800 flex h-[2.5rem] items-center px-2 justify-between gap-3"
+      class="border-b app-border flex h-[2.5rem] items-center px-2 justify-between gap-3"
     >
       <div class="flex items-center gap-0.5">
         <Button
@@ -744,12 +745,12 @@ onMounted(async () => {
     </div>
 
     <div
-      class="border-b border-neutral-200 dark:border-neutral-800 flex flex-wrap px-3 py-0 items-center gap-3"
+      class="border-b app-border flex flex-wrap px-3 py-0 items-center gap-3"
     >
       <div class="flex items-center gap-2 min-w-0 flex-[1.4]">
         <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Where</span>
         <div
-          class="flex-1 min-w-[18rem] rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-2"
+          class="flex-1 min-w-[18rem] rounded-md border app-border bg-white dark:bg-neutral-950 px-2"
         >
           <SQLEditor
             v-model="whereInput"
@@ -775,7 +776,7 @@ onMounted(async () => {
       <div class="flex items-center gap-2 min-w-0 flex-[1.2]">
         <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Sort</span>
         <div
-          class="flex-1 min-w-[16rem] rounded-md border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-950 px-2"
+          class="flex-1 min-w-[16rem] rounded-md border app-border bg-white dark:bg-neutral-950 px-2"
         >
           <SQLEditor
             v-model="sortInput"
@@ -811,13 +812,13 @@ onMounted(async () => {
       This server account can inspect the schema but cannot load table rows from this datasource.
     </Message>
 
-    <div v-if="isLoading" class="border-b h-full border-neutral-200 dark:border-neutral-800">
+    <div v-if="isLoading" class="border-b h-full app-border">
       <LoadingContainer />
     </div>
 
     <div
       v-else
-      class="border-b border-neutral-200 dark:border-neutral-800 overflow-hidden h-full min-h-0"
+      class="border-b app-border overflow-hidden h-full min-h-0"
     >
       <div class="h-full min-h-0 flex flex-col">
         <div class="min-h-0 flex-1 overflow-hidden relative">
@@ -829,36 +830,17 @@ onMounted(async () => {
             class="pb-20"
           />
 
-          <div
-            class="flex items-center gap-1 bg-white absolute bottom-6 left-[50%] translate-x-[-50%] border-1 py-0 px-0.5 rounded-xl h-fit border-neutral-200 dark:border-neutral-800"
-          >
-            <Button
-              icon="ti ti-chevron-left"
-              size="small"
-              text
-              severity="secondary"
-              :disabled="!canQueryTable || page <= 1"
-              @click="changePage(page - 1)"
-              rounded
-            />
-            <Select
-              :model-value="pageSize"
-              :options="[5, 10, 15, 25, 50, 100, 200, 500, 1000, 2000]"
-              size="small"
-              class="border-0"
+          <div class="absolute bottom-6 left-[50%] translate-x-[-50%]">
+            <DataPaginationBar
+              :page="page"
+              :page-size="pageSize"
+              :total-pages="pageCount"
+              :summary="paginationSummary"
               :disabled="!canQueryTable"
-              input-class="px-0 text-xs"
-              @update:model-value="(value) => value && changePageSize(value)"
-            />
-            <span class="text-xs mono opacity-60">Page {{ page }} / {{ pageCount }}</span>
-            <Button
-              icon="ti ti-chevron-right"
-              size="small"
-              text
-              severity="secondary"
-              :disabled="!canQueryTable || page >= pageCount"
-              @click="changePage(page + 1)"
-              rounded
+              :can-previous="page > 1"
+              :can-next="page < pageCount"
+              @update:page="changePage"
+              @update:page-size="changePageSize"
             />
           </div>
         </div>
@@ -869,14 +851,14 @@ onMounted(async () => {
           direction="vertical"
           :min-height="96"
           :max-height="280"
-          class="border-t border-neutral-200 dark:border-neutral-800"
+          class="border-t app-border"
         />
 
         <CollapsibleActivityPanel
           v-model:expanded="logsVisible"
           :entries="activityLogs"
           empty-message="No table logs yet."
-          expanded-class="border-t border-neutral-200 dark:border-neutral-800"
+          expanded-class="border-t app-border"
           panel-class="h-full"
           :expanded-style="{ height: `${logsHeight}px` }"
         />
@@ -884,7 +866,7 @@ onMounted(async () => {
     </div>
 
     <div
-      class="border-t border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between text-xs mono opacity-60"
+      class="border-t app-border px-3 py-2 flex items-center justify-between text-xs mono opacity-60"
     >
       <span>
         {{ dirtyRows.filter((row) => row.state === 'new').length }} inserted /

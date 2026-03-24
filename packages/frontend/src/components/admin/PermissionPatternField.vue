@@ -83,7 +83,7 @@ watch(text, (value) => {
         v-for="helper of helpers"
         :key="helper.label + helper.value"
         type="button"
-        class="rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-500/5 px-2 py-1 text-left text-xs transition-colors hover:bg-neutral-500/10"
+        class="rounded-md border app-border bg-neutral-500/5 px-2 py-1 text-left text-xs transition-colors hover:bg-neutral-500/10"
         @click="addHelperPermission(helper.value)"
       >
         <span class="font-medium">{{ helper.label }}</span>

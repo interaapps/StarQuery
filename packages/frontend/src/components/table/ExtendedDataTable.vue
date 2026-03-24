@@ -583,7 +583,9 @@ const updateDragSelectionFromPointer = (clientX: number, clientY: number) => {
   const probeX = Math.min(Math.max(clientX, containerRect.left + 2), containerRect.right - 2)
   const probeY = Math.min(Math.max(clientY, containerRect.top + 2), containerRect.bottom - 2)
   const element = document.elementFromPoint(probeX, probeY)
-  const cell = element?.closest?.('td[data-cell-row][data-cell-column]') as HTMLTableCellElement | null
+  const cell = element?.closest?.(
+    'td[data-cell-row][data-cell-column]',
+  ) as HTMLTableCellElement | null
 
   if (!cell) {
     return
@@ -862,7 +864,7 @@ defineExpose({
   <div
     ref="gridContainer"
     tabindex="0"
-    class="h-full overflow-auto outline-none bg-white dark:bg-neutral-950"
+    class="h-full overflow-auto outline-none"
     @keydown="onGridKeyDown"
     @contextmenu.prevent="showContextMenu($event)"
   >
@@ -870,7 +872,7 @@ defineExpose({
       <thead>
         <tr class="sticky top-0 left-0 bg-[#F9F9F9] dark:bg-[#202020] z-20">
           <th
-            class="sticky left-0 z-30 bg-[#F9F9F9] dark:bg-[#202020] border border-neutral-200 dark:border-neutral-800 border-t-0 border-l-0"
+            class="sticky left-0 z-30 bg-[#F9F9F9] dark:bg-[#202020] border app-border border-t-0 border-l-0"
           >
             <button
               class="w-full h-full min-w-[3rem] hover:bg-neutral-500/10 text-xs uppercase tracking-[0.14em] rounded-md py-2 opacity-55"
@@ -884,7 +886,7 @@ defineExpose({
             v-for="(column, columnIndex) of columns"
             :key="column.field"
             align="left"
-            class="border border-neutral-200 dark:border-neutral-800 font-normal mono text-xs relative border-t-0 select-none"
+            class="border app-border font-normal mono text-xs relative border-t-0 select-none"
             :class="{ 'bg-black/5 dark:bg-white/10': isColumnSelected(columnIndex) }"
             :style="{ width: `${widths[column.field] || 220}px` }"
             @click="selectColumn(columnIndex)"
@@ -924,7 +926,7 @@ defineExpose({
           }"
         >
           <td
-            class="border border-neutral-200 dark:border-neutral-800 px-3 text-center sticky left-0 z-10 bg-neutral-50 dark:bg-neutral-900 mono text-xs border-l-0"
+            class="border app-border px-3 text-center sticky left-0 z-10 bg-neutral-50 dark:bg-neutral-900 mono text-xs border-l-0"
             @click="selectRow(rowIndex)"
           >
             <div class="flex items-center gap-2 py-1">
@@ -947,7 +949,7 @@ defineExpose({
             :key="column.field"
             :data-cell-row="rowIndex"
             :data-cell-column="columnIndex"
-            class="border border-neutral-200 dark:border-neutral-800 mono text-xs align-top"
+            class="border app-border mono text-xs align-top"
             :class="{
               'bg-primary-500/18 ring-inset ring-1 ring-primary-500/30': isCellSelected(
                 rowIndex,

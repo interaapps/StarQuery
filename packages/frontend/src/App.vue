@@ -364,9 +364,9 @@ const openManageProjectUsersDialog = () => {
       gridTemplateColumns: `76px ${route.meta?.hideSidebar ? '' : `${sideBarWidth}px`} 1fr`,
     }"
   >
-    <div class="p-2 border-r border-neutral-200 dark:border-neutral-800 app-left-rail">
-      <div class="flex flex-col gap-4 justify-between h-full">
-        <div class="flex flex-col gap-4">
+    <div class="p-2 border-r app-border app-left-rail min-h-0 sidenav-elements">
+      <div class="flex flex-col gap-4 justify-between h-full min-h-0">
+        <div class="flex flex-col gap-2 min-h-0 flex-1">
           <router-link to="/" class="hover:scale-110 active:scale-95 transition-all app-logo-link">
             <img
               src="@/assets/logo.svg"
@@ -374,37 +374,43 @@ const openManageProjectUsersDialog = () => {
             />
           </router-link>
 
-          <div class="flex flex-col gap-2 p-1.5 pt-0">
-            <button
-              v-for="project of workspaceStore.projects"
-              :key="project.id"
-              v-tooltip.right="project.name"
-              class="w-full aspect-square flex justify-center items-center rounded-xl transition-all border font-semibold"
-              :class="
-                workspaceStore.currentProjectId === project.id
-                  ? 'border-primary-500/30 bg-primary-500/20 text-primary-500'
-                  : 'border-transparent bg-neutral-500/5 text-neutral-500/80'
-              "
-              style="-electron-corner-smoothing: system-ui"
-              @click="selectProject(project.id)"
-              @contextmenu.prevent="showProjectMenu($event, project)"
+          <div class="flex min-h-0 flex-1 flex-col gap-2 p-1.5 pt-0">
+            <div
+              class="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto scrollbar-hidden"
             >
-              <span>{{ project.name.slice(0, 2).toUpperCase() }}</span>
-            </button>
+              <button
+                v-for="project of workspaceStore.projects"
+                :key="project.id"
+                v-tooltip.right="project.name"
+                class="w-full aspect-square shrink-0 flex justify-center items-center rounded-xl transition-all border font-semibold"
+                :class="
+                  workspaceStore.currentProjectId === project.id
+                    ? 'border-primary-500/30 bg-primary-500/20 text-primary-500'
+                    : 'border-transparent bg-neutral-500/5 text-neutral-500/80'
+                "
+                @click="selectProject(project.id)"
+                @contextmenu.prevent="showProjectMenu($event, project)"
+              >
+                <span>{{ project.name.slice(0, 2).toUpperCase() }}</span>
+              </button>
 
-            <button
-              v-tooltip.right="'Create workspace'"
-              class="w-full aspect-square flex justify-center items-center rounded-full border border-dashed border-neutral-300 dark:border-neutral-700 text-neutral-500/80"
-              :disabled="
-                !workspaceStore.hydrated ||
-                !workspaceStore.currentServer ||
-                !!workspaceStore.serverError ||
-                !canCreateProject
-              "
-              @click="openCreateProjectDialog"
-            >
-              <i class="ti ti-plus" />
-            </button>
+              <Button
+                v-tooltip.right="'Create workspace'"
+                icon="ti ti-plus"
+                rounded
+                class="border-dashed app-border"
+                outlined
+                size="large"
+                severity="secondary"
+                :disabled="
+                  !workspaceStore.hydrated ||
+                  !workspaceStore.currentServer ||
+                  !!workspaceStore.serverError ||
+                  !canCreateProject
+                "
+                @click="openCreateProjectDialog"
+              />
+            </div>
           </div>
         </div>
 
@@ -416,7 +422,8 @@ const openManageProjectUsersDialog = () => {
             rounded
             text
             size="large"
-            class="border border-primary-500/20"
+            outlined
+            class="app-border"
             :disabled="workspaceStore.isServerSelectionLocked"
             @click="toggleServerPopover"
           />
@@ -427,48 +434,52 @@ const openManageProjectUsersDialog = () => {
                 Servers
               </div>
 
-              <button
-                v-for="server of workspaceStore.servers"
-                :key="server.id"
-                class="w-full flex items-center gap-2 rounded-md px-2 py-1 text-left transition-colors"
-                :class="
-                  workspaceStore.currentServerId === server.id
-                    ? 'bg-primary-500/15 text-primary-500'
-                    : 'bg-neutral-500/5 hover:bg-neutral-500/10'
-                "
-                @click="selectServer(server.id)"
-              >
-                <i :class="`ti ${getServerIcon(server.kind)}`" />
-                <span class="truncate flex-1 text-sm">{{ server.name }}</span>
-                <div class="flex items-center gap-1">
-                  <i
-                    v-if="workspaceStore.currentServerId === server.id"
-                    class="ti ti-check text-sm"
-                  />
-                  <Button
-                    size="small"
-                    icon="ti ti-edit"
-                    text
-                    rounded
-                    severity="secondary"
-                    class="size-[1.6rem]"
-                    :disabled="isManagedLocalServer(server)"
-                    @click.stop="openEditServerDialog(server)"
-                  />
-                  <Button
-                    size="small"
-                    icon="ti ti-trash"
-                    text
-                    rounded
-                    severity="secondary"
-                    class="size-[1.6rem]"
-                    :disabled="workspaceStore.servers.length === 1 || isManagedLocalServer(server)"
-                    @click.stop="removeServer(server)"
-                  />
-                </div>
-              </button>
+              <div class="max-h-[22rem] overflow-y-auto scrollbar-hidden pr-1">
+                <button
+                  v-for="server of workspaceStore.servers"
+                  :key="server.id"
+                  class="w-full flex items-center gap-2 rounded-md px-2 py-1 text-left transition-colors"
+                  :class="
+                    workspaceStore.currentServerId === server.id
+                      ? 'bg-primary-500/15 text-primary-500'
+                      : 'bg-neutral-500/5 hover:bg-neutral-500/10'
+                  "
+                  @click="selectServer(server.id)"
+                >
+                  <i :class="`ti ${getServerIcon(server.kind)}`" />
+                  <span class="truncate flex-1 text-sm">{{ server.name }}</span>
+                  <div class="flex items-center gap-1">
+                    <i
+                      v-if="workspaceStore.currentServerId === server.id"
+                      class="ti ti-check text-sm"
+                    />
+                    <Button
+                      size="small"
+                      icon="ti ti-edit"
+                      text
+                      rounded
+                      severity="secondary"
+                      class="size-[1.6rem]"
+                      :disabled="isManagedLocalServer(server)"
+                      @click.stop="openEditServerDialog(server)"
+                    />
+                    <Button
+                      size="small"
+                      icon="ti ti-trash"
+                      text
+                      rounded
+                      severity="secondary"
+                      class="size-[1.6rem]"
+                      :disabled="
+                        workspaceStore.servers.length === 1 || isManagedLocalServer(server)
+                      "
+                      @click.stop="removeServer(server)"
+                    />
+                  </div>
+                </button>
+              </div>
 
-              <div class="h-px bg-neutral-200 dark:bg-neutral-800 my-1" />
+              <div class="h-px app-border-bg my-1" />
 
               <Button
                 label="Add server"

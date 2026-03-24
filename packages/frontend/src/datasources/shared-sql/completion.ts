@@ -1,7 +1,8 @@
 import type { SQLNamespace } from '@codemirror/lang-sql'
 import type { AxiosInstance } from 'axios'
-import type { DataSourceType, SQLTableDetails } from '@/types/sql'
+import type { SQLTableDetails } from '@/types/sql'
 import type { DataSourceRecord } from '@/types/workspace'
+import { getDefaultSqlSchemaName } from '@/datasources/shared-sql/dialect'
 
 export type SQLCompletionCatalog = {
   schema?: SQLNamespace
@@ -10,18 +11,6 @@ export type SQLCompletionCatalog = {
 }
 
 type CompletionSourceRecord = Pick<DataSourceRecord, 'type' | 'config' | 'name'>
-
-function getStringValue(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : null
-}
-
-function getDefaultSchemaName(source: CompletionSourceRecord) {
-  if (source.type === 'sqlite') {
-    return 'main'
-  }
-
-  return getStringValue(source.config.database) ?? source.name
-}
 
 function getColumnLabels(table: SQLTableDetails) {
   return table.columns.map((column) => column.name)
@@ -34,12 +23,12 @@ export function buildSqlCompletionCatalog(input: {
 }): SQLCompletionCatalog {
   if (!input.tables.length) {
     return {
-      defaultSchema: getDefaultSchemaName(input.source),
+      defaultSchema: getDefaultSqlSchemaName(input.source),
       defaultTable: input.defaultTable,
     }
   }
 
-  const defaultSchema = getDefaultSchemaName(input.source)
+  const defaultSchema = getDefaultSqlSchemaName(input.source)
   const tableNamespace = Object.fromEntries(
     input.tables.map((table) => [table.name, getColumnLabels(table)]),
   )
@@ -85,15 +74,4 @@ export async function loadSqlCompletionCatalog(input: {
     tables: details,
     defaultTable: input.defaultTable,
   })
-}
-
-export function getEditorDialect(sourceType: DataSourceType | undefined) {
-  switch (sourceType) {
-    case 'postgres':
-      return 'postgres'
-    case 'sqlite':
-      return 'sqlite'
-    default:
-      return 'mysql'
-  }
 }

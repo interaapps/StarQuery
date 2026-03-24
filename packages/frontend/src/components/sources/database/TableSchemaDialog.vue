@@ -6,6 +6,11 @@ import InputText from 'primevue/inputtext'
 import { useToast } from 'primevue/usetoast'
 import TableSchemaSectionEditor from '@/components/sources/database/TableSchemaSectionEditor.vue'
 import {
+  createDefaultSqlTableSchema,
+  getSqlTableSchemaUi,
+  getTableSchemaSupport,
+} from '@/datasources/shared-sql/dialect'
+import {
   createEmptyTableSchemaState,
   loadTableSchemaState,
   serializeVirtualForeignKeys,
@@ -15,8 +20,6 @@ import { getErrorMessage } from '@/services/error-message'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
 import {
   TABLE_SCHEMA_SECTIONS,
-  createDefaultTableSchema,
-  getTableSchemaSupport,
   type TableSchemaMode,
   type TableSchemaSectionId,
   type TableSchemaState,
@@ -44,6 +47,7 @@ const state = ref<TableSchemaState>(createEmptyTableSchemaState())
 const selectedSection = ref<TableSchemaSectionId>('columns')
 
 const support = computed(() => getTableSchemaSupport(props.source.type, props.mode))
+const ui = computed(() => getSqlTableSchemaUi(props.source.type, props.mode))
 const availableSections = computed(() =>
   TABLE_SCHEMA_SECTIONS.filter((section) => support.value.sections.includes(section.id)),
 )
@@ -87,11 +91,7 @@ const canSubmit = computed(() => {
 })
 
 const resetCreateMode = () => {
-  const schema = createDefaultTableSchema()
-  if (props.source.type === 'sqlite') {
-    schema.keys = []
-  }
-
+  const schema = createDefaultSqlTableSchema(props.source.type)
   state.value = {
     schema,
     original: null,
@@ -221,19 +221,12 @@ const applySchema = async () => {
         </div>
 
         <div class="text-xs opacity-60 max-w-[28rem] pt-7">
-          <template v-if="source.type === 'sqlite' && mode === 'edit'">
-            SQLite editing is currently focused on columns, indexes, triggers, and virtual foreign keys. More complex
-            constraint editing is still best done through SQL for existing SQLite tables.
-          </template>
-          <template v-else>
-            Edit the schema on the right. The SQL preview below is generated from these entries and executed as normal
-            SQL against the datasource.
-          </template>
+          {{ ui.editDescription }}
         </div>
       </div>
 
       <div class="grid grid-cols-[14rem_minmax(0,1fr)] gap-4 min-h-[34rem]">
-        <div class="rounded-2xl border border-neutral-200 dark:border-neutral-800 p-2 flex flex-col gap-1">
+        <div class="rounded-2xl border app-border p-2 flex flex-col gap-1">
           <button
             v-for="section in availableSections"
             :key="section.id"
@@ -254,7 +247,7 @@ const applySchema = async () => {
           </button>
         </div>
 
-        <div class="rounded-2xl border border-neutral-200 dark:border-neutral-800 p-4 overflow-hidden">
+        <div class="rounded-2xl border app-border p-4 overflow-hidden">
           <div class="flex items-center justify-between gap-3 mb-4">
             <div>
               <div class="text-sm font-medium">{{ selectedSectionMeta?.label }}</div>
@@ -273,8 +266,8 @@ const applySchema = async () => {
         </div>
       </div>
 
-      <div class="rounded-2xl border border-neutral-200 dark:border-neutral-800 overflow-hidden">
-        <div class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 text-xs uppercase tracking-[0.16em] opacity-60 mono">
+      <div class="rounded-2xl border app-border overflow-hidden">
+        <div class="px-3 py-2 border-b app-border text-xs uppercase tracking-[0.16em] opacity-60 mono">
           SQL Preview
         </div>
         <div class="bg-neutral-950 text-neutral-100 p-4 mono text-xs overflow-auto max-h-[16rem]">

@@ -38,12 +38,12 @@ const levelClass: Record<SQLActivityEntry['level'], string> = {
     :class="
       flat
         ? 'rounded-none border-0'
-        : 'rounded-2xl border border-neutral-200 dark:border-neutral-800'
+        : 'rounded-2xl border app-border'
     "
   >
     <div
       v-if="!hideHeader"
-      class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between"
+      class="px-3 py-2 border-b app-border flex items-center justify-between"
     >
       <SectionLabel :text="title || 'Logs'" class="opacity-60" />
       <div class="flex items-center gap-2">

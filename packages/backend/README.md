@@ -17,7 +17,7 @@
 {
   "data": [
     {
-      "name": "pastefy",
+      "name": "starquery",
       "type": "sql",
       "driver": "mysql"
     }

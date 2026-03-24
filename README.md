@@ -149,9 +149,9 @@ These are read by the StarQuery backend.
 | `STARQUERY_META_SQLITE_PATH` | `<cwd>/.starquery/starquery-meta.sqlite` | SQLite file path for the meta database. Only used when `STARQUERY_META_DRIVER=sqlite`. |
 | `STARQUERY_META_MYSQL_HOST` | `127.0.0.1` | MySQL host for the meta database. |
 | `STARQUERY_META_MYSQL_PORT` | `3307` | MySQL port for the meta database. |
-| `STARQUERY_META_MYSQL_USER` | `pastefy` | MySQL user for the meta database. |
-| `STARQUERY_META_MYSQL_PASSWORD` | `pastefy` | MySQL password for the meta database. |
-| `STARQUERY_META_MYSQL_DATABASE` | `pastefy` | MySQL database name for the meta database. |
+| `STARQUERY_META_MYSQL_USER` | `starquery` | MySQL user for the meta database. |
+| `STARQUERY_META_MYSQL_PASSWORD` | `starquery` | MySQL password for the meta database. |
+| `STARQUERY_META_MYSQL_DATABASE` | `starquery` | MySQL database name for the meta database. |
 
 ### Auth and token settings
 

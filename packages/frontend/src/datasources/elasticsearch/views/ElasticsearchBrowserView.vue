@@ -14,6 +14,7 @@ import {
   saveElasticsearchDocuments,
 } from '@/datasources/elasticsearch/browser'
 import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
+import DataPaginationBar from '@/components/common/DataPaginationBar.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
 import ElasticsearchResultsTable from '@/components/datasources/elasticsearch/ElasticsearchResultsTable.vue'
 import JsonEditor from '@/components/editors/JsonEditor.vue'
@@ -74,6 +75,35 @@ const canEditDocuments = computed(() =>
 )
 const hasSelectedIndex = computed(() => Boolean(selectedIndex.value))
 const hasPendingChanges = computed(() => rows.value.some((row) => row.state !== 'clean'))
+const currentPage = computed(() => Math.floor(from.value / Math.max(size.value, 1)) + 1)
+const pageCount = computed(() =>
+  result.value?.total !== null && result.value?.total !== undefined
+    ? Math.max(1, Math.ceil(result.value.total / Math.max(size.value, 1)))
+    : null,
+)
+const canGoToPreviousPage = computed(() => from.value > 0)
+const canGoToNextPage = computed(() => {
+  if (!result.value) {
+    return false
+  }
+
+  if (result.value.total !== null) {
+    return from.value + size.value < result.value.total
+  }
+
+  return result.value.hits.length >= size.value
+})
+const paginationSummary = computed(() => {
+  if (!result.value) {
+    return null
+  }
+
+  if (result.value.total !== null) {
+    return `${result.value.total} hit${result.value.total === 1 ? '' : 's'}`
+  }
+
+  return `${result.value.hits.length} loaded`
+})
 
 const resultSummary = computed(() => {
   if (!result.value) {
@@ -251,6 +281,58 @@ function discardDocumentChanges() {
   resultsTable.value?.resetFromResult()
 }
 
+function guardPendingChanges() {
+  if (!hasPendingChanges.value) {
+    return false
+  }
+
+  const message = 'Save or discard your current result set before changing pagination.'
+  pushLog({
+    level: 'info',
+    title: 'Unsaved changes',
+    message,
+  })
+  toast.add({
+    severity: 'warn',
+    summary: 'Unsaved changes',
+    detail: message,
+    life: 2200,
+  })
+  return true
+}
+
+async function changePage(nextPage: number) {
+  if (!selectedIndex.value) {
+    return
+  }
+
+  if (guardPendingChanges()) {
+    return
+  }
+
+  const boundedPage =
+    pageCount.value !== null
+      ? Math.min(Math.max(nextPage, 1), pageCount.value)
+      : Math.max(nextPage, 1)
+
+  from.value = (boundedPage - 1) * size.value
+  await runSearchForIndex()
+}
+
+async function changePageSize(nextPageSize: number) {
+  if (!selectedIndex.value) {
+    return
+  }
+
+  if (guardPendingChanges()) {
+    return
+  }
+
+  size.value = nextPageSize
+  from.value = 0
+  await runSearchForIndex()
+}
+
 function formatRequestBody() {
   try {
     syncRequestControlsIntoBody()
@@ -319,7 +401,7 @@ watch(
 
     <div class="min-h-0 flex flex-1 flex-col overflow-hidden">
       <div
-        class="border-b border-neutral-200 dark:border-neutral-800 px-3 py-2 flex items-center justify-between gap-3"
+        class="border-b app-border px-3 py-2 flex items-center justify-between gap-3"
       >
         <div class="min-w-0 space-y-0.5">
           <div class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Elasticsearch</div>
@@ -356,8 +438,8 @@ watch(
         <CollapsiblePanel
           v-model:expanded="editorVisible"
           title="Request Body"
-          root-class="border-b border-neutral-200 dark:border-neutral-800"
-          body-class="border-t border-neutral-200 dark:border-neutral-800"
+          root-class="border-b app-border"
+          body-class="border-t app-border"
         >
           <template #title>
             <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Request Body</span>
@@ -421,17 +503,17 @@ watch(
           direction="vertical"
           :min-height="180"
           :max-height="680"
-          class="border-b border-neutral-200 dark:border-neutral-800"
+          class="border-b app-border"
         />
 
         <CollapsiblePanel
           v-model:expanded="resultsVisible"
           :root-class="
             resultsVisible
-              ? 'border-b border-neutral-200 dark:border-neutral-800 min-h-0 flex flex-1 flex-col'
-              : 'border-b border-neutral-200 dark:border-neutral-800 shrink-0'
+              ? 'border-b app-border min-h-0 flex flex-1 flex-col'
+              : 'border-b app-border shrink-0'
           "
-          body-class="border-t border-neutral-200 dark:border-neutral-800 min-h-0 flex-1 overflow-hidden"
+          body-class="border-t app-border min-h-0 flex-1 overflow-hidden"
         >
           <template #title>
             <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Results</span>
@@ -487,7 +569,7 @@ watch(
             />
           </template>
 
-          <div class="h-full">
+          <div class="relative h-full">
             <ElasticsearchResultsTable
               ref="resultsTable"
               v-model:columns="columns"
@@ -498,6 +580,24 @@ watch(
               class="h-full"
             />
           </div>
+          <div
+            v-if="result"
+            class="pointer-events-none absolute bottom-6 left-[50%] translate-x-[-50%]"
+          >
+            <div class="pointer-events-auto">
+              <DataPaginationBar
+                :page="currentPage"
+                :page-size="size"
+                :total-pages="pageCount"
+                :summary="paginationSummary"
+                :disabled="isRunningSearch || isSaving"
+                :can-previous="canGoToPreviousPage"
+                :can-next="canGoToNextPage"
+                @update:page="changePage"
+                @update:page-size="changePageSize"
+              />
+            </div>
+          </div>
         </CollapsiblePanel>
 
         <ResizeKnob
@@ -506,14 +606,14 @@ watch(
           direction="vertical"
           :min-height="120"
           :max-height="320"
-          class="border-t border-neutral-200 dark:border-neutral-800"
+          class="border-t app-border"
         />
 
         <CollapsiblePanel
           v-if="logs.length"
           v-model:expanded="logsVisible"
-          root-class="border-t border-neutral-200 dark:border-neutral-800 shrink-0"
-          body-class="border-t border-neutral-200 dark:border-neutral-800"
+          root-class="border-t app-border shrink-0"
+          body-class="border-t app-border"
         >
           <template #title>
             <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Logs</span>

@@ -1,4 +1,4 @@
-import type { DataSourceType, SQLTableColumn } from '@/types/sql'
+import type { SQLTableColumn } from '@/types/sql'
 
 export type TableSchemaSectionId =
   | 'columns'
@@ -323,24 +323,3 @@ export function normalizeSqlColumnToDraft(column: SQLTableColumn): TableColumnDr
     defaultValue: column.defaultValue === null || column.defaultValue === undefined ? '' : String(column.defaultValue),
   })
 }
-
-export function getTableSchemaSupport(sourceType: DataSourceType, mode: TableSchemaMode): TableSchemaSupport {
-  if (sourceType === 'sqlite') {
-    return {
-      sections:
-        mode === 'create'
-          ? TABLE_SCHEMA_SECTIONS.map((section) => section.id)
-          : ['columns', 'indexes', 'triggers', 'virtualForeignKeys'],
-      editableSections:
-        mode === 'create'
-          ? TABLE_SCHEMA_SECTIONS.map((section) => section.id)
-          : ['columns', 'indexes', 'triggers', 'virtualForeignKeys'],
-    }
-  }
-
-  return {
-    sections: TABLE_SCHEMA_SECTIONS.map((section) => section.id),
-    editableSections: TABLE_SCHEMA_SECTIONS.map((section) => section.id),
-  }
-}
-

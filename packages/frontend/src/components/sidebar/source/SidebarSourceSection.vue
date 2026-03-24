@@ -26,14 +26,12 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div
-    class="rounded-xl border border-transparent transition-colors hover:border-neutral-200 dark:hover:border-neutral-800"
-  >
+  <div class="rounded-xl border border-transparent transition-colors hover:app-border">
     <div class="flex items-center justify-between gap-2 px-1 py-1">
       <Button
         class="flex flex-1 items-center justify-between gap-2 rounded-md px-2 py-1 pr-1"
         text
-        severity="secondary"
+        severity="contrast"
         size="small"
         @click="emit('toggle')"
         @contextmenu.prevent="emit('sourceContextmenu', $event)"

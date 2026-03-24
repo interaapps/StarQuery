@@ -43,7 +43,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex flex-col w-full h-full">
+  <div
+    class="flex flex-col w-full h-full transition-all"
+    :class="tabsStore.tabs.length ? 'app-bg' : ''"
+  >
     <WorkspaceTabsBar
       v-model:current-tab="tabsStore.currentTab"
       :tabs="tabsStore.tabs"
@@ -54,7 +57,9 @@ onBeforeUnmount(() => {
 
     <div v-if="!tabsStore.tabs.length" class="w-full h-full flex items-center justify-center">
       <div class="flex flex-col items-center">
-        <div class="relative animate-[spin_60s_linear_infinite] select-none opacity-20">
+        <div
+          class="relative animate-[spin_60s_linear_infinite] select-none opacity-20 hidden dark:block"
+        >
           <img
             src="@/assets/logo-part-outline.svg"
             class="w-[4rem] relative"
@@ -66,10 +71,32 @@ onBeforeUnmount(() => {
             style="animation: second-star 10s"
           />
         </div>
+        <div
+          class="relative animate-[spin_60s_linear_infinite] select-none opacity-20 block dark:hidden"
+        >
+          <img
+            src="@/assets/logo-part-outline-dark.svg"
+            class="w-[4rem] relative"
+            style="animation: first-star 10s; transform: rotate(106deg)"
+          />
+          <img
+            src="@/assets/logo-part-outline-dark.svg"
+            class="w-[4rem] absolute top-0"
+            style="animation: second-star 10s"
+          />
+        </div>
       </div>
     </div>
 
-    <Button size="small" icon="ti ti-home" text rounded class="opacity-0" />
+    <!-- To center the icon -->
+    <Button
+      v-if="!tabsStore.tabs.length"
+      size="small"
+      icon="ti ti-home"
+      text
+      rounded
+      class="opacity-0"
+    />
 
     <template v-for="(tab, index) of tabsStore.tabs">
       <div v-show="index === tabsStore.currentTab" class="h-full">

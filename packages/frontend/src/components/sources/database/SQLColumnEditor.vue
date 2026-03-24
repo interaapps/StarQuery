@@ -6,7 +6,7 @@ import Checkbox from 'primevue/checkbox'
 import SQLEditor from '@/components/editors/SQLEditor.vue'
 import { computed, ref } from 'vue'
 
-const tablename = 'pastefy_pastes'
+const tablename = 'example_records'
 const name = ref('')
 const type = ref('INT')
 const defaultValue = ref('')

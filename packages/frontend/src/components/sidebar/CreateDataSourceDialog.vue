@@ -125,7 +125,7 @@ const canSubmit = computed(() =>
         v-bind="currentFormProps"
       />
 
-      <div v-if="currentDefinition" class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs opacity-65">
+      <div v-if="currentDefinition" class="rounded-xl border app-border px-3 py-2 text-xs opacity-65">
         {{ currentDefinition.capabilities.sqlQuery ? 'SQL datasource' : 'Resource datasource' }}
       </div>
 

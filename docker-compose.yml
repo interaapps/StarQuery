@@ -7,9 +7,9 @@ services:
       - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: pastefy
-      MYSQL_USER: pastefy
-      MYSQL_PASSWORD: pastefy
+      MYSQL_DATABASE: starquery
+      MYSQL_USER: starquery
+      MYSQL_PASSWORD: starquery
     volumes:
       - mysql-data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
@@ -27,14 +27,14 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_DB: pastefy
-      POSTGRES_USER: pastefy
-      POSTGRES_PASSWORD: pastefy
+      POSTGRES_DB: starquery
+      POSTGRES_USER: starquery
+      POSTGRES_PASSWORD: starquery
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U pastefy -d pastefy"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U starquery -d starquery"]
       interval: 5s
       timeout: 5s
       retries: 20

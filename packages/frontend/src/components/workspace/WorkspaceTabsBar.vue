@@ -167,10 +167,7 @@ const logout = async () => {
 </script>
 
 <template>
-  <div
-    class="border-neutral-200 dark:border-neutral-800 flex min-w-0"
-    :class="props.tabs.length ? 'border-b' : ''"
-  >
+  <div class="app-border flex min-w-0" :class="props.tabs.length ? 'border-b' : ''">
     <div
       ref="tabsScroller"
       class="flex-1 w-full min-w-0 overflow-x-auto overflow-y-hidden whitespace-nowrap tabs-scroll region-drag"
@@ -216,6 +213,16 @@ const logout = async () => {
     <div
       class="flex justify-end items-center px-1 -space-x-1 opacity-30 hover:opacity-100 transition-all"
     >
+      <!-- TODO Settings -->
+      <Button
+        class="opacity-0 region-drag cursor-default"
+        icon="ti ti-settings"
+        severity="secondary"
+        rounded
+        text
+        size="small"
+      />
+
       <template v-if="authStore.status.enabled">
         <Button
           v-if="authStore.currentUser"
@@ -245,9 +252,7 @@ const logout = async () => {
             <div class="text-sm opacity-70">{{ authStore.currentUser.email }}</div>
           </div>
 
-          <div
-            class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs opacity-70"
-          >
+          <div class="rounded-xl border app-border px-3 py-2 text-xs opacity-70">
             {{ workspaceStore.currentServer?.name || 'Current server' }}
           </div>
 
@@ -273,16 +278,6 @@ const logout = async () => {
           />
         </div>
       </Popover>
-
-      <!-- TODO Settings -->
-      <Button
-        class="opacity-0 region-drag cursor-default"
-        icon="ti ti-settings"
-        severity="secondary"
-        rounded
-        text
-        size="small"
-      />
     </div>
     <ContextMenu ref="tabMenu" :model="tabMenuItems" class="text-sm" />
   </div>

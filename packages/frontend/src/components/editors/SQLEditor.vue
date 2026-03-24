@@ -4,10 +4,11 @@ import { Codemirror } from 'vue-codemirror'
 import { EditorState } from '@codemirror/state'
 import { autocompletion } from '@codemirror/autocomplete'
 import type { SQLNamespace } from '@codemirror/lang-sql'
-import { MariaSQL, PostgreSQL, SQLite, sql } from '@codemirror/lang-sql'
+import { sql } from '@codemirror/lang-sql'
 import { starQueryTheme } from './theme-starquery.ts'
 import { EditorView } from 'codemirror'
 import type { DataSourceType } from '@/types/sql'
+import { getSqlEditorDialect } from '@/datasources/shared-sql/dialect'
 
 const singleLineExtension = EditorView.domEventHandlers({
   beforeinput(event, view) {
@@ -48,14 +49,7 @@ const props = defineProps<{
 }>()
 
 const dialect = computed(() => {
-  switch (props.sourceType) {
-    case 'postgres':
-      return PostgreSQL
-    case 'sqlite':
-      return SQLite
-    default:
-      return MariaSQL
-  }
+  return getSqlEditorDialect(props.sourceType)
 })
 
 const extensions = computed(() => [

@@ -16,7 +16,7 @@ const selectedIndex = defineModel<string>('selectedIndex', {
 
 <template>
   <div class="h-full flex flex-col">
-    <div class="px-3 py-2 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+    <div class="px-3 py-2 border-b app-border flex items-center justify-between">
       <SectionLabel text="Indices" class="opacity-60" />
       <span class="text-xs opacity-50 mono">{{ items.length }}</span>
     </div>

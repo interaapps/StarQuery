@@ -1,4 +1,4 @@
-USE pastefy;
+USE starquery;
 
 CREATE TABLE IF NOT EXISTS customers (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,

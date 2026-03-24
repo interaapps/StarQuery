@@ -9,6 +9,7 @@ import SqlTableView from '@/datasources/shared-sql/views/SQLTableView.vue'
 import { isElectronDesktop } from '@/services/desktop-config'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { isResourceBrowserTab, isSqlQueryTab, isSqlTableTab } from '@/types/tabs'
+import Button from 'primevue/button'
 
 const tabsStore = useTabsStore()
 
@@ -51,10 +52,7 @@ onBeforeUnmount(() => {
       @close-tabs-to-right="tabsStore.closeTabsToRight"
     />
 
-    <div
-      v-if="!tabsStore.tabs.length"
-      class="w-full h-full flex items-center justify-center"
-    >
+    <div v-if="!tabsStore.tabs.length" class="w-full h-full flex items-center justify-center">
       <div class="flex flex-col items-center">
         <div class="relative animate-[spin_60s_linear_infinite] select-none opacity-20">
           <img
@@ -71,6 +69,8 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
+    <Button size="small" icon="ti ti-home" text rounded class="opacity-0" />
+
     <template v-for="(tab, index) of tabsStore.tabs">
       <div v-show="index === tabsStore.currentTab" class="h-full">
         <SqlTableView class="h-full" v-if="isSqlTableTab(tab)" :tab-id="tab.id" :data="tab.data" />
@@ -82,10 +82,17 @@ onBeforeUnmount(() => {
         />
         <ObjectStorageBrowserView
           class="h-full"
-          v-else-if="isResourceBrowserTab(tab) && (tab.data.sourceType === 's3' || tab.data.sourceType === 'minio')"
+          v-else-if="
+            isResourceBrowserTab(tab) &&
+            (tab.data.sourceType === 's3' || tab.data.sourceType === 'minio')
+          "
           :data="tab.data"
         />
-        <DataSourceBrowserView class="h-full" v-else-if="isResourceBrowserTab(tab)" :data="tab.data" />
+        <DataSourceBrowserView
+          class="h-full"
+          v-else-if="isResourceBrowserTab(tab)"
+          :data="tab.data"
+        />
         <div class="flex items-center justify-center w-full h-full" v-else>
           <span class="opacity-60"> There is no view for this type yet. </span>
         </div>

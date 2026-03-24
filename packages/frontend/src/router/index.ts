@@ -31,16 +31,25 @@ const router = createRouter({
     {
       path: '/login',
       name: 'login',
+      meta: {
+        hideSidebar: true,
+      },
       component: LoginView,
     },
     {
       path: '/onboarding',
       name: 'onboarding',
+      meta: {
+        hideSidebar: true,
+      },
       component: OnboardingView,
     },
     {
       path: '/admin',
       name: 'admin',
+      meta: {
+        hideSidebar: true,
+      },
       component: AdminView,
     },
   ],

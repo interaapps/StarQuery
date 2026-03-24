@@ -12,6 +12,8 @@ type CellPosition = {
 }
 
 const CELL_PREVIEW_TEXT_LIMIT = 150
+const DRAG_SCROLL_THRESHOLD = 48
+const DRAG_SCROLL_STEP = 20
 
 const props = withDefaults(
   defineProps<{
@@ -38,6 +40,9 @@ const editingCell = ref<CellPosition | null>(null)
 const editingValue = ref<unknown>('')
 const isDragging = ref(false)
 const contextCell = ref<CellPosition | null>(null)
+const dragPointer = ref<{ x: number; y: number } | null>(null)
+
+let dragScrollFrame = 0
 
 const createRowId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -143,6 +148,21 @@ const focusGrid = () => {
   gridContainer.value?.focus()
 }
 
+const getCellElement = (cell: CellPosition) =>
+  gridContainer.value?.querySelector<HTMLTableCellElement>(
+    `td[data-cell-row="${cell.row}"][data-cell-column="${cell.column}"]`,
+  ) ?? null
+
+const ensureCellVisible = (cell: CellPosition) => {
+  nextTick(() => {
+    const targetCell = getCellElement(cell)
+    targetCell?.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+    })
+  })
+}
+
 const restoreGridFocusAfterEdit = () => {
   nextTick(() => {
     requestAnimationFrame(() => {
@@ -165,7 +185,10 @@ const finishPendingEdit = (nextCell?: CellPosition) => {
   commitEditing()
 }
 
-const setSelection = (cell: CellPosition, options?: { extend?: boolean }) => {
+const setSelection = (
+  cell: CellPosition,
+  options?: { extend?: boolean; ensureVisible?: boolean },
+) => {
   if (!hasRows.value) return
 
   const nextCell = clampCell(cell)
@@ -179,6 +202,10 @@ const setSelection = (cell: CellPosition, options?: { extend?: boolean }) => {
   }
 
   focusGrid()
+
+  if (options?.ensureVisible !== false) {
+    ensureCellVisible(nextCell)
+  }
 }
 
 const selectAll = () => {
@@ -543,8 +570,92 @@ const moveSelection = (deltaRow: number, deltaColumn: number, extend: boolean) =
       row: baseCell.row + deltaRow,
       column: baseCell.column + deltaColumn,
     },
-    { extend },
+    { extend, ensureVisible: true },
   )
+}
+
+const updateDragSelectionFromPointer = (clientX: number, clientY: number) => {
+  if (!isDragging.value || !anchorCell.value || !gridContainer.value) {
+    return
+  }
+
+  const containerRect = gridContainer.value.getBoundingClientRect()
+  const probeX = Math.min(Math.max(clientX, containerRect.left + 2), containerRect.right - 2)
+  const probeY = Math.min(Math.max(clientY, containerRect.top + 2), containerRect.bottom - 2)
+  const element = document.elementFromPoint(probeX, probeY)
+  const cell = element?.closest?.('td[data-cell-row][data-cell-column]') as HTMLTableCellElement | null
+
+  if (!cell) {
+    return
+  }
+
+  const row = Number(cell.dataset.cellRow)
+  const column = Number(cell.dataset.cellColumn)
+
+  if (Number.isNaN(row) || Number.isNaN(column)) {
+    return
+  }
+
+  focusCell.value = clampCell({ row, column })
+}
+
+const stopDragAutoScroll = () => {
+  if (dragScrollFrame) {
+    cancelAnimationFrame(dragScrollFrame)
+    dragScrollFrame = 0
+  }
+}
+
+const runDragAutoScroll = () => {
+  if (!isDragging.value || !dragPointer.value || !gridContainer.value) {
+    dragScrollFrame = 0
+    return
+  }
+
+  const container = gridContainer.value
+  const rect = container.getBoundingClientRect()
+  let deltaX = 0
+  let deltaY = 0
+
+  if (dragPointer.value.x < rect.left + DRAG_SCROLL_THRESHOLD) {
+    deltaX = -Math.ceil(
+      ((rect.left + DRAG_SCROLL_THRESHOLD - dragPointer.value.x) / DRAG_SCROLL_THRESHOLD) *
+        DRAG_SCROLL_STEP,
+    )
+  } else if (dragPointer.value.x > rect.right - DRAG_SCROLL_THRESHOLD) {
+    deltaX = Math.ceil(
+      ((dragPointer.value.x - (rect.right - DRAG_SCROLL_THRESHOLD)) / DRAG_SCROLL_THRESHOLD) *
+        DRAG_SCROLL_STEP,
+    )
+  }
+
+  if (dragPointer.value.y < rect.top + DRAG_SCROLL_THRESHOLD) {
+    deltaY = -Math.ceil(
+      ((rect.top + DRAG_SCROLL_THRESHOLD - dragPointer.value.y) / DRAG_SCROLL_THRESHOLD) *
+        DRAG_SCROLL_STEP,
+    )
+  } else if (dragPointer.value.y > rect.bottom - DRAG_SCROLL_THRESHOLD) {
+    deltaY = Math.ceil(
+      ((dragPointer.value.y - (rect.bottom - DRAG_SCROLL_THRESHOLD)) / DRAG_SCROLL_THRESHOLD) *
+        DRAG_SCROLL_STEP,
+    )
+  }
+
+  if (deltaX || deltaY) {
+    container.scrollLeft += deltaX
+    container.scrollTop += deltaY
+    updateDragSelectionFromPointer(dragPointer.value.x, dragPointer.value.y)
+  }
+
+  dragScrollFrame = requestAnimationFrame(runDragAutoScroll)
+}
+
+const startDragAutoScroll = () => {
+  if (dragScrollFrame) {
+    return
+  }
+
+  dragScrollFrame = requestAnimationFrame(runDragAutoScroll)
 }
 
 const onGridKeyDown = (event: KeyboardEvent) => {
@@ -628,7 +739,12 @@ const onCellMouseDown = (event: MouseEvent, rowIndex: number, columnIndex: numbe
 
   event.preventDefault()
   isDragging.value = true
-  setSelection({ row: rowIndex, column: columnIndex }, { extend: event.shiftKey })
+  dragPointer.value = { x: event.clientX, y: event.clientY }
+  setSelection(
+    { row: rowIndex, column: columnIndex },
+    { extend: event.shiftKey, ensureVisible: true },
+  )
+  startDragAutoScroll()
 }
 
 const onCellMouseEnter = (_event: MouseEvent, rowIndex: number, columnIndex: number) => {
@@ -638,8 +754,20 @@ const onCellMouseEnter = (_event: MouseEvent, rowIndex: number, columnIndex: num
   focusCell.value = clampCell({ row: rowIndex, column: columnIndex })
 }
 
+const onDocumentMouseMove = (event: MouseEvent) => {
+  if (!isDragging.value) {
+    return
+  }
+
+  dragPointer.value = { x: event.clientX, y: event.clientY }
+  updateDragSelectionFromPointer(event.clientX, event.clientY)
+  startDragAutoScroll()
+}
+
 const onDocumentMouseUp = () => {
   isDragging.value = false
+  dragPointer.value = null
+  stopDragAutoScroll()
 }
 
 const showContextMenu = (event: MouseEvent, rowIndex?: number, columnIndex?: number) => {
@@ -712,10 +840,13 @@ const contextMenuItems = computed(() => [
 ])
 
 onMounted(() => {
+  window.addEventListener('mousemove', onDocumentMouseMove)
   window.addEventListener('mouseup', onDocumentMouseUp)
 })
 
 onUnmounted(() => {
+  stopDragAutoScroll()
+  window.removeEventListener('mousemove', onDocumentMouseMove)
   window.removeEventListener('mouseup', onDocumentMouseUp)
 })
 
@@ -814,6 +945,8 @@ defineExpose({
           <td
             v-for="(column, columnIndex) of columns"
             :key="column.field"
+            :data-cell-row="rowIndex"
+            :data-cell-column="columnIndex"
             class="border border-neutral-200 dark:border-neutral-800 mono text-xs align-top"
             :class="{
               'bg-primary-500/18 ring-inset ring-1 ring-primary-500/30': isCellSelected(

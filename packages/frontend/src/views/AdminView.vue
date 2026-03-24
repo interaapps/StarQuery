@@ -59,32 +59,25 @@ const editingUser = ref<AdminUserRecord | null>(null)
 const apiKeyTargetUser = ref<AdminUserRecord | null>(null)
 const latestApiKey = ref<{ token: string; tokenPrefix: string; userName: string } | null>(null)
 
-const canAccessAdmin = computed(() => authStore.hasPermission(adminPermissionTargets('access', 'read')))
-const canManageRoles = computed(() => authStore.hasPermission(adminPermissionTargets('roles', 'write')))
-const canManageUsers = computed(() => authStore.hasPermission(adminPermissionTargets('users', 'write')))
-const canManageApiKeys = computed(() => authStore.hasPermission(adminPermissionTargets('apiKeys', 'write')))
+const canAccessAdmin = computed(() =>
+  authStore.hasPermission(adminPermissionTargets('access', 'read')),
+)
+const canManageRoles = computed(() =>
+  authStore.hasPermission(adminPermissionTargets('roles', 'write')),
+)
+const canManageUsers = computed(() =>
+  authStore.hasPermission(adminPermissionTargets('users', 'write')),
+)
+const canManageApiKeys = computed(() =>
+  authStore.hasPermission(adminPermissionTargets('apiKeys', 'write')),
+)
 
-const roleNameMap = computed(
-  () =>
-    new Map(
-      data.value.roles.map((role) => [
-        role.id,
-        role,
-      ]),
-    ),
-)
-const userNameMap = computed(
-  () =>
-    new Map(
-      data.value.users.map((user) => [
-        user.id,
-        user,
-      ]),
-    ),
-)
+const roleNameMap = computed(() => new Map(data.value.roles.map((role) => [role.id, role])))
+const userNameMap = computed(() => new Map(data.value.users.map((user) => [user.id, user])))
 
 const permissionTemplates = computed<PermissionTemplate[]>(() => {
-  const lastTarget = (targets: string[], fallback: string) => targets[targets.length - 1] ?? fallback
+  const lastTarget = (targets: string[], fallback: string) =>
+    targets[targets.length - 1] ?? fallback
   const helpers: PermissionTemplate[] = [
     { label: 'Full access', value: '*' },
     { label: 'Admin access', value: 'admin.*' },
@@ -96,54 +89,64 @@ const permissionTemplates = computed<PermissionTemplate[]>(() => {
   ]
 
   for (const project of data.value.projects) {
-      helpers.push({
-        label: `${project.name} view`,
-        value: lastTarget(projectPermissionTargets(project.id, 'view', 'read'), `project.view.${project.id}:read`),
-      })
-      helpers.push({
-        label: `${project.name} manage`,
-        value: lastTarget(projectPermissionTargets(project.id, 'manage', 'write'), `project.manage.${project.id}:write`),
-      })
-      helpers.push({
-        label: `${project.name} users`,
-        value: lastTarget(projectPermissionTargets(project.id, 'users', 'write'), `project.users.${project.id}:write`),
-      })
-      helpers.push({
-        label: `${project.name} datasources (read)`,
-        value: lastTarget(
-          projectDataSourcePermissionTargets(project.id, '*', 'read'),
-          `project.manage.${project.id}.datasources.*:read`,
-        ),
-      })
-      helpers.push({
-        label: `${project.name} datasources (write)`,
-        value: lastTarget(
-          projectDataSourcePermissionTargets(project.id, '*', 'write'),
-          `project.manage.${project.id}.datasources.*:write`,
-        ),
-      })
+    helpers.push({
+      label: `${project.name} view`,
+      value: lastTarget(
+        projectPermissionTargets(project.id, 'view', 'read'),
+        `project.view.${project.id}:read`,
+      ),
+    })
+    helpers.push({
+      label: `${project.name} manage`,
+      value: lastTarget(
+        projectPermissionTargets(project.id, 'manage', 'write'),
+        `project.manage.${project.id}:write`,
+      ),
+    })
+    helpers.push({
+      label: `${project.name} users`,
+      value: lastTarget(
+        projectPermissionTargets(project.id, 'users', 'write'),
+        `project.users.${project.id}:write`,
+      ),
+    })
+    helpers.push({
+      label: `${project.name} datasources (read)`,
+      value: lastTarget(
+        projectDataSourcePermissionTargets(project.id, '*', 'read'),
+        `project.manage.${project.id}.datasources.*:read`,
+      ),
+    })
+    helpers.push({
+      label: `${project.name} datasources (write)`,
+      value: lastTarget(
+        projectDataSourcePermissionTargets(project.id, '*', 'write'),
+        `project.manage.${project.id}.datasources.*:write`,
+      ),
+    })
 
-      for (const source of data.value.dataSources.filter((entry) => entry.projectId === project.id)) {
-        helpers.push({
-          label: `${project.name} / ${source.name} datasource (read)`,
-          value: lastTarget(
-            projectDataSourcePermissionTargets(project.id, source.id, 'read'),
-            `project.manage.${project.id}.datasources.${source.id}:read`,
-          ),
-        })
-        helpers.push({
-          label: `${project.name} / ${source.name} datasource (write)`,
-          value: lastTarget(
-            projectDataSourcePermissionTargets(project.id, source.id, 'write'),
-            `project.manage.${project.id}.datasources.${source.id}:write`,
-          ),
-        })
-      }
+    for (const source of data.value.dataSources.filter((entry) => entry.projectId === project.id)) {
+      helpers.push({
+        label: `${project.name} / ${source.name} datasource (read)`,
+        value: lastTarget(
+          projectDataSourcePermissionTargets(project.id, source.id, 'read'),
+          `project.manage.${project.id}.datasources.${source.id}:read`,
+        ),
+      })
+      helpers.push({
+        label: `${project.name} / ${source.name} datasource (write)`,
+        value: lastTarget(
+          projectDataSourcePermissionTargets(project.id, source.id, 'write'),
+          `project.manage.${project.id}.datasources.${source.id}:write`,
+        ),
+      })
+    }
   }
 
   return helpers.filter(
     (helper, index, list) =>
-      list.findIndex((entry) => entry.label === helper.label && entry.value === helper.value) === index,
+      list.findIndex((entry) => entry.label === helper.label && entry.value === helper.value) ===
+      index,
   )
 })
 
@@ -414,9 +417,7 @@ onMounted(async () => {
 <template>
   <div class="h-full overflow-auto px-5 py-4">
     <div v-if="!canAccessAdmin" class="max-w-[42rem]">
-      <Message severity="warn">
-        You do not have access to the admin page on this server.
-      </Message>
+      <Message severity="warn"> You do not have access to the admin page on this server. </Message>
     </div>
 
     <template v-else>
@@ -426,7 +427,8 @@ onMounted(async () => {
           <h1 class="text-2xl font-semibold mt-1">Users, roles, and API keys</h1>
         </div>
 
-        <Button size="small"
+        <Button
+          size="small"
           icon="ti ti-refresh"
           label="Refresh"
           severity="secondary"
@@ -454,10 +456,13 @@ onMounted(async () => {
         <div class="flex items-center justify-between gap-3 mb-3">
           <div>
             <h2 class="text-lg font-semibold">Roles</h2>
-            <p class="text-sm opacity-70">Bundle permission patterns into reusable access profiles.</p>
+            <p class="text-sm opacity-70">
+              Bundle permission patterns into reusable access profiles.
+            </p>
           </div>
 
-          <Button size="small"
+          <Button
+            size="small"
             v-if="canManageRoles"
             icon="ti ti-plus"
             label="Add role"
@@ -465,7 +470,9 @@ onMounted(async () => {
           />
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4"
+        >
           <div
             v-for="role of data.roles"
             :key="role.id"
@@ -478,14 +485,16 @@ onMounted(async () => {
               </div>
 
               <div v-if="canManageRoles" class="flex items-center gap-1">
-                <Button size="small"
+                <Button
+                  size="small"
                   icon="ti ti-edit"
                   text
                   rounded
                   severity="secondary"
                   @click="openEditRoleDialog(role)"
                 />
-                <Button size="small"
+                <Button
+                  size="small"
                   icon="ti ti-trash"
                   text
                   rounded
@@ -520,10 +529,13 @@ onMounted(async () => {
         <div class="flex items-center justify-between gap-3 mb-3">
           <div>
             <h2 class="text-lg font-semibold">Users</h2>
-            <p class="text-sm opacity-70">Manage local users, direct permissions, and role assignments.</p>
+            <p class="text-sm opacity-70">
+              Manage local users, direct permissions, and role assignments.
+            </p>
           </div>
 
-          <Button size="small"
+          <Button
+            size="small"
             v-if="canManageUsers"
             icon="ti ti-user-plus"
             label="Add user"
@@ -531,7 +543,9 @@ onMounted(async () => {
           />
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4"
+        >
           <div
             v-for="user of data.users"
             :key="user.id"
@@ -545,7 +559,9 @@ onMounted(async () => {
 
               <div class="flex items-center gap-1">
                 <Tag
-                  :value="user.disabled ? 'Disabled' : user.authProvider === 'openid' ? 'OpenID' : 'Local'"
+                  :value="
+                    user.disabled ? 'Disabled' : user.authProvider === 'openid' ? 'OpenID' : 'Local'
+                  "
                   :severity="user.disabled ? 'danger' : 'secondary'"
                 />
               </div>
@@ -609,7 +625,9 @@ onMounted(async () => {
         <div class="flex items-center justify-between gap-3 mb-3">
           <div>
             <h2 class="text-lg font-semibold">API Keys</h2>
-            <p class="text-sm opacity-70">Use these keys for automation or external provisioning calls.</p>
+            <p class="text-sm opacity-70">
+              Use these keys for automation or external provisioning calls.
+            </p>
           </div>
         </div>
 
@@ -629,10 +647,15 @@ onMounted(async () => {
             <div class="mono text-sm opacity-70">{{ apiKey.tokenPrefix }}</div>
 
             <div class="text-sm opacity-70">
-              {{ apiKey.expiresAt ? `Expires ${new Date(apiKey.expiresAt).toLocaleString()}` : 'No expiry' }}
+              {{
+                apiKey.expiresAt
+                  ? `Expires ${new Date(apiKey.expiresAt).toLocaleString()}`
+                  : 'No expiry'
+              }}
             </div>
 
-            <Button size="small"
+            <Button
+              size="small"
               v-if="canManageApiKeys"
               icon="ti ti-trash"
               text
@@ -677,7 +700,9 @@ onMounted(async () => {
           This token is shown only once for {{ latestApiKey.userName }}.
         </Message>
 
-        <div class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-500/5 px-3 py-3 mono text-sm break-all">
+        <div
+          class="rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-500/5 px-3 py-3 mono text-sm break-all"
+        >
           {{ latestApiKey.token }}
         </div>
 

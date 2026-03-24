@@ -30,7 +30,6 @@ const addServerVisible = ref(false)
 const createProjectVisible = ref(false)
 const manageProjectUsersVisible = ref(false)
 const serverPopover = ref()
-const userPopover = ref()
 const projectMenu = ref()
 const editingServer = ref<ServerProfile | null>(null)
 const editingProject = ref<ProjectRecord | null>(null)
@@ -353,51 +352,6 @@ const openManageProjectUsersDialog = () => {
 
   manageProjectUsersVisible.value = true
 }
-
-const authButtonTooltip = computed(() => {
-  if (!authStore.status.enabled) {
-    return null
-  }
-
-  if (authStore.currentUser) {
-    return authStore.currentUser.email
-  }
-
-  return authStore.requiresOnboarding ? 'Create the first admin user' : 'Sign in'
-})
-
-const toggleUserPopover = async (event: Event) => {
-  if (!authStore.status.enabled) {
-    return
-  }
-
-  if (!authStore.currentUser) {
-    await router.push({ name: authStore.requiresOnboarding ? 'onboarding' : 'login' })
-    return
-  }
-
-  userPopover.value?.toggle(event)
-}
-
-const goToAdmin = async () => {
-  userPopover.value?.hide()
-  await router.push({ name: 'admin' })
-}
-
-const logout = async () => {
-  userPopover.value?.hide()
-
-  try {
-    await authStore.logout()
-  } catch (error) {
-    toast.add({
-      severity: 'error',
-      summary: 'Logout failed',
-      detail: getErrorMessage(error, 'The session could not be closed cleanly.'),
-      life: 3200,
-    })
-  }
-}
 </script>
 
 <template>
@@ -407,7 +361,7 @@ const logout = async () => {
   <div
     class="grid h-full"
     :style="{
-      gridTemplateColumns: `76px ${sideBarWidth}px 1fr`,
+      gridTemplateColumns: `76px ${route.meta?.hideSidebar ? '' : `${sideBarWidth}px`} 1fr`,
     }"
   >
     <div class="p-2 border-r border-neutral-200 dark:border-neutral-800 app-left-rail">
@@ -456,51 +410,6 @@ const logout = async () => {
 
         <div class="p-1 mx-auto flex flex-col items-center gap-2">
           <Button
-            v-if="authStore.status.enabled"
-            v-tooltip.right="authButtonTooltip || undefined"
-            :icon="`ti ${authStore.currentUser ? 'ti-user-circle' : 'ti-lock'}`"
-            severity="secondary"
-            rounded
-            text
-            size="large"
-            class="border border-primary-500/20"
-            @click="toggleUserPopover"
-          />
-
-          <Popover v-if="authStore.status.enabled && authStore.currentUser" ref="userPopover">
-            <div class="w-[18rem] flex flex-col gap-3">
-              <div>
-                <div class="font-semibold">{{ authStore.currentUser.name }}</div>
-                <div class="text-sm opacity-70">{{ authStore.currentUser.email }}</div>
-              </div>
-
-              <div
-                class="rounded-xl border border-neutral-200 dark:border-neutral-800 px-3 py-2 text-xs opacity-70"
-              >
-                {{ workspaceStore.currentServer?.name || 'Current server' }}
-              </div>
-
-              <Button size="small"
-                v-if="authStore.hasPermission(adminPermissionTargets('access', 'read'))"
-                label="Admin page"
-                icon="ti ti-shield"
-                severity="secondary"
-                text
-                class="justify-start"
-                @click="goToAdmin"
-              />
-              <Button size="small"
-                label="Sign out"
-                icon="ti ti-logout-2"
-                severity="secondary"
-                text
-                class="justify-start"
-                @click="logout"
-              />
-            </div>
-          </Popover>
-
-          <Button
             v-tooltip.right="serverTooltip()"
             :icon="`ti ${getServerIcon(workspaceStore.currentServer?.kind)}`"
             severity="secondary"
@@ -536,7 +445,8 @@ const logout = async () => {
                     v-if="workspaceStore.currentServerId === server.id"
                     class="ti ti-check text-sm"
                   />
-                  <Button size="small"
+                  <Button
+                    size="small"
                     icon="ti ti-edit"
                     text
                     rounded
@@ -545,7 +455,8 @@ const logout = async () => {
                     :disabled="isManagedLocalServer(server)"
                     @click.stop="openEditServerDialog(server)"
                   />
-                  <Button size="small"
+                  <Button
+                    size="small"
                     icon="ti ti-trash"
                     text
                     rounded
@@ -576,7 +487,7 @@ const logout = async () => {
       </div>
     </div>
 
-    <SourcesSidebar v-model:sidebar-width="sideBarWidth" />
+    <SourcesSidebar v-if="!route.meta?.hideSidebar" v-model:sidebar-width="sideBarWidth" />
 
     <main class="h-full w-full overflow-hidden">
       <RouterView />

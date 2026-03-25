@@ -332,12 +332,6 @@ async function runQuery(options?: { keepPage?: boolean }) {
       message: detail,
     })
     logsVisible.value = true
-    toast.add({
-      severity: 'error',
-      summary: 'MongoDB query failed',
-      detail,
-      life: 3200,
-    })
   } finally {
     isRunningQuery.value = false
   }
@@ -416,12 +410,6 @@ async function changePage(nextPage: number) {
       level: 'info',
       title: 'Unsaved table changes',
       message: 'Save or discard your current MongoDB changes before changing pages.',
-    })
-    toast.add({
-      severity: 'warn',
-      summary: 'Unsaved changes',
-      detail: 'Save or discard your current MongoDB changes before changing pages.',
-      life: 2600,
     })
     return
   }

@@ -215,12 +215,6 @@ async function runSearchForIndex(index = selectedIndex.value) {
       title: `Search failed on ${index}`,
       message: detail,
     })
-    toast.add({
-      severity: 'error',
-      summary: 'Search failed',
-      detail,
-      life: 3000,
-    })
   } finally {
     isRunningSearch.value = false
   }
@@ -249,12 +243,6 @@ async function saveDocuments() {
       message: `${response.inserted} inserted, ${response.updated} updated, ${response.deleted} deleted.`,
       durationMs: response.tookMs ?? undefined,
     })
-    toast.add({
-      severity: 'success',
-      summary: 'Documents saved',
-      detail: `Saved changes to ${selectedIndex.value}`,
-      life: 2200,
-    })
     await runSearchForIndex()
   } catch (error) {
     const detail = getErrorMessage(error, 'The Elasticsearch documents could not be saved')
@@ -262,12 +250,6 @@ async function saveDocuments() {
       level: 'error',
       title: `Save failed on ${selectedIndex.value}`,
       message: detail,
-    })
-    toast.add({
-      severity: 'error',
-      summary: 'Save failed',
-      detail,
-      life: 3200,
     })
   } finally {
     isSaving.value = false
@@ -296,12 +278,6 @@ function guardPendingChanges() {
     level: 'info',
     title: 'Unsaved changes',
     message,
-  })
-  toast.add({
-    severity: 'warn',
-    summary: 'Unsaved changes',
-    detail: message,
-    life: 2200,
   })
   return true
 }

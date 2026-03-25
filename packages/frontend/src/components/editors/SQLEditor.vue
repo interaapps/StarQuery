@@ -5,8 +5,13 @@ import { EditorState } from '@codemirror/state'
 import { autocompletion } from '@codemirror/autocomplete'
 import type { SQLNamespace } from '@codemirror/lang-sql'
 import { sql } from '@codemirror/lang-sql'
+import { EditorView } from '@codemirror/view'
+import {
+  commonEditorExtensions,
+  createEditorSubmitExtension,
+  createSingleLineEnterExtension,
+} from './editor-extensions.ts'
 import { starQueryTheme } from './theme-starquery.ts'
-import { EditorView } from 'codemirror'
 import type { DataSourceType } from '@/types/sql'
 import { getSqlEditorDialect } from '@/datasources/shared-sql/dialect'
 
@@ -52,18 +57,6 @@ const dialect = computed(() => {
   return getSqlEditorDialect(props.sourceType)
 })
 
-const extensions = computed(() => [
-  sql({
-    dialect: dialect.value,
-    schema: props.schema,
-    defaultTable: props.defaultTable,
-    defaultSchema: props.defaultSchema,
-  }),
-  autocompletion(),
-  ...(props.multiline ? [] : [singleLineExtension, preventNewline]),
-  starQueryTheme,
-])
-
 const view = shallowRef<EditorView>()
 const handleReady = (payload: {
   view: EditorView
@@ -73,13 +66,30 @@ const handleReady = (payload: {
   view.value = payload.view
 }
 
-const emit = defineEmits(['enter'])
+const emit = defineEmits<{
+  enter: []
+  submit: []
+}>()
 
-const keydownEvent = (e: KeyboardEvent) => {
-  if (e.code === 'Enter') {
-    emit('enter')
-  }
-}
+const singleLineExtensions = computed(() => [
+  singleLineExtension,
+  preventNewline,
+  createSingleLineEnterExtension(() => emit('enter')),
+])
+
+const extensions = computed(() => [
+  sql({
+    dialect: dialect.value,
+    schema: props.schema,
+    defaultTable: props.defaultTable,
+    defaultSchema: props.defaultSchema,
+  }),
+  ...commonEditorExtensions,
+  autocompletion(),
+  createEditorSubmitExtension(() => emit('submit')),
+  ...(props.multiline ? [] : singleLineExtensions.value),
+  starQueryTheme,
+])
 
 const focusEditor = () => {
   view.value?.focus()
@@ -99,6 +109,5 @@ defineExpose({
     :tab-size="2"
     :extensions="extensions"
     @ready="handleReady"
-    @keydown="keydownEvent"
   />
 </template>

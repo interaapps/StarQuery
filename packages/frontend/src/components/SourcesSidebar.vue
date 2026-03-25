@@ -92,7 +92,7 @@ const updateDataSource = async (
   <div class="border-r app-border px-0.5 relative h-full min-h-0 flex flex-col sidenav-elements">
     <div class="flex w-full justify-between items-center gap-2 p-2 pb-1 pt-0.5 pr-0">
       <div class="flex flex-col min-w-0 flex-1 region-drag">
-        <span class="text-sm opacity-45 truncate max-w-[14rem]">
+        <span class="text-sm opacity-45 truncate max-w-[14rem] select-none">
           {{ workspaceStore.currentProject?.name || 'No project selected' }}
         </span>
       </div>

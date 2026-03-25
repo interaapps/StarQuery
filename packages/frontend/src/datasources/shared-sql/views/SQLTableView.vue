@@ -727,6 +727,7 @@ onMounted(async () => {
             :default-schema="completionDefaultSchema"
             :default-table="props.data.tableName"
             @enter="applyWhereClause"
+            @submit="applyWhereClause"
           />
         </div>
         <Button
@@ -753,6 +754,7 @@ onMounted(async () => {
             :default-schema="completionDefaultSchema"
             :default-table="props.data.tableName"
             @enter="applySortClause"
+            @submit="applySortClause"
           />
         </div>
         <Button

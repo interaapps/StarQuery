@@ -177,7 +177,7 @@ const logout = async () => {
           v-for="(tab, index) of props.tabs"
           :key="tab.id ?? `${tab.type}:${index}`"
           :data-tab-index="index"
-          class="group flex flex-none min-w-[11rem] max-w-[18rem] items-center gap-1 border-r border-neutral-200 px-2 py-1.5 transition-colors dark:border-neutral-800 region-no-drag"
+          class="group flex flex-none min-w-[11rem] max-w-[18rem] items-center gap-1 border-r border-neutral-200 px-2 py-1.5 transition-colors dark:border-neutral-800 region-no-drag select-none"
           :class="
             currentTab === index
               ? 'bg-primary-500/10 text-primary-700 dark:text-primary-300'

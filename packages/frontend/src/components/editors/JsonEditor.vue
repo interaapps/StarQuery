@@ -5,6 +5,7 @@ import { autocompletion } from '@codemirror/autocomplete'
 import { json } from '@codemirror/lang-json'
 import { EditorView } from '@codemirror/view'
 import { Codemirror } from 'vue-codemirror'
+import { commonEditorExtensions, createEditorSubmitExtension } from './editor-extensions.ts'
 import { starQueryTheme } from './theme-starquery.ts'
 
 const code = defineModel<string>({
@@ -22,25 +23,14 @@ const emit = defineEmits<{
   submit: []
 }>()
 
-const submitShortcut = EditorView.domEventHandlers({
-  keydown(event) {
-    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-      event.preventDefault()
-      emit('submit')
-      return true
-    }
-
-    return false
-  },
-})
-
 const extensions = computed(() => [
   json(),
+  ...commonEditorExtensions,
   autocompletion(),
   EditorState.tabSize.of(2),
   EditorView.lineWrapping,
   starQueryTheme,
-  submitShortcut,
+  createEditorSubmitExtension(() => emit('submit')),
 ])
 
 const view = shallowRef<EditorView>()

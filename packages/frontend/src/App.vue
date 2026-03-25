@@ -391,7 +391,7 @@ const openManageProjectUsersDialog = () => {
                 @click="selectProject(project.id)"
                 @contextmenu.prevent="showProjectMenu($event, project)"
               >
-                <span>{{ project.name.slice(0, 2).toUpperCase() }}</span>
+                <span class="select-none">{{ project.name.slice(0, 2).toUpperCase() }}</span>
               </button>
 
               <Button

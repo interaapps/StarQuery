@@ -229,6 +229,7 @@ watch(sourceRecord, async (nextSource) => {
           :schema="completionSchema"
           :default-schema="completionDefaultSchema"
           class="w-full"
+          @submit="runQuery"
         />
       </template>
     </CollapsiblePanel>

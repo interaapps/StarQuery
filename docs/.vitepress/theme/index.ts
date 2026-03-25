@@ -4,6 +4,8 @@ import { h } from 'vue'
 import InstallNavButton from './components/InstallNavButton.vue'
 import GitHubStarButton from './components/GitHubStarButton.vue'
 import HomeScreenshotShowcase from './components/HomeScreenshotShowcase.vue'
+import SelfHostedHero from './components/SelfHostedHero.vue'
+import DocsButton from './components/DocsButton.vue'
 import './custom.css'
 import HomeHero from "./components/HomeHero.vue";
 
@@ -20,5 +22,7 @@ export default {
   enhanceApp({ app }) {
     app.component('HomeScreenshotShowcase', HomeScreenshotShowcase)
     app.component('HomeHero', HomeHero)
+    app.component('SelfHostedHero', SelfHostedHero)
+    app.component('DocsButton', DocsButton)
   },
 } satisfies Theme

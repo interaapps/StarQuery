@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import DocsButton from './DocsButton.vue'
 
 type PlatformTarget = 'macOS' | 'Windows' | 'Linux'
 
@@ -124,14 +125,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <a
+  <DocsButton
     :href="downloadUrl"
-    class="whitespace-nowrap rounded-full border border-transparent bg-primary-500 hover:bg-primary-600 hover:scale-110 active:scale-95 transition-all text-[0.92rem] font-bold tracking-[-0.01em] !text-white !no-underline md:inline-flex md:items-center md:justify-center"
-    :class="large ? '!text-xl py-3 px-8' : 'py-[0.3rem] px-4'"
+    :large="large"
     target="_blank"
     rel="noreferrer"
-    :aria-busy="isLoading ? 'true' : 'false'"
+    :aria-busy="isLoading"
   >
     {{ label }}
-  </a>
+  </DocsButton>
 </template>

@@ -39,7 +39,3 @@ Reset the metastore volume:
 ```bash
 docker compose -f docker-compose.hosted.yml down -v
 ```
-
-## Host Networking for Datasources
-
-If StarQuery needs to reach services on your host machine from inside Docker, configure datasources with `host.docker.internal` instead of `localhost`.

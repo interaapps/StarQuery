@@ -103,7 +103,7 @@
         display: none;
       }
       img {
-        height: 40px;
+        height: 40px !important;
       }
     }
   }
@@ -251,5 +251,13 @@
 
   .starquery-muted {
     color: var(--vp-c-default-2);
+  }
+
+  .in-vue-codeblock pre {
+    padding: 1rem;
+    border: 1px solid var(--vp-c-border);
+    border-radius: 18px;
+    overflow: auto;
+    user-select: all;
   }
 }

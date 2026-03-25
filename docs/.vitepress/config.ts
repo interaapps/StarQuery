@@ -18,9 +18,8 @@ export default defineConfig({
     siteTitle: 'StarQuery',
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
-      { text: 'Deployment', link: '/deploy/docker' },
-      { text: 'Desktop', link: '/guide/electron' },
-      { text: 'Reference', link: '/reference/configuration' },
+      { text: 'Host it on your Server', link: '/deploy/hosted' },
+      { text: 'Configuration', link: '/reference/configuration' },
     ],
     sidebar: {
       '/guide/': [
@@ -39,6 +38,7 @@ export default defineConfig({
         {
           text: 'Deployment',
           items: [
+            { text: 'Hosted', link: '/deploy/hosted' },
             { text: 'Docker', link: '/deploy/docker' },
             { text: 'Hosted Configuration', link: '/deploy/hosted-configuration' },
           ],

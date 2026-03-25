@@ -6,6 +6,54 @@ const path = require('node:path');
 const iconBasePath = path.resolve(__dirname, 'images', 'icon');
 const pngIconPath = path.resolve(__dirname, 'images', 'icon.png');
 const icoIconPath = path.resolve(__dirname, 'images', 'icon.ico');
+const msixAssetsPath = path.resolve(__dirname, 'images', 'msix-assets');
+
+function readBooleanEnv(name, fallback = false) {
+  const value = process.env[name];
+  if (!value) {
+    return fallback;
+  }
+
+  return ['1', 'true', 'yes', 'on'].includes(value.toLowerCase());
+}
+
+function buildMsixMakerConfig() {
+  const minOsVersion =
+    process.env.STARQUERY_MSIX_MIN_OS_VERSION || '10.0.19041.0';
+  const maxOsVersionTested =
+    process.env.STARQUERY_MSIX_MAX_OS_VERSION_TESTED || minOsVersion;
+
+  const config = {
+    sign: readBooleanEnv('STARQUERY_MSIX_SIGN', false),
+    logLevel: process.env.STARQUERY_MSIX_LOG_LEVEL || 'warn',
+    packageAssets: msixAssetsPath,
+    manifestVariables: {
+      publisher: process.env.STARQUERY_MSIX_PUBLISHER || 'CN=StarQuery',
+      publisherDisplayName:
+        process.env.STARQUERY_MSIX_PUBLISHER_DISPLAY_NAME || 'StarQuery',
+      packageIdentity:
+        process.env.STARQUERY_MSIX_IDENTITY_NAME || 'InteraApps.StarQuery',
+      packageDisplayName:
+        process.env.STARQUERY_MSIX_PACKAGE_DISPLAY_NAME || 'StarQuery',
+      appDisplayName:
+        process.env.STARQUERY_MSIX_APP_DISPLAY_NAME || 'StarQuery',
+      packageBackgroundColor:
+        process.env.STARQUERY_MSIX_BACKGROUND_COLOR || '#101828',
+      packageMinOSVersion: minOsVersion,
+      packageMaxOSVersionTested: maxOsVersionTested,
+    },
+  };
+
+  if (process.env.STARQUERY_MSIX_WINDOWS_KIT_VERSION) {
+    config.windowsKitVersion = process.env.STARQUERY_MSIX_WINDOWS_KIT_VERSION;
+  }
+
+  if (process.env.STARQUERY_MSIX_WINDOWS_KIT_PATH) {
+    config.windowsKitPath = process.env.STARQUERY_MSIX_WINDOWS_KIT_PATH;
+  }
+
+  return config;
+}
 
 module.exports = {
   packagerConfig: {
@@ -19,6 +67,10 @@ module.exports = {
       config: {
         setupIcon: icoIconPath,
       },
+    },
+    {
+      name: '@electron-forge/maker-msix',
+      config: buildMsixMakerConfig(),
     },
     {
       name: '@electron-forge/maker-zip',

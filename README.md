@@ -22,6 +22,9 @@ Networking note:
 - If StarQuery inside the container should connect to services running on your host machine, use `host.docker.internal` as the host in your datasource config instead of `localhost`.
 - The `--add-host=host.docker.internal:host-gateway` flag makes that work on Linux as well.
 
+Release automation note:
+- The GitHub Docker release workflow publishes to `ghcr.io` and, when `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are configured in GitHub Actions secrets, also to Docker Hub.
+
 Status:
 - Work in progress
 - No stable releases yet
@@ -59,6 +62,13 @@ Runtime targets:
 - Electron desktop app with a built-in local backend
 - Hosted backend + Vite frontend for browser usage
 - Browser frontend against a configured remote StarQuery server
+
+Electron release outputs:
+- macOS `.zip`
+- Windows Squirrel installer
+- Windows `.msix`
+- Linux `.deb`
+- Linux `.rpm`
 
 ## Runtime Modes
 
@@ -246,6 +256,26 @@ Optional hosted-mode OpenID Connect / OAuth2 login.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `STARQUERY_BOOTSTRAP_CONFIG_PATH` | unset | Path to a JSON bootstrap file used to create/update users, projects, and datasources on startup. |
+
+## Electron MSIX Build Variables
+
+These are only relevant for Windows Electron builds. The Electron Forge setup now emits an additional `.msix` artifact beside the existing Windows installer artifacts.
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `STARQUERY_MSIX_PUBLISHER` | `CN=StarQuery` | Publisher value written into the generated MSIX manifest. For Microsoft Store submission, replace this with the exact publisher from Partner Center. |
+| `STARQUERY_MSIX_PUBLISHER_DISPLAY_NAME` | `StarQuery` | Human-readable publisher display name in the MSIX manifest. |
+| `STARQUERY_MSIX_IDENTITY_NAME` | `InteraApps.StarQuery` | MSIX package identity. For Store builds, use the reserved identity from Partner Center. |
+| `STARQUERY_MSIX_PACKAGE_DISPLAY_NAME` | `StarQuery` | Package display name inside the manifest. |
+| `STARQUERY_MSIX_APP_DISPLAY_NAME` | `StarQuery` | App display name for the Windows launcher tile metadata. |
+| `STARQUERY_MSIX_BACKGROUND_COLOR` | `#101828` | Background color used in MSIX visual elements. |
+| `STARQUERY_MSIX_MIN_OS_VERSION` | `10.0.19041.0` | Minimum Windows version declared in the MSIX manifest. |
+| `STARQUERY_MSIX_MAX_OS_VERSION_TESTED` | same as `STARQUERY_MSIX_MIN_OS_VERSION` | Max tested Windows version declared in the manifest. |
+| `STARQUERY_MSIX_WINDOWS_KIT_VERSION` | unset | Optional Windows SDK version override for the MSIX packager. |
+| `STARQUERY_MSIX_WINDOWS_KIT_PATH` | unset | Optional absolute Windows SDK path override for the MSIX packager. |
+| `STARQUERY_MSIX_SIGN` | `false` | When `true`, the MSIX build tries to sign the package. Leave it `false` for Microsoft Store submission packages that Microsoft signs later. |
+| `WINDOWS_CERTIFICATE_FILE` | unset | Optional `.pfx` path for signed Windows/MSIX builds outside the Store. |
+| `WINDOWS_CERTIFICATE_PASSWORD` | unset | Password for `WINDOWS_CERTIFICATE_FILE`. |
 
 ## Backend Configuration Examples
 

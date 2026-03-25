@@ -277,6 +277,40 @@ These are only relevant for Windows Electron builds. The Electron Forge setup no
 | `WINDOWS_CERTIFICATE_FILE` | unset | Optional `.pfx` path for signed Windows/MSIX builds outside the Store. |
 | `WINDOWS_CERTIFICATE_PASSWORD` | unset | Password for `WINDOWS_CERTIFICATE_FILE`. |
 
+## Electron macOS Signing And Notarization
+
+The Electron Forge setup can now sign and notarize the regular macOS ZIP distribution without enabling any Mac App Store packaging path.
+
+Build-time environment variables:
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `STARQUERY_MAC_SIGN` | `false` | Enables macOS code signing for the Electron build. |
+| `STARQUERY_MAC_NOTARIZE` | `false` | Enables notarization for the macOS Electron build. |
+| `STARQUERY_MAC_BUNDLE_ID` | `com.interaapps.starquery` | Bundle identifier used for the regular macOS app build. |
+| `STARQUERY_MAC_APP_CATEGORY` | `public.app-category.developer-tools` | App category written into the macOS app metadata. |
+| `APPLE_SIGN_IDENTITY` | unset | Optional explicit signing identity, for example `Developer ID Application: Your Name (TEAMID)`. If unset, Electron signing can auto-detect a suitable identity from the keychain. |
+| `APPLE_API_KEY` | unset | Path to the App Store Connect API key `.p8` file used for notarization. |
+| `APPLE_API_KEY_ID` | unset | App Store Connect API key ID used for notarization. |
+| `APPLE_API_ISSUER` | unset | App Store Connect API issuer ID used for notarization. |
+| `APPLE_ID` | unset | Optional fallback Apple ID for notarization when not using API-key-based notarization. |
+| `APPLE_APP_SPECIFIC_PASSWORD` | unset | App-specific password for `APPLE_ID` notarization. |
+| `APPLE_TEAM_ID` | unset | Apple team ID required for Apple-ID-based notarization. |
+
+GitHub Actions secrets for the macOS release job:
+
+| Secret | Required | Description |
+| --- | --- | --- |
+| `APPLE_SIGN_CERTIFICATE_P12_BASE64` | yes for signing | Base64-encoded exported `.p12` containing the `Developer ID Application` certificate. |
+| `APPLE_SIGN_CERTIFICATE_PASSWORD` | yes for signing | Password used when exporting the `.p12` certificate. |
+| `APPLE_SIGN_IDENTITY` | recommended | Exact signing identity name, if you want to avoid auto-detection ambiguity. |
+| `APPLE_NOTARY_API_KEY_P8_BASE64` | recommended for notarization | Base64-encoded App Store Connect API key `.p8`. |
+| `APPLE_API_KEY_ID` | recommended for notarization | App Store Connect API key ID. |
+| `APPLE_API_ISSUER` | recommended for notarization | App Store Connect API issuer ID. |
+| `APPLE_ID` | optional fallback | Apple ID email if you want to use the older Apple-ID notarization flow instead of API keys. |
+| `APPLE_APP_SPECIFIC_PASSWORD` | optional fallback | App-specific password for the Apple-ID notarization flow. |
+| `APPLE_TEAM_ID` | optional fallback | Team ID for the Apple-ID notarization flow. |
+
 ## Backend Configuration Examples
 
 ### Hosted with MySQL meta database

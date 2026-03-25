@@ -7,6 +7,7 @@ const iconBasePath = path.resolve(__dirname, 'images', 'icon');
 const pngIconPath = path.resolve(__dirname, 'images', 'icon.png');
 const icoIconPath = path.resolve(__dirname, 'images', 'icon.ico');
 const msixAssetsPath = path.resolve(__dirname, 'images', 'msix-assets');
+const isDarwin = process.platform === 'darwin';
 
 function readBooleanEnv(name, fallback = false) {
   const value = process.env[name];
@@ -55,10 +56,69 @@ function buildMsixMakerConfig() {
   return config;
 }
 
+function buildMacSignConfig() {
+  if (!isDarwin || !readBooleanEnv('STARQUERY_MAC_SIGN', false)) {
+    return undefined;
+  }
+
+  const config = {
+    hardenedRuntime: true,
+    gatekeeperAssess: false,
+  };
+
+  const identity = process.env.APPLE_SIGN_IDENTITY || process.env.CSC_NAME;
+  if (identity) {
+    config.identity = identity;
+  }
+
+  return config;
+}
+
+function buildMacNotarizeConfig() {
+  if (!isDarwin || !readBooleanEnv('STARQUERY_MAC_NOTARIZE', false)) {
+    return undefined;
+  }
+
+  const appleApiKey = process.env.APPLE_API_KEY;
+  const appleApiKeyId = process.env.APPLE_API_KEY_ID;
+  const appleApiIssuer = process.env.APPLE_API_ISSUER;
+
+  if (appleApiKey && appleApiKeyId && appleApiIssuer) {
+    return {
+      appleApiKey,
+      appleApiKeyId,
+      appleApiIssuer,
+    };
+  }
+
+  const appleId = process.env.APPLE_ID;
+  const appleIdPassword =
+    process.env.APPLE_APP_SPECIFIC_PASSWORD || process.env.APPLE_PASSWORD;
+  const teamId = process.env.APPLE_TEAM_ID;
+
+  if (appleId && appleIdPassword && teamId) {
+    return {
+      appleId,
+      appleIdPassword,
+      teamId,
+    };
+  }
+
+  return undefined;
+}
+
+const macSignConfig = buildMacSignConfig();
+const macNotarizeConfig = buildMacNotarizeConfig();
+
 module.exports = {
   packagerConfig: {
     icon: iconBasePath,
     asar: true,
+    appBundleId: process.env.STARQUERY_MAC_BUNDLE_ID || 'com.interaapps.starquery',
+    appCategoryType:
+      process.env.STARQUERY_MAC_APP_CATEGORY || 'public.app-category.developer-tools',
+    ...(macSignConfig ? { osxSign: macSignConfig } : {}),
+    ...(macNotarizeConfig ? { osxNotarize: macNotarizeConfig } : {}),
   },
   rebuildConfig: {},
   makers: [

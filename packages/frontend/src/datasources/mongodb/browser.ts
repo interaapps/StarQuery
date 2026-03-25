@@ -33,6 +33,14 @@ function cloneValue<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+function valuesEqual(left: unknown, right: unknown) {
+  if (left === right) {
+    return true
+  }
+
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
 function serializePreviewValue(value: unknown): unknown {
   if (value === null || value === undefined) {
     return value
@@ -102,6 +110,183 @@ function inferColumnType(fieldTypes: Map<string, string>, fieldName: string, val
   }
 
   return 'text'
+}
+
+function normalizeMongoCellValue(column: SQLTableColumn, value: unknown) {
+  if (value === undefined) {
+    return null
+  }
+
+  if (column.type === 'number') {
+    if (value === null || value === '') {
+      return null
+    }
+
+    const nextValue = typeof value === 'number' ? value : Number(value)
+    return Number.isFinite(nextValue) ? nextValue : value
+  }
+
+  if (column.type === 'boolean') {
+    if (typeof value === 'boolean') {
+      return value
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase()
+      if (['true', '1', 'yes'].includes(normalized)) {
+        return true
+      }
+
+      if (['false', '0', 'no'].includes(normalized)) {
+        return false
+      }
+    }
+  }
+
+  if (column.type === 'json') {
+    if (value === null || value === '') {
+      return null
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (!trimmed) {
+        return null
+      }
+
+      return JSON.parse(trimmed)
+    }
+  }
+
+  return value
+}
+
+function buildOverviewValues(columns: SQLTableColumn[], document: Record<string, unknown>) {
+  return Object.fromEntries(
+    columns.map((column) => [column.field, serializePreviewValue(document[column.field])]),
+  )
+}
+
+export function buildMongoDocumentFromRow(
+  row: SQLTableRowDraft | null | undefined,
+  columns: SQLTableColumn[],
+) {
+  if (!row) {
+    return null
+  }
+
+  const baseDocument = isRecord(row.values[MONGO_ROW_DOCUMENT_FIELD])
+    ? cloneValue(row.values[MONGO_ROW_DOCUMENT_FIELD] as Record<string, unknown>)
+    : {}
+
+  for (const column of columns) {
+    const nextValue = normalizeMongoCellValue(column, row.values[column.field])
+
+    if (column.field === '_id' && (nextValue === null || nextValue === undefined || nextValue === '')) {
+      delete baseDocument._id
+      continue
+    }
+
+    if (nextValue === undefined) {
+      delete baseDocument[column.field]
+      continue
+    }
+
+    baseDocument[column.field] = nextValue
+  }
+
+  return baseDocument
+}
+
+function deriveMongoDocumentId(document: Record<string, unknown>) {
+  return document._id === undefined ? null : cloneValue(document._id)
+}
+
+export function createMongoDraftRow(
+  columns: SQLTableColumn[],
+  document?: Record<string, unknown> | null,
+) {
+  const normalizedDocument = document ? cloneValue(document) : {}
+  const overviewValues = buildOverviewValues(columns, normalizedDocument)
+
+  return {
+    id: createRowId(),
+    values: {
+      ...overviewValues,
+      [MONGO_ROW_DOCUMENT_FIELD]: normalizedDocument,
+      [MONGO_ROW_ID_FIELD]: deriveMongoDocumentId(normalizedDocument),
+    },
+    original: null,
+    state: 'new' as const,
+  }
+}
+
+export function applyMongoDocumentToRow(
+  row: SQLTableRowDraft,
+  columns: SQLTableColumn[],
+  document: Record<string, unknown>,
+) {
+  const nextDocument = cloneValue(document)
+  const overviewValues = buildOverviewValues(columns, nextDocument)
+
+  row.values = {
+    ...row.values,
+    ...overviewValues,
+    [MONGO_ROW_DOCUMENT_FIELD]: nextDocument,
+    [MONGO_ROW_ID_FIELD]: deriveMongoDocumentId(nextDocument),
+  }
+
+  if (!row.original) {
+    row.state = 'new'
+    return
+  }
+
+  const isDirty = columns.some((column) => !valuesEqual(row.values[column.field], row.original?.[column.field]))
+  row.state = isDirty ? 'modified' : 'clean'
+}
+
+export function buildMongoMutationPayload(columns: SQLTableColumn[], rows: SQLTableRowDraft[]) {
+  const inserted = rows
+    .filter((row) => row.state === 'new')
+    .map((row) => buildMongoDocumentFromRow(row, columns))
+    .filter((row): row is Record<string, unknown> => row !== null)
+
+  const updated = rows.flatMap((row) => {
+    if (row.state !== 'modified' || !row.original) {
+      return []
+    }
+
+    const id = getMongoDocumentIdFromRow({
+      ...row,
+      values: row.original ?? row.values,
+    })
+    const document = buildMongoDocumentFromRow(row, columns)
+
+    if (id === null || document === null) {
+      return []
+    }
+
+    return [{ id, document }]
+  })
+
+  const deleted = rows.flatMap((row) => {
+    if (row.state !== 'deleted' || !row.original) {
+      return []
+    }
+
+    const id = getMongoDocumentIdFromRow({
+      ...row,
+      values: row.original ?? row.values,
+    })
+
+    return id === null ? [] : [id]
+  })
+
+  return {
+    inserted,
+    updated,
+    deleted,
+  }
 }
 
 export function parseMongoPath(path?: string) {
@@ -309,7 +494,8 @@ export function buildMongoDbResultTable(result: MongoDbQueryResult) {
       columnName,
       normalizedRows.map((row) => row[columnName]),
     ),
-    readOnly: true,
+    readOnly: columnName === '_id',
+    autoIncrement: columnName === '_id',
   }))
 
   const rows: SQLTableRowDraft[] = normalizedRows.map((row) => ({

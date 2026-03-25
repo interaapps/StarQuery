@@ -111,7 +111,13 @@
 .sidenav-elements{
   background-color: var(--app-bg);
 }
-.electron-mac .app-bg-no-mac,
+.electron-mac .app-bg-no-mac {
+  background-color: transparent;
+}
+
 .electron-mac .sidenav-elements {
+  background-color: #FFFFFF88;
+}
+.dark.electron-mac .sidenav-elements {
   background-color: transparent;
 }

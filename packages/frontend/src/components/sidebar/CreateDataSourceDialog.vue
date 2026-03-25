@@ -37,7 +37,9 @@ const type = ref<DataSourceType>('mysql')
 const config = ref<Record<string, unknown>>({})
 const redactedSecretFields = ref<string[]>([])
 const definitions = computed(() => listRegisteredDataSourceDefinitions(workspaceStore.serverInfo))
-const availableTypes = computed<DataSourceType[]>(() => definitions.value.map((definition) => definition.type))
+const availableTypes = computed<DataSourceType[]>(() =>
+  definitions.value.map((definition) => definition.type),
+)
 const isEditing = computed(() => Boolean(props.source))
 const typeOptions = computed(() =>
   definitions.value.map((definition) => ({
@@ -49,19 +51,20 @@ const currentDefinition = computed<RegisteredDataSourceDefinition | null>(
   () => definitions.value.find((definition) => definition.type === type.value) ?? null,
 )
 const currentFormComponent = computed(() => currentDefinition.value?.formComponent ?? null)
-const currentFormProps = computed(() =>
-  currentDefinition.value?.getFormProps?.({
-    definition: currentDefinition.value,
-    redactedSecretFields: redactedSecretFields.value,
-    source: props.source,
-  }) ?? {},
+const currentFormProps = computed(
+  () =>
+    currentDefinition.value?.getFormProps?.({
+      definition: currentDefinition.value,
+      redactedSecretFields: redactedSecretFields.value,
+      source: props.source,
+    }) ?? {},
 )
 
 watch(
   () => visible.value,
   (nextVisible) => {
     if (!nextVisible) return
-    const initialType = props.source?.type ?? (availableTypes.value[0] ?? 'mysql')
+    const initialType = props.source?.type ?? availableTypes.value[0] ?? 'mysql'
     const state = createDataSourceFormState(initialType, props.source)
     name.value = state.name
     type.value = state.type
@@ -106,7 +109,12 @@ const canSubmit = computed(() =>
 </script>
 
 <template>
-  <Dialog v-model:visible="visible" modal :header="isEditing ? 'Edit Datasource' : 'Add Datasource'" :style="{ width: '36rem' }">
+  <Dialog
+    v-model:visible="visible"
+    modal
+    :header="isEditing ? 'Edit Datasource' : 'Add Datasource'"
+    :style="{ width: '36rem' }"
+  >
     <div class="flex flex-col gap-4">
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Datasource name</label>
@@ -115,7 +123,27 @@ const canSubmit = computed(() =>
 
       <div class="flex flex-col gap-2">
         <label class="text-sm opacity-70">Type</label>
-        <Select size="small" v-model="type" :options="typeOptions" option-label="label" option-value="value" fluid />
+        <Select
+          size="small"
+          v-model="type"
+          :options="typeOptions"
+          option-label="label"
+          option-value="value"
+          fluid
+        >
+          <template #value>
+            <span class="flex gap-2 items-center">
+              <i :class="`ti ti-${definitions.find((s) => s.type === type)?.icon}`" />
+              <span>{{ definitions.find((s) => s.type === type)?.label || '-' }}</span>
+            </span>
+          </template>
+          <template #option="props">
+            <span class="flex gap-2 items-center text-sm">
+              <i :class="`ti ti-${definitions.find((s) => s.type === props.option.value)?.icon}`" />
+              <span>{{ props.option.label }}</span>
+            </span>
+          </template>
+        </Select>
       </div>
 
       <Component
@@ -125,12 +153,16 @@ const canSubmit = computed(() =>
         v-bind="currentFormProps"
       />
 
-      <div v-if="currentDefinition" class="rounded-xl border app-border px-3 py-2 text-xs opacity-65">
+      <div
+        v-if="currentDefinition"
+        class="rounded-xl border app-border px-3 py-2 text-xs opacity-65"
+      >
         {{ currentDefinition.capabilities.sqlQuery ? 'SQL datasource' : 'Resource datasource' }}
       </div>
 
       <div class="flex justify-end">
-        <Button size="small"
+        <Button
+          size="small"
           :label="isEditing ? 'Save datasource' : 'Create datasource'"
           :icon="isEditing ? 'ti ti-device-floppy' : 'ti ti-database-plus'"
           :disabled="!canSubmit"

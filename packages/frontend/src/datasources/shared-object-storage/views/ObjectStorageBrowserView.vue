@@ -343,15 +343,6 @@ async function deleteResources(items?: DataSourceResourceItem[]) {
     }
     selectedResources.value = []
     await loadFolder({ path: currentFolderPath.value, search: appliedSearch.value })
-    toast.add({
-      severity: 'success',
-      summary: 'Delete finished',
-      detail:
-        response.deletedCount === 1
-          ? '1 entry has been deleted'
-          : `${response.deletedCount} entries have been deleted`,
-      life: 2000,
-    })
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -401,12 +392,6 @@ async function handleFileSelection(event: Event) {
     await loadFolder({ path: currentFolderPath.value, search: appliedSearch.value })
     selectedItemPath.value = targetPath
     await loadSelection(targetPath)
-    toast.add({
-      severity: 'success',
-      summary: 'Upload finished',
-      detail: `${file.name} has been uploaded`,
-      life: 1800,
-    })
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -438,12 +423,6 @@ async function createObject(payload: { path: string; content: string; contentTyp
     await loadFolder({ path: currentFolderPath.value, search: appliedSearch.value })
     selectedItemPath.value = payload.path
     await loadSelection(payload.path)
-    toast.add({
-      severity: 'success',
-      summary: 'Object created',
-      detail: `${getResourceName(payload.path)} has been saved`,
-      life: 1800,
-    })
   } catch (error) {
     toast.add({
       severity: 'error',
@@ -473,9 +452,7 @@ watch(
 
 <template>
   <div class="h-full flex flex-col">
-    <div
-      class="border-b app-border px-4 py-2 flex items-center gap-3"
-    >
+    <div class="border-b app-border px-4 py-2 flex items-center gap-3">
       <div class="min-w-0 flex items-center gap-1 overflow-auto text-sm">
         <button
           v-for="(item, index) in breadcrumbSegments"
@@ -488,12 +465,6 @@ watch(
         </button>
       </div>
       <div class="ml-auto flex items-center gap-2">
-        <DataExportButton
-          :file-base-name="exportFileBaseName"
-          :columns="exportColumns"
-          :rows="exportRows"
-          :disabled="!listing?.items?.length"
-        />
         <Button
           size="small"
           icon="ti ti-arrow-up"
@@ -509,15 +480,6 @@ watch(
           @keydown.enter.prevent="applySearch"
           size="small"
         />
-        <Button size="small" icon="ti ti-search" text severity="secondary" @click="applySearch" />
-        <Button
-          size="small"
-          v-if="appliedSearch"
-          icon="ti ti-x"
-          text
-          severity="secondary"
-          @click="clearSearch"
-        />
         <Button
           size="small"
           icon="ti ti-refresh"
@@ -532,9 +494,7 @@ watch(
       This server account is not allowed to browse this datasource.
     </Message>
 
-    <div
-      class="border-b app-border px-3 py-2 flex items-center justify-between gap-3"
-    >
+    <div class="border-b app-border px-3 py-2 flex items-center justify-between gap-3">
       <div class="min-w-0">
         <div class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Object Storage</div>
         <div class="text-sm truncate">{{ currentFolderPath || 'Buckets' }}</div>
@@ -564,6 +524,16 @@ watch(
           outlined
           :disabled="!canWriteSource || !deleteTargets.length || isDeleting || isUploading"
           @click="deleteResources()"
+        />
+
+        <DataExportButton
+          :file-base-name="exportFileBaseName"
+          :columns="exportColumns"
+          :rows="exportRows"
+          :disabled="!listing?.items?.length"
+          :smaller="false"
+          severity="primary"
+          label="Export list"
         />
         <Button
           icon="ti ti-download"

@@ -44,6 +44,7 @@ const sourceDefinition = computed(() =>
 )
 const sourceIcon = computed(() => sourceDefinition.value.icon)
 const defaultBrowserPath = computed(() => {
+  console.log(sourceDefinition.value)
   if (props.source.type === 'mongodb') {
     const database = props.source.config?.database
     return typeof database === 'string' && database.trim()

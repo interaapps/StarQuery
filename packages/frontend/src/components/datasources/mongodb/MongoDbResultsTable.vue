@@ -3,7 +3,11 @@ import { ref, useTemplateRef, watch } from 'vue'
 import Message from 'primevue/message'
 import LogoLoadingSpinner from '@/components/LogoLoadingSpinner.vue'
 import ExtendedDataTable from '@/components/table/ExtendedDataTable.vue'
-import { buildMongoDbResultTable } from '@/datasources/mongodb/browser'
+import {
+  buildMongoDbResultTable,
+  buildMongoDocumentFromRow,
+  createMongoDraftRow,
+} from '@/datasources/mongodb/browser'
 import type { MongoDbQueryResult } from '@/types/datasources'
 import type { SQLTableColumn, SQLTableRowDraft } from '@/types/sql'
 
@@ -55,6 +59,41 @@ watch(
 )
 
 defineExpose({
+  addRow: () => {
+    const row = createMongoDraftRow(columns.value)
+    rows.value.push(row)
+    const nextIndex = rows.value.length - 1
+    focusedRowIndex.value = nextIndex
+    requestAnimationFrame(() => {
+      extendedDataTable.value?.focusRow?.(nextIndex)
+    })
+    return nextIndex
+  },
+  duplicateSelectedRows: () => {
+    const selectedRows =
+      (extendedDataTable.value?.getSelectedRowIndexes?.() ?? [])
+        .map((index: number) => rows.value[index])
+        .filter((row: SQLTableRowDraft | undefined): row is SQLTableRowDraft => !!row && row.state !== 'deleted')
+
+    if (!selectedRows.length) {
+      return null
+    }
+
+    const duplicates = selectedRows.map((row: SQLTableRowDraft) => {
+      const document = buildMongoDocumentFromRow(row, columns.value) ?? {}
+      delete document._id
+      return createMongoDraftRow(columns.value, document)
+    })
+
+    rows.value.push(...duplicates)
+    const nextIndex = rows.value.length - duplicates.length
+    focusedRowIndex.value = nextIndex
+    requestAnimationFrame(() => {
+      extendedDataTable.value?.focusRow?.(nextIndex)
+    })
+    return nextIndex
+  },
+  deleteSelectedRows: () => extendedDataTable.value?.deleteSelectedRows?.(),
   getSelectedRows: () => {
     const indexes = extendedDataTable.value?.getSelectedRowIndexes?.() ?? []
     return indexes
@@ -84,7 +123,7 @@ defineExpose({
       v-model:columns="columns"
       v-model:rows="rows"
       v-model:focused-row-index="focusedRowIndex"
-      :can-edit="false"
+      :can-edit="true"
       class="h-full"
     />
 

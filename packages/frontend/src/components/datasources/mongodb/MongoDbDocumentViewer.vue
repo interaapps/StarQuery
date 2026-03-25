@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, useTemplateRef, watch } from 'vue'
+import { computed } from 'vue'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import JsonEditor from '@/components/editors/JsonEditor.vue'
@@ -13,40 +13,26 @@ const props = withDefaults(
     mode: 'new' | 'selected'
     selectedLabel?: string | null
     canWrite?: boolean
-    canSave?: boolean
     canDelete?: boolean
     loading?: boolean
+    errorMessage?: string | null
   }>(),
   {
     selectedLabel: null,
     canWrite: false,
-    canSave: false,
     canDelete: false,
     loading: false,
+    errorMessage: null,
   },
 )
 
 const emit = defineEmits<{
-  save: []
   reset: []
-  createNew: []
   deleteDocument: []
 }>()
 
 const headerLabel = computed(() =>
   props.mode === 'new' ? 'New document' : props.selectedLabel || 'Selected document',
-)
-
-const jsonEditor = useTemplateRef<InstanceType<typeof JsonEditor>>('jsonEditor')
-
-watch(
-  () => props.mode,
-  () => {
-    requestAnimationFrame(() => {
-      jsonEditor.value?.focusEditor()
-    })
-  },
-  { immediate: true },
 )
 </script>
 
@@ -59,14 +45,6 @@ watch(
       </div>
 
       <div class="flex items-center gap-1">
-        <Button
-          icon="ti ti-plus"
-          label="New"
-          text
-          severity="secondary"
-          size="small"
-          @click="emit('createNew')"
-        />
         <Button
           icon="ti ti-restore"
           label="Reset"
@@ -85,14 +63,6 @@ watch(
           :disabled="!canWrite || !canDelete || loading"
           @click="emit('deleteDocument')"
         />
-        <Button
-          icon="ti ti-device-floppy"
-          label="Save"
-          size="small"
-          :disabled="!canWrite || !canSave || loading"
-          :loading="loading"
-          @click="emit('save')"
-        />
       </div>
     </div>
 
@@ -100,16 +70,16 @@ watch(
       <Message v-if="!canWrite" severity="warn" class="m-3 mb-0">
         This account can browse MongoDB documents but cannot create, edit or delete them.
       </Message>
+      <Message v-else-if="errorMessage" severity="error" class="m-3 mb-0">
+        {{ errorMessage }}
+      </Message>
 
       <JsonEditor
-        ref="jsonEditor"
         v-model="documentJson"
         class="h-full"
         height="100%"
         min-height="100%"
-        :autofocus="true"
         placeholder="{\n}"
-        @submit="emit('save')"
       />
     </div>
   </div>

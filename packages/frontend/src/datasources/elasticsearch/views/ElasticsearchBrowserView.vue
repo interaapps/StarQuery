@@ -119,9 +119,7 @@ const resultSummary = computed(() => {
 })
 const exportColumns = computed(() => columns.value.map((column) => column.field))
 const exportRows = computed(() =>
-  rows.value
-    .filter((row) => row.state !== 'deleted')
-    .map((row) => ({ ...row.values })),
+  rows.value.filter((row) => row.state !== 'deleted').map((row) => ({ ...row.values })),
 )
 
 function pushLog(entry: Omit<SQLActivityEntry, 'id'>) {
@@ -407,9 +405,7 @@ watch(
     </Message>
 
     <div class="min-h-0 flex flex-1 flex-col overflow-hidden">
-      <div
-        class="border-b app-border px-3 py-2 flex items-center justify-between gap-3"
-      >
+      <div class="border-b app-border px-3 py-2 flex items-center justify-between gap-3">
         <div class="min-w-0 space-y-0.5">
           <div class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Elasticsearch</div>
           <div class="truncate text-sm">
@@ -539,47 +535,53 @@ watch(
           </template>
 
           <template #actions>
+            <Button
+              icon="ti ti-plus"
+              aria-label="Add"
+              size="small"
+              text
+              rounded
+              severity="contrast"
+              :disabled="!canEditDocuments || !result || isRunningSearch || isSaving"
+              @click="addDocument"
+            />
+            <Button
+              icon="ti ti-trash"
+              aria-label="Delete"
+              size="small"
+              text
+              severity="contrast"
+              :disabled="!canEditDocuments || !result || isRunningSearch || isSaving"
+              @click="deleteDocuments"
+            />
+            <Button
+              icon="ti ti-restore"
+              aria-label="Discard"
+              v-tooltip="'Discard'"
+              size="small"
+              text
+              rounded
+              severity="contrast"
+              :disabled="!hasPendingChanges || isRunningSearch || isSaving"
+              @click="discardDocumentChanges"
+            />
+            <Button
+              icon="ti ti-device-floppy"
+              aria-label="Save"
+              text
+              rounded
+              size="small"
+              :loading="isSaving"
+              :disabled="!canEditDocuments || !hasPendingChanges || isRunningSearch"
+              @click="saveDocuments"
+            />
+
             <DataExportButton
               :file-base-name="`${props.data.sourceName}-${selectedIndex || 'results'}`"
               :table-name="selectedIndex || 'results'"
               :columns="exportColumns"
               :rows="exportRows"
               :disabled="!result || isRunningSearch"
-            />
-            <Button
-              icon="ti ti-plus"
-              label="Add"
-              size="small"
-              text
-              severity="secondary"
-              :disabled="!canEditDocuments || !result || isRunningSearch || isSaving"
-              @click="addDocument"
-            />
-            <Button
-              icon="ti ti-trash"
-              label="Delete"
-              size="small"
-              text
-              severity="danger"
-              :disabled="!canEditDocuments || !result || isRunningSearch || isSaving"
-              @click="deleteDocuments"
-            />
-            <Button
-              icon="ti ti-restore"
-              label="Discard"
-              size="small"
-              text
-              severity="secondary"
-              :disabled="!hasPendingChanges || isRunningSearch || isSaving"
-              @click="discardDocumentChanges"
-            />
-            <Button
-              icon="ti ti-device-floppy"
-              label="Save"
-              size="small"
-              :loading="isSaving"
-              :disabled="!canEditDocuments || !hasPendingChanges || isRunningSearch"
-              @click="saveDocuments"
             />
           </template>
 

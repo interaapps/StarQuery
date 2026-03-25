@@ -15,7 +15,10 @@ import {
   loadTableSchemaState,
   serializeVirtualForeignKeys,
 } from '@/datasources/shared-sql/schema/metadata'
-import { buildCreateTableStatements, buildEditTableStatements } from '@/datasources/shared-sql/schema/sql'
+import {
+  buildCreateTableStatements,
+  buildEditTableStatements,
+} from '@/datasources/shared-sql/schema/sql'
 import { getErrorMessage } from '@/services/error-message'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
 import {
@@ -53,7 +56,9 @@ const availableSections = computed(() =>
 )
 
 const selectedSectionMeta = computed(
-  () => availableSections.value.find((section) => section.id === selectedSection.value) ?? availableSections.value[0],
+  () =>
+    availableSections.value.find((section) => section.id === selectedSection.value) ??
+    availableSections.value[0],
 )
 
 const isEditMode = computed(() => props.mode === 'edit')
@@ -76,7 +81,11 @@ const previewStatements = computed(() => {
 })
 
 const virtualForeignKeyConfig = computed(() =>
-  serializeVirtualForeignKeys(props.source, state.value.schema.name.trim(), state.value.schema.virtualForeignKeys),
+  serializeVirtualForeignKeys(
+    props.source,
+    state.value.schema.name.trim(),
+    state.value.schema.virtualForeignKeys,
+  ),
 )
 
 const virtualForeignKeysChanged = computed(() => {
@@ -164,9 +173,12 @@ const applySchema = async () => {
     const client = await workspaceStore.getClient()
 
     if (statements.length) {
-      await client.post(`/api/projects/${workspaceStore.currentProjectId}/sources/${props.source.id}/query`, {
-        query: statements.join(';\n'),
-      })
+      await client.post(
+        `/api/projects/${workspaceStore.currentProjectId}/sources/${props.source.id}/query`,
+        {
+          query: statements.join(';\n'),
+        },
+      )
     }
 
     if (virtualForeignKeysChanged.value) {
@@ -208,30 +220,29 @@ const applySchema = async () => {
     :style="{ width: '78rem' }"
     class="max-w-[calc(100vw-2rem)]"
   >
-    <div class="flex flex-col gap-4">
-      <div class="flex items-start justify-between gap-4">
+    <template #header>
+      <div class="flex items-start justify-between gap-4 w-full">
         <div class="flex flex-col gap-2 flex-1">
-          <label class="text-sm opacity-70">Table name</label>
-          <InputText size="small"
+          <InputText
+            size="small"
             v-model="state.schema.name"
             fluid
             :disabled="mode === 'edit'"
-            :placeholder="mode === 'create' ? 'orders' : ''"
+            class="max-w-[20rem]"
+            :placeholder="mode === 'create' ? 'Table Name' : ''"
           />
         </div>
-
-        <div class="text-xs opacity-60 max-w-[28rem] pt-7">
-          {{ ui.editDescription }}
-        </div>
       </div>
+    </template>
 
+    <div class="flex flex-col gap-4">
       <div class="grid grid-cols-[14rem_minmax(0,1fr)] gap-4 min-h-[34rem]">
         <div class="rounded-2xl border app-border p-2 flex flex-col gap-1">
           <button
             v-for="section in availableSections"
             :key="section.id"
             type="button"
-            class="text-left rounded-xl px-3 py-2 transition-colors"
+            class="text-left rounded-lg px-3 py-2 transition-colors"
             :class="
               selectedSection === section.id
                 ? 'bg-primary-500/12 text-primary-700 dark:text-primary-300'
@@ -267,27 +278,37 @@ const applySchema = async () => {
       </div>
 
       <div class="rounded-2xl border app-border overflow-hidden">
-        <div class="px-3 py-2 border-b app-border text-xs uppercase tracking-[0.16em] opacity-60 mono">
+        <div
+          class="px-3 py-2 border-b app-border text-xs uppercase tracking-[0.16em] opacity-60 mono"
+        >
           SQL Preview
         </div>
         <div class="bg-neutral-950 text-neutral-100 p-4 mono text-xs overflow-auto max-h-[16rem]">
-          <pre>{{ previewStatements.length ? previewStatements.join(';\n') : '-- No schema changes' }}</pre>
+          <pre>{{
+            previewStatements.length ? previewStatements.join(';\n') : '-- No schema changes'
+          }}</pre>
         </div>
       </div>
+    </div>
 
+    <template #footer>
       <div class="flex items-center justify-between gap-3">
         <div class="text-xs opacity-55">
-          {{ mode === 'create' ? 'The preview runs as normal SQL after you confirm.' : 'Changed sections are diffed into ALTER / DROP / CREATE statements.' }}
+          {{
+            mode === 'create'
+              ? 'The preview runs as normal SQL after you confirm.'
+              : 'Changed sections are diffed into ALTER / DROP / CREATE statements.'
+          }}
         </div>
 
-        <Button size="small"
+        <Button
+          size="small"
           :label="mode === 'create' ? 'Create table' : 'Apply changes'"
           :icon="mode === 'create' ? 'ti ti-database-plus' : 'ti ti-device-floppy'"
           :loading="isSaving"
           :disabled="!canSubmit || isLoading"
           @click="applySchema"
-        />
-      </div>
-    </div>
+        /></div
+    ></template>
   </Dialog>
 </template>

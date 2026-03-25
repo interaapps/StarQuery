@@ -704,14 +704,14 @@ const onGridKeyDown = (event: KeyboardEvent) => {
     return
   }
 
-  if (props.canEdit && event.code === 'Delete') {
-    setSelectionToNull()
+  if (props.canEdit && commandOrCtrl && (event.code === 'Delete' || event.code === 'Backspace')) {
+    deleteSelectedRows()
     event.preventDefault()
     return
   }
 
-  if (props.canEdit && event.code === 'Backspace' && commandOrCtrl) {
-    deleteSelectedRows()
+  if (props.canEdit && event.code === 'Delete') {
+    setSelectionToNull()
     event.preventDefault()
     return
   }

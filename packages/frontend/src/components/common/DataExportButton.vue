@@ -3,13 +3,23 @@ import { computed } from 'vue'
 import SplitButton from 'primevue/splitbutton'
 import { triggerDataExport, type DataExportFormat } from '@/services/data-export'
 
-const props = defineProps<{
-  fileBaseName: string
-  columns: string[]
-  rows: Record<string, unknown>[]
-  tableName?: string
-  disabled?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    fileBaseName: string
+    columns: string[]
+    rows: Record<string, unknown>[]
+    tableName?: string
+    disabled?: boolean
+    smaller?: boolean
+    severity?: 'primary' | 'secondary' | 'success' | 'info' | 'warning' | 'help' | 'danger'
+    label?: string
+  }>(),
+  {
+    label: 'Export',
+    severity: 'secondary',
+    smaller: true,
+  },
+)
 
 const exportFormats = [
   { label: 'CSV', format: 'csv' },
@@ -44,11 +54,25 @@ function exportAs(format: DataExportFormat) {
 
 <template>
   <SplitButton
-    label="Export"
+    :label="props.label"
     icon="ti ti-download"
     size="small"
-    severity="secondary"
+    :severity="props.severity"
     outlined
+    :pt="
+      props.smaller
+        ? {
+            pcButton: {
+              root: 'pl-2 pr-3 py-1 text-sm',
+            },
+            pcDropdown: {
+              root: 'p-0',
+              dropdownicon: 'size-1',
+              menubuttonicon: 'size-1',
+            },
+          }
+        : {}
+    "
     :disabled="!canExport"
     :model="exportItems"
     @click="exportAs('csv')"

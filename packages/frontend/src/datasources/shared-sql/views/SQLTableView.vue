@@ -173,9 +173,7 @@ const buildDraftRows = (resultRows: Record<string, unknown>[]) =>
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const paginationSummary = computed(() => `${total.value} row${total.value === 1 ? '' : 's'}`)
 const exportRows = computed(() =>
-  rows.value
-    .filter((row) => row.state !== 'deleted')
-    .map((row) => ({ ...row.values })),
+  rows.value.filter((row) => row.state !== 'deleted').map((row) => ({ ...row.values })),
 )
 const exportColumns = computed(() => columns.value.map((column) => column.field))
 const dirtyRows = computed(() => rows.value.filter((row) => row.state !== 'clean'))
@@ -223,8 +221,9 @@ const canQueryTable = computed(() =>
     dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
   ),
 )
-const canEditTable = computed(() =>
-  supportsDataEditor(sourceType.value, workspaceStore.serverInfo) &&
+const canEditTable = computed(
+  () =>
+    supportsDataEditor(sourceType.value, workspaceStore.serverInfo) &&
     authStore.hasPermission(
       dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
     ),
@@ -380,12 +379,6 @@ const loadRows = async (options?: {
       durationMs: Math.round(performance.now() - startedAt),
     })
 
-    toast.add({
-      severity: 'error',
-      summary: 'Load failed',
-      detail,
-      life: 2800,
-    })
     return {
       ok: false,
       durationMs: Math.round(performance.now() - startedAt),
@@ -405,12 +398,6 @@ const refreshTable = async () => {
 const guardPendingChanges = () => {
   if (!hasPendingChanges.value) return false
 
-  toast.add({
-    severity: 'warn',
-    summary: 'Unsaved changes',
-    detail: 'Save or discard your current page before changing pagination or sorting.',
-    life: 2200,
-  })
   pushLog({
     level: 'info',
     title: 'Unsaved changes',
@@ -466,12 +453,6 @@ const saveChanges = async () => {
       },
     )
 
-    toast.add({
-      severity: 'success',
-      summary: 'Changes saved',
-      detail: `${insertedRows.length + updatedRows.length + deletedRows.length} change set(s) applied`,
-      life: 2200,
-    })
     pushLog({
       level: 'success',
       title: 'Changes saved',
@@ -488,12 +469,6 @@ const saveChanges = async () => {
       message: detail,
       durationMs: Math.round(performance.now() - startedAt),
     })
-    toast.add({
-      severity: 'error',
-      summary: 'Save failed',
-      detail,
-      life: 2600,
-    })
   } finally {
     isSaving.value = false
   }
@@ -502,12 +477,6 @@ const saveChanges = async () => {
 const discardChanges = async () => {
   if (!canQueryTable.value) return
   await loadRows()
-  toast.add({
-    severity: 'info',
-    summary: 'Changes discarded',
-    detail: `Reloaded ${props.data.tableName}`,
-    life: 1800,
-  })
   pushLog({
     level: 'info',
     title: 'Changes discarded',
@@ -547,12 +516,6 @@ const applyWhereClause = async () => {
       title: 'Invalid WHERE filter',
       message: error instanceof Error ? error.message : 'The WHERE filter is invalid',
     })
-    toast.add({
-      severity: 'error',
-      summary: 'Invalid WHERE filter',
-      detail: error instanceof Error ? error.message : 'The WHERE filter is invalid',
-      life: 2800,
-    })
     return
   }
 
@@ -588,12 +551,6 @@ const applySortClause = async () => {
       level: 'error',
       title: 'Invalid ORDER BY',
       message: error instanceof Error ? error.message : 'The ORDER BY clause is invalid',
-    })
-    toast.add({
-      severity: 'error',
-      summary: 'Invalid ORDER BY',
-      detail: error instanceof Error ? error.message : 'The ORDER BY clause is invalid',
-      life: 2800,
     })
     return
   }
@@ -688,17 +645,8 @@ onMounted(async () => {
 
 <template>
   <div class="flex flex-col w-full h-full">
-    <div
-      class="border-b app-border flex h-[2.5rem] items-center px-2 justify-between gap-3"
-    >
+    <div class="border-b app-border flex h-[2.5rem] items-center px-1 justify-between gap-3">
       <div class="flex items-center gap-0.5">
-        <DataExportButton
-          :file-base-name="`${props.data.sourceName}-${props.data.tableName}`"
-          :table-name="props.data.tableName"
-          :columns="exportColumns"
-          :rows="exportRows"
-          :disabled="!canQueryTable"
-        />
         <Button
           size="small"
           :icon="`ti ti-refresh ${isLoading ? 'animate-spin' : ''}`"
@@ -753,16 +701,18 @@ onMounted(async () => {
         />
       </div>
 
-      <div class="flex items-center gap-4 text-xs uppercase tracking-[0.16em] opacity-55 mono">
-        <span>{{ props.data.sourceName }}</span>
-        <span>{{ props.data.tableName }}</span>
-        <span>{{ total }} rows</span>
+      <div class="flex items-center gap-4">
+        <DataExportButton
+          :file-base-name="`${props.data.sourceName}-${props.data.tableName}`"
+          :table-name="props.data.tableName"
+          :columns="exportColumns"
+          :rows="exportRows"
+          :disabled="!canQueryTable"
+        />
       </div>
     </div>
 
-    <div
-      class="border-b app-border flex flex-wrap px-3 py-0 items-center gap-3"
-    >
+    <div class="border-b app-border flex flex-wrap px-3 py-0 items-center gap-3">
       <div class="flex items-center gap-2 min-w-0 flex-[1.4]">
         <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Where</span>
         <div
@@ -832,10 +782,7 @@ onMounted(async () => {
       <LoadingContainer />
     </div>
 
-    <div
-      v-else
-      class="border-b app-border overflow-hidden h-full min-h-0"
-    >
+    <div v-else class="border-b app-border overflow-hidden h-full min-h-0">
       <div class="h-full min-h-0 flex flex-col">
         <div class="min-h-0 flex-1 overflow-hidden relative">
           <ExtendedDataTable

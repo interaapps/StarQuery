@@ -7,7 +7,7 @@ export const mongodbDataSourceModule = {
     type: 'mongodb',
     kind: 'resource',
     label: 'MongoDB',
-    icon: 'database',
+    icon: 'brand-mongodb',
     capabilities: {
       sqlQuery: false,
       tableBrowser: false,

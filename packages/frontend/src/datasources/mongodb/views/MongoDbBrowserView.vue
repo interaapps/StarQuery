@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import Button from 'primevue/button'
 import InputNumber from 'primevue/inputnumber'
 import Message from 'primevue/message'
@@ -15,13 +15,15 @@ import MongoDbResultsTable from '@/components/datasources/mongodb/MongoDbResults
 import JsonEditor from '@/components/editors/JsonEditor.vue'
 import SQLActivityPanel, { type SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
 import {
+  applyMongoDocumentToRow,
+  buildMongoMutationPayload,
   createMongoDbCollection,
   DEFAULT_MONGODB_FILTER,
   DEFAULT_MONGODB_PROJECTION,
   DEFAULT_MONGODB_SORT,
   deleteMongoDbCollection,
   deleteMongoDbDocuments,
-  getMongoDocumentFromRow,
+  buildMongoDocumentFromRow,
   getMongoDocumentIdFromRow,
   parseMongoEditorObject,
   parseMongoPath,
@@ -74,14 +76,15 @@ const columns = ref<SQLTableColumn[]>([])
 const rows = ref<SQLTableRowDraft[]>([])
 const focusedRowIndex = ref<number | null>(null)
 const isRunningQuery = ref(false)
-const isSavingDocument = ref(false)
+const isSavingChanges = ref(false)
 const logs = ref<SQLActivityEntry[]>([])
 const documentViewerMode = ref<'new' | 'selected'>('selected')
 const documentJson = ref('{\n}')
-const documentBaselineJson = ref('{\n}')
 const selectedDocumentId = ref<unknown | null>(null)
 const createCollectionVisible = ref(false)
 const pendingFocusDocumentKey = ref<string | null>(null)
+const hydratingDocumentViewer = ref(false)
+const suppressNextRowViewerSync = ref(false)
 
 const canQuery = computed(() =>
   authStore.hasPermission(
@@ -115,19 +118,30 @@ const resultSummary = computed(() => {
 })
 const exportColumns = computed(() => columns.value.map((column) => column.field))
 const exportRows = computed(() =>
-  rows.value.map((row) =>
-    Object.fromEntries(columns.value.map((column) => [column.field, row.values[column.field] ?? null])),
-  ),
+  rows.value
+    .filter((row) => row.state !== 'deleted')
+    .map((row) => buildMongoDocumentFromRow(row, columns.value) ?? {}),
 )
-const documentViewerDirty = computed(
-  () => documentJson.value.trim() !== documentBaselineJson.value.trim(),
-)
-const canSaveCurrentDocument = computed(() =>
-  documentViewerMode.value === 'new' || selectedDocumentId.value !== null,
-)
-const canDeleteCurrentDocument = computed(
-  () => documentViewerMode.value === 'selected' && selectedDocumentId.value !== null,
-)
+const hasPendingChanges = computed(() => rows.value.some((row) => row.state !== 'clean'))
+const hasUnsavedChanges = computed(() => hasPendingChanges.value)
+const dirtyCounts = computed(() => ({
+  inserted: rows.value.filter((row) => row.state === 'new').length,
+  updated: rows.value.filter((row) => row.state === 'modified').length,
+  deleted: rows.value.filter((row) => row.state === 'deleted').length,
+}))
+const canDeleteCurrentDocument = computed(() => focusedRowIndex.value !== null)
+const documentEditorError = computed(() => {
+  if (focusedRowIndex.value === null || hydratingDocumentViewer.value) {
+    return null
+  }
+
+  try {
+    parseMongoEditorObject(documentJson.value, 'Document')
+    return null
+  } catch (error) {
+    return getErrorMessage(error, 'The document viewer JSON is invalid')
+  }
+})
 const selectedDocumentLabel = computed(() => {
   if (documentViewerMode.value === 'new') {
     return 'New document'
@@ -152,66 +166,63 @@ function pushLog(entry: Omit<SQLActivityEntry, 'id'>) {
 }
 
 function loadDocumentIntoViewer(row: SQLTableRowDraft | null | undefined) {
-  const document = getMongoDocumentFromRow(row)
-  const documentId = getMongoDocumentIdFromRow(row)
+  const document = buildMongoDocumentFromRow(row, columns.value)
+  const documentId =
+    document && '_id' in document ? (document._id ?? null) : getMongoDocumentIdFromRow(row)
 
   if (!document) {
     documentViewerMode.value = 'selected'
     selectedDocumentId.value = null
+    hydratingDocumentViewer.value = true
     documentJson.value = '{\n}'
-    documentBaselineJson.value = '{\n}'
+    nextTick(() => {
+      hydratingDocumentViewer.value = false
+    })
     return
   }
 
-  documentViewerMode.value = 'selected'
+  documentViewerMode.value = row?.original ? 'selected' : 'new'
   selectedDocumentId.value = documentId
   const serialized = JSON.stringify(document, null, 2)
+  hydratingDocumentViewer.value = true
   documentJson.value = serialized
-  documentBaselineJson.value = serialized
+  nextTick(() => {
+    hydratingDocumentViewer.value = false
+  })
 }
 
-function loadFocusedDocumentIntoViewer(options?: { force?: boolean }) {
-  if (!options?.force && documentViewerDirty.value) {
-    return
-  }
-
-  const row = resultsTable.value?.getFocusedRow() ?? null
+function loadFocusedDocumentIntoViewer() {
+  const row =
+    typeof focusedRowIndex.value === 'number' ? (rows.value[focusedRowIndex.value] ?? null) : null
   loadDocumentIntoViewer(row)
 }
 
 function startNewDocument() {
-  documentViewerMode.value = 'new'
-  selectedDocumentId.value = null
-  documentJson.value = '{\n}'
-  documentBaselineJson.value = '{\n}'
+  const nextIndex = resultsTable.value?.addRow?.()
+  if (typeof nextIndex === 'number') {
+    focusedRowIndex.value = nextIndex
+    nextTick(() => {
+      loadDocumentIntoViewer(rows.value[nextIndex] ?? null)
+    })
+  }
 }
 
-function resetDocumentViewer() {
-  if (documentViewerMode.value === 'new') {
-    startNewDocument()
+function duplicateSelectedDocuments() {
+  if (!hasSelectedCollection.value || !canWrite.value) {
     return
   }
 
-  loadFocusedDocumentIntoViewer({ force: true })
+  const nextIndex = resultsTable.value?.duplicateSelectedRows?.()
+  if (typeof nextIndex === 'number') {
+    focusedRowIndex.value = nextIndex
+    nextTick(() => {
+      loadDocumentIntoViewer(rows.value[nextIndex] ?? null)
+    })
+  }
 }
 
-function guardViewerChanges(message: string) {
-  if (!documentViewerDirty.value) {
-    return false
-  }
-
-  pushLog({
-    level: 'info',
-    title: 'Unsaved viewer changes',
-    message,
-  })
-  toast.add({
-    severity: 'warn',
-    summary: 'Unsaved viewer changes',
-    detail: message,
-    life: 2600,
-  })
-  return true
+function resetDocumentViewer() {
+  loadFocusedDocumentIntoViewer()
 }
 
 function restoreFocusedDocument() {
@@ -400,7 +411,18 @@ async function openCollection(path: string) {
 }
 
 async function changePage(nextPage: number) {
-  if (guardViewerChanges('Save or reset the document viewer before changing pages.')) {
+  if (hasPendingChanges.value) {
+    pushLog({
+      level: 'info',
+      title: 'Unsaved table changes',
+      message: 'Save or discard your current MongoDB changes before changing pages.',
+    })
+    toast.add({
+      severity: 'warn',
+      summary: 'Unsaved changes',
+      detail: 'Save or discard your current MongoDB changes before changing pages.',
+      life: 2600,
+    })
     return
   }
 
@@ -413,7 +435,12 @@ async function changePage(nextPage: number) {
 }
 
 async function changePageSize(nextPageSize: number) {
-  if (guardViewerChanges('Save or reset the document viewer before changing page size.')) {
+  if (hasPendingChanges.value) {
+    pushLog({
+      level: 'info',
+      title: 'Unsaved table changes',
+      message: 'Save or discard your current MongoDB changes before changing page size.',
+    })
     return
   }
 
@@ -422,139 +449,131 @@ async function changePageSize(nextPageSize: number) {
   await runQuery({ keepPage: true })
 }
 
-async function saveDocument() {
+async function saveChanges() {
   if (!hasSelectedCollection.value || !canWrite.value) {
     return
   }
 
-  let document: Record<string, unknown>
-  try {
-    document = parseMongoEditorObject(documentJson.value, 'Document')
-    documentJson.value = JSON.stringify(document, null, 2)
-  } catch (error) {
-    const detail = getErrorMessage(error, 'The document viewer JSON is invalid')
+  if (documentEditorError.value) {
     pushLog({
       level: 'error',
       title: 'Invalid document JSON',
-      message: detail,
+      message: documentEditorError.value,
     })
     logsVisible.value = true
     return
   }
 
-  isSavingDocument.value = true
+  const mutations = buildMongoMutationPayload(columns.value, rows.value)
+  if (!mutations.inserted.length && !mutations.updated.length && !mutations.deleted.length) {
+    return
+  }
+
+  isSavingChanges.value = true
 
   try {
-    if (documentViewerMode.value === 'new') {
-      const response = await insertMongoDbDocument({
+    for (const document of mutations.inserted) {
+      await insertMongoDbDocument({
         client,
         projectId: props.data.projectId,
         sourceId: props.data.sourceId,
         database: databaseName.value,
         collection: collectionName.value,
         document,
-      })
-      pendingFocusDocumentKey.value = JSON.stringify(response.document.idValue)
-      pushLog({
-        level: 'success',
-        title: `Document created in ${collectionName.value}`,
-        message: `Inserted ${response.document.idLabel}.`,
-      })
-      toast.add({
-        severity: 'success',
-        summary: 'Document created',
-        detail: `Inserted document into ${collectionName.value}`,
-        life: 2200,
-      })
-    } else {
-      const response = await replaceMongoDbDocument({
-        client,
-        projectId: props.data.projectId,
-        sourceId: props.data.sourceId,
-        database: databaseName.value,
-        collection: collectionName.value,
-        id: selectedDocumentId.value,
-        document,
-      })
-      pendingFocusDocumentKey.value = JSON.stringify(response.document.idValue)
-      pushLog({
-        level: 'success',
-        title: `Document saved in ${collectionName.value}`,
-        message: `${response.document.idLabel} updated.`,
-      })
-      toast.add({
-        severity: 'success',
-        summary: 'Document saved',
-        detail: `Updated ${response.document.idLabel}`,
-        life: 2200,
       })
     }
 
+    for (const entry of mutations.updated) {
+      await replaceMongoDbDocument({
+        client,
+        projectId: props.data.projectId,
+        sourceId: props.data.sourceId,
+        database: databaseName.value,
+        collection: collectionName.value,
+        id: entry.id,
+        document: entry.document,
+      })
+    }
+
+    if (mutations.deleted.length) {
+      await deleteMongoDbDocuments({
+        client,
+        projectId: props.data.projectId,
+        sourceId: props.data.sourceId,
+        database: databaseName.value,
+        collection: collectionName.value,
+        ids: mutations.deleted,
+      })
+    }
+
+    pushLog({
+      level: 'success',
+      title: `Changes saved in ${collectionName.value}`,
+      message: `${mutations.inserted.length} inserted, ${mutations.updated.length} updated, ${mutations.deleted.length} deleted.`,
+    })
+    pendingFocusDocumentKey.value =
+      selectedDocumentId.value !== null ? JSON.stringify(selectedDocumentId.value) : null
     await runQuery({ keepPage: true })
   } catch (error) {
-    const detail = getErrorMessage(error, 'The MongoDB document could not be saved')
+    const detail = getErrorMessage(error, 'The MongoDB changes could not be saved')
     pushLog({
       level: 'error',
-      title: 'Document save failed',
+      title: 'Save failed',
       message: detail,
     })
     logsVisible.value = true
-    toast.add({
-      severity: 'error',
-      summary: 'Save failed',
-      detail,
-      life: 3200,
-    })
   } finally {
-    isSavingDocument.value = false
+    isSavingChanges.value = false
   }
 }
 
-function deleteDocumentsByIds(ids: unknown[], label: string) {
-  confirm.require({
-    header: 'Delete Documents',
-    message: `Delete ${label}?`,
-    acceptClass: 'p-button-danger',
-    accept: async () => {
-      try {
-        const response = await deleteMongoDbDocuments({
-          client,
-          projectId: props.data.projectId,
-          sourceId: props.data.sourceId,
-          database: databaseName.value,
-          collection: collectionName.value,
-          ids,
-        })
-        pushLog({
-          level: 'success',
-          title: `Documents deleted from ${collectionName.value}`,
-          message: `${response.deletedCount} document(s) deleted.`,
-        })
-        toast.add({
-          severity: 'success',
-          summary: 'Documents deleted',
-          detail: `${response.deletedCount} document(s) removed`,
-          life: 2200,
-        })
-        pendingFocusDocumentKey.value = null
-        await runQuery({ keepPage: true })
-      } catch (error) {
-        const detail = getErrorMessage(error, 'The MongoDB documents could not be deleted')
-        pushLog({
-          level: 'error',
-          title: 'Delete failed',
-          message: detail,
-        })
-        logsVisible.value = true
-        toast.add({
-          severity: 'error',
-          summary: 'Delete failed',
-          detail,
-          life: 3200,
-        })
-      }
-    },
+async function discardChanges() {
+  if (!hasPendingChanges.value) {
+    resetDocumentViewer()
+    return
+  }
+
+  await runQuery({ keepPage: true })
+  pushLog({
+    level: 'info',
+    title: 'Changes discarded',
+    message: `Reloaded ${collectionName.value}`,
   })
+}
+
+function markRowsDeleted(indexes: number[]) {
+  const sortedIndexes = [...indexes].sort((left, right) => right - left)
+  for (const index of sortedIndexes) {
+    const row = rows.value[index]
+    if (!row) {
+      continue
+    }
+
+    if (!row.original) {
+      rows.value.splice(index, 1)
+      continue
+    }
+
+    row.state = row.state === 'deleted' ? 'clean' : 'deleted'
+  }
+
+  if (!rows.value.length) {
+    focusedRowIndex.value = null
+    hydratingDocumentViewer.value = true
+    documentJson.value = '{\n}'
+    nextTick(() => {
+      hydratingDocumentViewer.value = false
+    })
+    selectedDocumentId.value = null
+    return
+  }
+
+  const nextIndex = Math.min(sortedIndexes[sortedIndexes.length - 1] ?? 0, rows.value.length - 1)
+  focusedRowIndex.value = nextIndex
+  nextTick(() => {
+    loadDocumentIntoViewer(rows.value[nextIndex] ?? null)
+  })
+  resultsTable.value?.focusRow(nextIndex)
 }
 
 function deleteSelectedDocuments() {
@@ -562,28 +581,26 @@ function deleteSelectedDocuments() {
     return
   }
 
-  const selectedRows = resultsTable.value?.getSelectedRows() ?? []
-  const ids = selectedRows
-    .map((row: SQLTableRowDraft) => getMongoDocumentIdFromRow(row))
-    .filter((id: unknown | null): id is unknown => id !== null)
+  const indexes =
+    resultsTable.value
+      ?.getSelectedRows?.()
+      .map((row: SQLTableRowDraft) => rows.value.findIndex((entry) => entry.id === row.id))
+      .filter((index: number): index is number => index >= 0) ?? []
 
-  if (!ids.length) {
-    const focusedId = selectedDocumentId.value
-    if (focusedId !== null) {
-      deleteDocumentsByIds([focusedId], selectedDocumentLabel.value || 'the selected document')
-    }
+  if (!indexes.length && focusedRowIndex.value !== null) {
+    markRowsDeleted([focusedRowIndex.value])
     return
   }
 
-  deleteDocumentsByIds(ids, `${ids.length} selected document(s)`)
+  markRowsDeleted(indexes)
 }
 
 function deleteCurrentViewerDocument() {
-  if (documentViewerMode.value !== 'selected' || selectedDocumentId.value === null) {
+  if (focusedRowIndex.value === null) {
     return
   }
 
-  deleteDocumentsByIds([selectedDocumentId.value], selectedDocumentLabel.value || 'the selected document')
+  markRowsDeleted([focusedRowIndex.value])
 }
 
 async function createCollection(collection: string) {
@@ -602,12 +619,6 @@ async function createCollection(collection: string) {
       title: `Collection created in ${databaseName.value}`,
       message: `${collection} is now available.`,
     })
-    toast.add({
-      severity: 'success',
-      summary: 'Collection created',
-      detail: `${collection} has been created`,
-      life: 2200,
-    })
     await loadCollectionItems()
     await runQuery()
   } catch (error) {
@@ -618,12 +629,6 @@ async function createCollection(collection: string) {
       message: detail,
     })
     logsVisible.value = true
-    toast.add({
-      severity: 'error',
-      summary: 'Create failed',
-      detail,
-      life: 3200,
-    })
   }
 }
 
@@ -650,12 +655,6 @@ function confirmDeleteCollection() {
           title: `Collection deleted from ${databaseName.value}`,
           message: `${collectionName.value} has been removed.`,
         })
-        toast.add({
-          severity: 'success',
-          summary: 'Collection deleted',
-          detail: `${collectionName.value} has been removed`,
-          life: 2200,
-        })
         collectionName.value = ''
         result.value = null
         await loadCollectionItems()
@@ -670,12 +669,6 @@ function confirmDeleteCollection() {
           message: detail,
         })
         logsVisible.value = true
-        toast.add({
-          severity: 'error',
-          summary: 'Delete failed',
-          detail,
-          life: 3200,
-        })
       }
     },
   })
@@ -684,7 +677,12 @@ function confirmDeleteCollection() {
 watch(
   () => props.data.path,
   async (nextPath) => {
-    if (guardViewerChanges('Reset the document viewer before opening a different MongoDB path.')) {
+    if (hasPendingChanges.value) {
+      pushLog({
+        level: 'info',
+        title: 'Unsaved table changes',
+        message: 'Save or discard your current MongoDB changes before opening a different path.',
+      })
       return
     }
 
@@ -710,12 +708,50 @@ watch(
 watch(
   focusedRowIndex,
   () => {
-    if (documentViewerMode.value === 'new') {
+    loadFocusedDocumentIntoViewer()
+  },
+  { flush: 'post' },
+)
+
+watch(documentJson, (nextDocumentJson) => {
+  if (hydratingDocumentViewer.value || focusedRowIndex.value === null) {
+    return
+  }
+
+  let document: Record<string, unknown>
+  try {
+    document = parseMongoEditorObject(nextDocumentJson, 'Document')
+  } catch {
+    return
+  }
+
+  const row = rows.value[focusedRowIndex.value]
+  if (!row) {
+    return
+  }
+
+  suppressNextRowViewerSync.value = true
+  applyMongoDocumentToRow(row, columns.value, document)
+  documentViewerMode.value = row.original ? 'selected' : 'new'
+  selectedDocumentId.value = getMongoDocumentIdFromRow(row)
+})
+
+watch(
+  rows,
+  () => {
+    if (suppressNextRowViewerSync.value) {
+      suppressNextRowViewerSync.value = false
       return
     }
 
-    loadFocusedDocumentIntoViewer()
+    if (focusedRowIndex.value !== null) {
+      const row = rows.value[focusedRowIndex.value]
+      if (row) {
+        loadDocumentIntoViewer(row)
+      }
+    }
   },
+  { deep: true },
 )
 </script>
 
@@ -735,37 +771,35 @@ watch(
           <template v-else-if="hasSelectedDatabase">
             {{ databaseName }}
           </template>
-          <template v-else>
-            No database selected
-          </template>
+          <template v-else> No database selected </template>
         </div>
       </div>
 
       <div class="flex items-center gap-2">
         <Button
           icon="ti ti-plus"
-          label="Add document"
-          text
-          severity="secondary"
-          size="small"
-          :disabled="!hasSelectedCollection || !canWrite || isRunningQuery || isSavingDocument"
-          @click="startNewDocument"
-        />
-        <Button
-          icon="ti ti-plus"
           label="Collection"
           text
           severity="secondary"
           size="small"
-          :disabled="!canCreateCollection || isRunningQuery || isSavingDocument"
+          :disabled="!canCreateCollection || isRunningQuery || isSavingChanges"
           @click="createCollectionVisible = true"
+        />
+        <Button
+          icon="ti ti-folder-minus"
+          label="Delete collection"
+          text
+          severity="danger"
+          size="small"
+          :disabled="!hasSelectedCollection || !canWrite || isRunningQuery || isSavingChanges"
+          @click="confirmDeleteCollection"
         />
         <Button
           icon="ti ti-refresh"
           text
           severity="secondary"
           size="small"
-          :disabled="!hasSelectedCollection || isRunningQuery || isSavingDocument"
+          :disabled="!hasSelectedCollection || isRunningQuery || isSavingChanges"
           @click="runQuery({ keepPage: true })"
         />
         <Button
@@ -773,7 +807,7 @@ watch(
           label="Run"
           size="small"
           :loading="isRunningQuery"
-          :disabled="!hasSelectedCollection || !canQuery || isSavingDocument"
+          :disabled="!hasSelectedCollection || !canQuery || isSavingChanges"
           @click="runQuery()"
         />
       </div>
@@ -783,7 +817,10 @@ watch(
       Select a MongoDB database from the sidebar to manage its collections and documents.
     </Message>
 
-    <div v-else-if="!hasSelectedCollection" class="m-3 mb-0 rounded-2xl border app-border overflow-hidden">
+    <div
+      v-else-if="!hasSelectedCollection"
+      class="m-3 mb-0 rounded-2xl border app-border overflow-hidden"
+    >
       <div class="border-b app-border px-3 py-2 flex items-center justify-between gap-3">
         <div>
           <div class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Collections</div>
@@ -875,34 +912,7 @@ watch(
                 size="small"
               />
             </div>
-            <div class="flex items-center justify-end gap-2">
-              <Button
-                icon="ti ti-trash"
-                label="Delete selected"
-                text
-                severity="danger"
-                size="small"
-                :disabled="!canWrite || isRunningQuery || isSavingDocument"
-                @click="deleteSelectedDocuments"
-              />
-              <Button
-                icon="ti ti-plus"
-                label="New document"
-                text
-                severity="secondary"
-                size="small"
-                @click="startNewDocument"
-              />
-              <Button
-                icon="ti ti-folder-minus"
-                label="Delete collection"
-                text
-                severity="danger"
-                size="small"
-                :disabled="!canWrite || isRunningQuery || isSavingDocument"
-                @click="confirmDeleteCollection"
-              />
-            </div>
+            <div />
           </div>
 
           <div class="grid min-h-0 grid-cols-3 gap-3 px-3 pb-3">
@@ -966,21 +976,58 @@ watch(
           </template>
 
           <template #actions>
+            <Button
+              icon="ti ti-refresh"
+              text
+              severity="secondary"
+              size="small"
+              :disabled="isRunningQuery || isSavingChanges"
+              @click="runQuery({ keepPage: true })"
+            />
+            <Button
+              icon="ti ti-device-floppy"
+              text
+              :severity="hasUnsavedChanges ? 'primary' : 'secondary'"
+              size="small"
+              :loading="isSavingChanges"
+              :disabled="!canWrite || !hasUnsavedChanges || isRunningQuery"
+              @click="saveChanges"
+            />
+            <Button
+              icon="ti ti-reload"
+              text
+              severity="contrast"
+              size="small"
+              :disabled="!hasUnsavedChanges || isRunningQuery || isSavingChanges"
+              @click="discardChanges"
+            />
+            <Button
+              icon="ti ti-plus"
+              aria-label="Add document"
+              severity="contrast"
+              rounded
+              text
+              size="small"
+              :disabled="!canWrite || isRunningQuery || isSavingChanges"
+              @click="startNewDocument"
+            />
+            <Button
+              icon="ti ti-trash"
+              aria-label="Delete"
+              text
+              rounded
+              severity="contrast"
+              size="small"
+              :disabled="!canWrite || isRunningQuery || isSavingChanges"
+              @click="deleteSelectedDocuments"
+            />
+
             <DataExportButton
               :file-base-name="`${props.data.sourceName}-${databaseName}-${collectionName}`"
               :table-name="collectionName"
               :columns="exportColumns"
               :rows="exportRows"
-              :disabled="!rows.length || isRunningQuery"
-            />
-            <Button
-              icon="ti ti-plus"
-              label="Add document"
-              text
-              severity="secondary"
-              size="small"
-              :disabled="!canWrite || isRunningQuery || isSavingDocument"
-              @click="startNewDocument"
+              :disabled="!rows.length || isRunningQuery || isSavingChanges"
             />
           </template>
 
@@ -1012,13 +1059,11 @@ watch(
                   :mode="documentViewerMode"
                   :selected-label="selectedDocumentLabel"
                   :can-write="canWrite"
-                  :can-save="canSaveCurrentDocument"
                   :can-delete="canDeleteCurrentDocument"
-                  :loading="isSavingDocument"
+                  :error-message="documentEditorError"
+                  :loading="isSavingChanges"
                   class="h-full"
-                  @save="saveDocument"
                   @reset="resetDocumentViewer"
-                  @create-new="startNewDocument"
                   @delete-document="deleteCurrentViewerDocument"
                 />
               </div>
@@ -1034,7 +1079,7 @@ watch(
                   :page-size="limit"
                   :total-pages="pageCount"
                   :summary="paginationSummary"
-                  :disabled="isRunningQuery || isSavingDocument"
+                  :disabled="isRunningQuery || isSavingChanges"
                   :can-previous="canGoToPreviousPage"
                   :can-next="canGoToNextPage"
                   @update:page="changePage"
@@ -1080,6 +1125,18 @@ watch(
             />
           </div>
         </CollapsiblePanel>
+
+        <div
+          class="border-t app-border px-3 py-2 flex items-center justify-between text-xs mono opacity-60"
+        >
+          <span>
+            {{ dirtyCounts.inserted }} inserted / {{ dirtyCounts.updated }} updated /
+            {{ dirtyCounts.deleted }} deleted
+          </span>
+          <span v-if="hasUnsavedChanges">Unsaved changes in current collection</span>
+          <span v-else-if="resultSummary">{{ resultSummary }}</span>
+          <span v-else>Everything saved</span>
+        </div>
       </div>
     </template>
 

@@ -25,7 +25,7 @@ export const postgresDataSourceModule = {
     type: 'postgres',
     kind: 'sql',
     label: 'Postgres',
-    icon: 'brand-postgresql',
+    icon: 'database',
     capabilities: {
       sqlQuery: true,
       tableBrowser: true,

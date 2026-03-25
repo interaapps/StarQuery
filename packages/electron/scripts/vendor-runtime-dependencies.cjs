@@ -96,7 +96,38 @@ function copyPackageTree(sourceDir, targetDir) {
   });
 }
 
-async function vendorRuntimeDependencies(buildPath) {
+function pruneVendoredPackage(packageName, targetPackageDir, targetPlatform, targetArch) {
+  if (packageName !== 'oracledb') {
+    return;
+  }
+
+  const releaseDir = path.join(targetPackageDir, 'build', 'Release');
+  if (!fs.existsSync(releaseDir)) {
+    return;
+  }
+
+  const expectedBinarySuffix = `-${targetPlatform}-${targetArch}.node`;
+  const releaseEntries = fs.readdirSync(releaseDir);
+
+  for (const entryName of releaseEntries) {
+    if (!entryName.startsWith('oracledb-')) {
+      continue;
+    }
+
+    const isNativeBinary = entryName.endsWith('.node');
+    const isBuildInfo = entryName.endsWith('.node-buildinfo.txt');
+    if (!isNativeBinary && !isBuildInfo) {
+      continue;
+    }
+
+    const matchesTarget = entryName.includes(expectedBinarySuffix);
+    if (!matchesTarget) {
+      fs.rmSync(path.join(releaseDir, entryName), { force: true });
+    }
+  }
+}
+
+async function vendorRuntimeDependencies(buildPath, targetPlatform, targetArch) {
   const electronPackageJson = readJson(electronPackageJsonPath);
   const pending = [...collectDependencyNames(electronPackageJson)];
   const visited = new Set();
@@ -121,6 +152,7 @@ async function vendorRuntimeDependencies(buildPath) {
 
     ensureDirectory(path.dirname(targetPackageDir));
     copyPackageTree(installedPackageDir, targetPackageDir);
+    pruneVendoredPackage(packageName, targetPackageDir, targetPlatform, targetArch);
 
     const installedPackageJson = readJson(installedPackageJsonPath);
     for (const dependencyName of collectDependencyNames(installedPackageJson)) {
@@ -133,7 +165,7 @@ async function vendorRuntimeDependencies(buildPath) {
 
 module.exports = async function afterCopy(buildPath, electronVersion, platform, arch, callback) {
   try {
-    await vendorRuntimeDependencies(buildPath);
+    await vendorRuntimeDependencies(buildPath, platform, arch);
     callback();
   } catch (error) {
     callback(error);

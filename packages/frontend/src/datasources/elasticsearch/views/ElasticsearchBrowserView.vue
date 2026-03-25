@@ -14,6 +14,7 @@ import {
   saveElasticsearchDocuments,
 } from '@/datasources/elasticsearch/browser'
 import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
+import DataExportButton from '@/components/common/DataExportButton.vue'
 import DataPaginationBar from '@/components/common/DataPaginationBar.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
 import ElasticsearchResultsTable from '@/components/datasources/elasticsearch/ElasticsearchResultsTable.vue'
@@ -116,6 +117,12 @@ const resultSummary = computed(() => {
     tookMs: result.value.tookMs,
   }
 })
+const exportColumns = computed(() => columns.value.map((column) => column.field))
+const exportRows = computed(() =>
+  rows.value
+    .filter((row) => row.state !== 'deleted')
+    .map((row) => ({ ...row.values })),
+)
 
 function pushLog(entry: Omit<SQLActivityEntry, 'id'>) {
   logs.value = [
@@ -532,6 +539,13 @@ watch(
           </template>
 
           <template #actions>
+            <DataExportButton
+              :file-base-name="`${props.data.sourceName}-${selectedIndex || 'results'}`"
+              :table-name="selectedIndex || 'results'"
+              :columns="exportColumns"
+              :rows="exportRows"
+              :disabled="!result || isRunningSearch"
+            />
             <Button
               icon="ti ti-plus"
               label="Add"

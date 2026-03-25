@@ -24,6 +24,10 @@ const props = withDefaults(
   },
 )
 
+const emit = defineEmits<{
+  'update:focusedRowIndex': [value: number | null]
+}>()
+
 const columns = defineModel<SQLTableColumn[]>('columns', { required: true })
 const rows = defineModel<SQLTableRowDraft[]>('rows', { required: true })
 
@@ -109,6 +113,13 @@ watch(
 )
 
 const hasRows = computed(() => rows.value.length > 0 && columns.value.length > 0)
+const focusedRowIndex = computed(() => {
+  if (focusCell.value === null) {
+    return null
+  }
+
+  return focusCell.value.row < rows.value.length ? focusCell.value.row : null
+})
 
 const selectionRange = computed(() => {
   if (!anchorCell.value || !focusCell.value || !hasRows.value) return null
@@ -249,7 +260,6 @@ const isCellSelected = (rowIndex: number, columnIndex: number) => {
   )
 }
 
-const isRowSelected = (rowIndex: number) => selectedRowIndexes.value.includes(rowIndex)
 const isColumnSelected = (columnIndex: number) => selectedColumnIndexes.value.includes(columnIndex)
 
 const valuesEqual = (left: unknown, right: unknown) => {
@@ -852,11 +862,28 @@ onUnmounted(() => {
   window.removeEventListener('mouseup', onDocumentMouseUp)
 })
 
+watch(
+  focusedRowIndex,
+  (nextValue) => {
+    emit('update:focusedRowIndex', nextValue)
+  },
+  { immediate: true },
+)
+
 defineExpose({
   addRow,
   duplicateSelectedRows,
   deleteSelectedRows,
   focusGrid,
+  focusRow: (rowIndex: number, columnIndex = 0) => {
+    if (!rows.value[rowIndex]) {
+      return
+    }
+
+    setSelection({ row: rowIndex, column: columnIndex })
+  },
+  getFocusedRowIndex: () => focusedRowIndex.value,
+  getSelectedRowIndexes: () => [...selectedRowIndexes.value],
 })
 </script>
 

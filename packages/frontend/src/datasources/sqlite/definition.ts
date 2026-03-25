@@ -10,6 +10,7 @@ export const sqliteDataSourceDefinition = defineDataSourceDefinition({
   capabilities: {
     sqlQuery: true,
     tableBrowser: true,
+    dataEditor: true,
     schemaEditor: true,
     resourceBrowser: false,
   },

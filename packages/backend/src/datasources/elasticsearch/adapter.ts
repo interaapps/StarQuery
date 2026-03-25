@@ -1,4 +1,6 @@
-import { Client } from '@elastic/elasticsearch'
+import { createRequire } from 'node:module'
+import type { Client } from '@elastic/elasticsearch'
+import type * as ElasticsearchNamespace from '@elastic/elasticsearch'
 import type { ResourceBrowserItem, ResourceBrowserListing } from '../types.ts'
 import type { ResourceDataSourceAdapter, ResourceListOptions } from '../shared-resource/types.ts'
 
@@ -8,6 +10,8 @@ type ElasticsearchConfig = {
   password?: string
   apiKey?: string
 }
+
+type ElasticsearchModule = typeof ElasticsearchNamespace
 
 export type ElasticsearchSearchHit = {
   id: string
@@ -62,11 +66,17 @@ function normalizeTotalHits(total: unknown) {
 }
 
 export class ElasticsearchResourceAdapter implements ResourceDataSourceAdapter {
+  private static readonly require = createRequire(import.meta.url)
   private client!: Client
 
   constructor(private readonly config: ElasticsearchConfig) {}
 
+  private loadElasticsearchModule() {
+    return ElasticsearchResourceAdapter.require('@elastic/elasticsearch') as ElasticsearchModule
+  }
+
   async connect() {
+    const { Client } = this.loadElasticsearchModule()
     this.client = new Client({
       node: this.config.node,
       auth: this.config.apiKey

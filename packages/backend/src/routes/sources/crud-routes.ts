@@ -7,6 +7,7 @@ import { getDataSourceDefinition, isKnownDataSourceType } from '../../datasource
 import { normalizeDataSourceConfig } from '../../datasources/config.ts'
 import type { DataSourceRecord } from '../../meta/types.ts'
 import { mergeDataSourceConfig, sanitizeDataSourceRecord } from '../../datasources/shared/secrets.ts'
+import { isUniqueConstraintError, sendSourceError } from '../source-route-errors.ts'
 import { canViewSource, requireProject, requireSource } from './shared.ts'
 
 export function registerSourceCrudRoutes(app: Express, context: AppContext) {
@@ -49,17 +50,28 @@ export function registerSourceCrudRoutes(app: Express, context: AppContext) {
       return
     }
 
-    const normalizedConfig = normalizeDataSourceConfig(type, config)
-    const sources = await context.metaStore.listDataSources(project.id)
-    const source = await context.metaStore.createDataSource({
-      projectId: project.id,
-      name: name.trim(),
-      type,
-      config: normalizedConfig,
-      position: sources.length,
-    })
+    try {
+      const normalizedConfig = normalizeDataSourceConfig(type, config)
+      const sources = await context.metaStore.listDataSources(project.id)
+      const source = await context.metaStore.createDataSource({
+        projectId: project.id,
+        name: name.trim(),
+        type,
+        config: normalizedConfig,
+        position: sources.length,
+      })
 
-    res.status(201).json(sanitizeDataSourceRecord(source))
+      res.status(201).json(sanitizeDataSourceRecord(source))
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        res.status(409).json({
+          error: `A datasource named ${name.trim()} already exists in this workspace.`,
+        })
+        return
+      }
+
+      sendSourceError(res, error, 'The datasource could not be created', 500)
+    }
   })
 
   app.put('/api/projects/:projectId/sources/:sourceId', async (req, res) => {
@@ -87,15 +99,30 @@ export function registerSourceCrudRoutes(app: Express, context: AppContext) {
       return
     }
 
-    const nextConfig = normalizeDataSourceConfig(nextType, mergeDataSourceConfig(source, nextType, config))
-    const updated = await context.metaStore.updateDataSource(source.id, {
-      name: name?.trim() || source.name,
-      type: nextType,
-      config: nextConfig,
-      position,
-    })
+    try {
+      const nextName = name?.trim() || source.name
+      const nextConfig = normalizeDataSourceConfig(
+        nextType,
+        mergeDataSourceConfig(source, nextType, config),
+      )
+      const updated = await context.metaStore.updateDataSource(source.id, {
+        name: nextName,
+        type: nextType,
+        config: nextConfig,
+        position,
+      })
 
-    res.json(sanitizeDataSourceRecord(updated))
+      res.json(sanitizeDataSourceRecord(updated))
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        res.status(409).json({
+          error: `A datasource named ${(name?.trim() || source.name).trim()} already exists in this workspace.`,
+        })
+        return
+      }
+
+      sendSourceError(res, error, 'The datasource could not be updated', 500)
+    }
   })
 
   app.delete('/api/projects/:projectId/sources/:sourceId', async (req, res) => {

@@ -1,4 +1,6 @@
-import { Client, type BucketItem } from 'minio'
+import { createRequire } from 'node:module'
+import type { BucketItem, Client } from 'minio'
+import type * as MinioNamespace from 'minio'
 import type { Readable } from 'node:stream'
 import type { ResourceBrowserItem, ResourceBrowserListing } from '../types.ts'
 import { buildS3ObjectDetails, buildS3ObjectPreview, getS3ContentType, getS3PreviewByteLimit } from './preview.ts'
@@ -9,6 +11,8 @@ import type { S3CompatibleConfig } from './config.ts'
 const DEFAULT_LIST_LIMIT = 200
 const MAX_LIST_LIMIT = 500
 const DELETE_BATCH_SIZE = 1000
+
+type MinioModule = typeof MinioNamespace
 
 function streamToBuffer(stream: Readable) {
   return new Promise<Buffer>((resolve, reject) => {
@@ -81,11 +85,17 @@ function mapBucketItem(bucket: string, item: BucketItem): ResourceBrowserItem {
 }
 
 export class S3ResourceAdapter implements ResourceDataSourceAdapter {
+  private static readonly require = createRequire(import.meta.url)
   private client!: Client
 
   constructor(private readonly config: S3CompatibleConfig) {}
 
+  private loadMinioModule() {
+    return S3ResourceAdapter.require('minio') as MinioModule
+  }
+
   async connect() {
+    const { Client } = this.loadMinioModule()
     this.client = new Client({
       endPoint: this.config.endPoint,
       port: this.config.port,

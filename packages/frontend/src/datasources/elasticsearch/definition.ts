@@ -9,6 +9,7 @@ export const elasticsearchDataSourceDefinition = defineDataSourceDefinition({
   capabilities: {
     sqlQuery: false,
     tableBrowser: false,
+    dataEditor: true,
     schemaEditor: false,
     resourceBrowser: true,
   },

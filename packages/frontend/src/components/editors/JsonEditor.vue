@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, shallowRef } from 'vue'
+import { computed, onMounted, shallowRef, watch } from 'vue'
 import { EditorState } from '@codemirror/state'
 import { autocompletion } from '@codemirror/autocomplete'
 import { json } from '@codemirror/lang-json'
@@ -14,6 +14,8 @@ const code = defineModel<string>({
 const props = defineProps<{
   placeholder?: string
   height?: string
+  minHeight?: string
+  autofocus?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -32,7 +34,14 @@ const submitShortcut = EditorView.domEventHandlers({
   },
 })
 
-const extensions = computed(() => [json(), autocompletion(), EditorState.tabSize.of(2), starQueryTheme, submitShortcut])
+const extensions = computed(() => [
+  json(),
+  autocompletion(),
+  EditorState.tabSize.of(2),
+  EditorView.lineWrapping,
+  starQueryTheme,
+  submitShortcut,
+])
 
 const view = shallowRef<EditorView>()
 
@@ -48,6 +57,28 @@ const focusEditor = () => {
   view.value?.focus()
 }
 
+const focusOnNextFrame = () => {
+  requestAnimationFrame(() => {
+    focusEditor()
+  })
+}
+
+watch(
+  () => props.autofocus,
+  (nextValue) => {
+    if (nextValue) {
+      focusOnNextFrame()
+    }
+  },
+  { immediate: true },
+)
+
+onMounted(() => {
+  if (props.autofocus) {
+    focusOnNextFrame()
+  }
+})
+
 defineExpose({
   focusEditor,
 })
@@ -56,8 +87,8 @@ defineExpose({
 <template>
   <Codemirror
     v-model="code"
-    :placeholder="placeholder"
-    :style="{ height: height || '14rem', width: '100%' }"
+    :placeholder="props.placeholder"
+    :style="{ height: props.height || '14rem', minHeight: props.minHeight || '0', width: '100%' }"
     :autofocus="false"
     :indent-with-tab="true"
     :tab-size="2"

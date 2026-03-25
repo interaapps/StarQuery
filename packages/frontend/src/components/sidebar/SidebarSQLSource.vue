@@ -7,7 +7,12 @@ import SidebarSourceItemButton from '@/components/sidebar/source/SidebarSourceIt
 import SidebarSourceSection from '@/components/sidebar/source/SidebarSourceSection.vue'
 import CreateSQLTableDialog from '@/components/sources/database/CreateSQLTableDialog.vue'
 import EditSQLTableDialog from '@/components/sources/database/EditSQLTableDialog.vue'
-import { getRegisteredDataSourceDefinition } from '@/datasources/registry'
+import {
+  getRegisteredDataSourceDefinition,
+  supportsSchemaEditor,
+  supportsTableCreate,
+  supportsTableBrowser,
+} from '@/datasources/registry'
 import {
   dataSourceConfigPermissionTargets,
   dataSourceReadPermissionTargets,
@@ -46,6 +51,9 @@ const tableMenu = useTemplateRef<ContextMenuMethods>('tableMenu')
 const sourceIcon = computed(
   () => getRegisteredDataSourceDefinition(props.source.type, workspaceStore.serverInfo).icon,
 )
+const canBrowseTables = computed(() =>
+  supportsTableBrowser(props.source.type, workspaceStore.serverInfo),
+)
 const canQuerySource = computed(() =>
   workspaceStore.currentProjectId
     ? authStore.hasPermission(
@@ -60,7 +68,7 @@ const canManageSource = computed(() =>
       )
     : false,
 )
-const canEditTables = computed(() =>
+const canManageSchema = computed(() =>
   workspaceStore.currentProjectId
     ? authStore.hasPermission(
         dataSourceReadPermissionTargets(workspaceStore.currentProjectId, props.source.id),
@@ -80,13 +88,17 @@ const sourceMenuItems = computed(() => [
     command: () => emit('editDatasource'),
     disabled: !canManageSource.value,
   },
-  {
-    label: 'Create table',
-    icon: 'ti ti-table-plus',
-    command: () => (createTableVisible.value = true),
-    disabled: !canEditTables.value,
-  },
-  { label: 'Refresh tables', icon: 'ti ti-refresh', command: loadTables },
+  ...(supportsTableCreate(props.source.type, workspaceStore.serverInfo)
+    ? [
+        {
+          label: 'Create table',
+          icon: 'ti ti-table-plus',
+          command: () => (createTableVisible.value = true),
+          disabled: !canManageSchema.value,
+        },
+      ]
+    : []),
+  ...(canBrowseTables.value ? [{ label: 'Refresh tables', icon: 'ti ti-refresh', command: loadTables }] : []),
   { separator: true },
   {
     label: 'Delete datasource',
@@ -102,22 +114,26 @@ const tableMenuItems = computed(() => [
     command: () => selectedTableName.value && openTable(selectedTableName.value),
     disabled: !canQuerySource.value,
   },
-  {
-    label: 'Edit table',
-    icon: 'ti ti-edit',
-    command: () => selectedTableName.value && (editTableVisible.value = true),
-    disabled: !canEditTables.value,
-  },
-  {
-    label: 'Drop table',
-    icon: 'ti ti-trash',
-    command: () => selectedTableName.value && dropTable(selectedTableName.value),
-    disabled: !canEditTables.value,
-  },
+  ...(supportsSchemaEditor(props.source.type, workspaceStore.serverInfo)
+    ? [
+        {
+          label: 'Edit table',
+          icon: 'ti ti-edit',
+          command: () => selectedTableName.value && (editTableVisible.value = true),
+          disabled: !canManageSchema.value,
+        },
+        {
+          label: 'Drop table',
+          icon: 'ti ti-trash',
+          command: () => selectedTableName.value && dropTable(selectedTableName.value),
+          disabled: !canManageSchema.value,
+        },
+      ]
+    : []),
 ])
 
 const loadTables = async () => {
-  if (!workspaceStore.currentProjectId) return
+  if (!workspaceStore.currentProjectId || !canBrowseTables.value) return
 
   isLoading.value = true
   try {
@@ -133,6 +149,10 @@ const loadTables = async () => {
 }
 
 const toggleExpanded = async () => {
+  if (!canBrowseTables.value) {
+    return
+  }
+
   isExpanded.value = !isExpanded.value
 
   if (isExpanded.value) {
@@ -141,7 +161,7 @@ const toggleExpanded = async () => {
 }
 
 const openTable = async (tableName: string) => {
-  if (!canQuerySource.value) return
+  if (!canQuerySource.value || !canBrowseTables.value) return
   if (!workspaceStore.currentProjectId) return
   const currentServer = await workspaceStore.resolveCurrentServer()
   if (!currentServer) return
@@ -211,14 +231,14 @@ const deleteDatasource = async () => {
 }
 
 const createTable = async (payload: { tableName: string }) => {
-  if (!canEditTables.value) return
+  if (!canManageSchema.value) return
   createTableVisible.value = false
   await loadTables()
   openTable(payload.tableName)
 }
 
 const dropTable = async (tableName: string) => {
-  if (!canEditTables.value) return
+  if (!canManageSchema.value) return
   if (!workspaceStore.currentProjectId) return
 
   confirm.require({
@@ -265,6 +285,7 @@ const showTableMenu = (event: MouseEvent, tableName: string) => {
   <SidebarSourceSection
     v-model:expanded="isExpanded"
     :loading="isLoading"
+    :collapsible="canBrowseTables"
     :source-icon="sourceIcon"
     :name="source.name"
     action-icon="ti ti-terminal-2"

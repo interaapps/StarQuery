@@ -11,6 +11,7 @@ export const s3DataSourceModule = {
     capabilities: {
       sqlQuery: false,
       tableBrowser: false,
+      dataEditor: false,
       schemaEditor: false,
       resourceBrowser: true,
     },

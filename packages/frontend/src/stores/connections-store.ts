@@ -1,8 +1,8 @@
-import { ref, shallowRef } from 'vue'
+import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
 export const useConnectionStore = defineStore('connections', () => {
-  const connections = ref<Record<string, any>>({})
+  const connections = ref<Record<string, unknown>>({})
 
   return { connections }
 })

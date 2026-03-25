@@ -7,6 +7,7 @@ import { useToast } from 'primevue/usetoast'
 import { loadSqlCompletionCatalog } from '@/datasources/shared-sql/completion'
 import { splitSqlStatements } from '@/datasources/shared-sql/statements'
 import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
+import DataExportButton from '@/components/common/DataExportButton.vue'
 import CollapsibleActivityPanel from '@/components/sql/CollapsibleActivityPanel.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
 import type { SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
@@ -21,7 +22,6 @@ import type {
   SQLExecutionResult,
   SQLQueryTabData,
   SQLTableColumn,
-  SQLTableRowDraft,
 } from '@/types/sql'
 
 const props = defineProps<{
@@ -273,7 +273,15 @@ watch(sourceRecord, async (nextSource) => {
               <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">
                 Result {{ index + 1 }}
               </span>
-              <span class="text-xs opacity-50 mono">{{ result.type }}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-xs opacity-50 mono">{{ result.type }}</span>
+                <DataExportButton
+                  :file-base-name="`${props.data.sourceName}-result-${index + 1}`"
+                  :table-name="`result_${index + 1}`"
+                  :columns="result.columns"
+                  :rows="result.rows"
+                />
+              </div>
             </div>
 
             <div class="h-[20rem] overflow-hidden">

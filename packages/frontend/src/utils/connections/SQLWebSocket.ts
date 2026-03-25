@@ -1,10 +1,17 @@
+type SqlWebSocketMessage = {
+  id?: number
+  type?: string
+  error?: unknown
+  [key: string]: unknown
+}
+
 export class SQLWebSocket {
   private ws: WebSocket | undefined
 
   private currentMessageId = 1
   private isConnected = false
 
-  listeners = new Map<number, (data: any) => void>()
+  listeners = new Map<number, (data: SqlWebSocketMessage) => void>()
 
   constructor(private url: string) {}
 
@@ -13,7 +20,7 @@ export class SQLWebSocket {
       this.ws = new WebSocket(this.url)
 
       this.ws.onmessage = (message) => {
-        const data = JSON.parse(message.data)
+        const data = JSON.parse(String(message.data)) as SqlWebSocketMessage
 
         if (data.id) {
           const listener = this.listeners.get(data.id)
@@ -50,15 +57,17 @@ export class SQLWebSocket {
     return Promise.resolve()
   }
 
-  send(data: any) {
+  send(data: Record<string, unknown>) {
     this.ws!.send(JSON.stringify(data))
   }
 
-  sendWithResponse(data: any) {
+  sendWithResponse<T extends SqlWebSocketMessage = SqlWebSocketMessage>(
+    data: Record<string, unknown>,
+  ) {
     this.currentMessageId++
     const messageId = this.currentMessageId
-    return new Promise((resolve, reject) => {
-      this.listeners.set(messageId, (data: any) => {
+    return new Promise<T>((resolve, reject) => {
+      this.listeners.set(messageId, (data) => {
         if (data.error) {
           this.listeners.delete(messageId)
           reject(data.error)
@@ -66,7 +75,7 @@ export class SQLWebSocket {
           if (data.type === 'close' || data.type === 'error' || data.type === 'RESULT' || data.type === 'SELECT') {
             this.listeners.delete(messageId)
           }
-          resolve(data)
+          resolve(data as T)
         }
       })
 
@@ -77,5 +86,7 @@ export class SQLWebSocket {
     })
   }
 
-  query(sql: string) {}
+  query(sql: string) {
+    void sql
+  }
 }

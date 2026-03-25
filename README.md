@@ -33,11 +33,27 @@ Status:
 
 Datasource types:
 - `mysql`
+- `mariadb`
 - `postgres`
+- `cockroachdb`
 - `sqlite` (local only)
+- `duckdb` (local only)
+- `mssql`
+- `clickhouse`
+- `oracle`
+- `cassandra`
+- `mongodb`
+- `redis`
 - `elasticsearch`
 - `s3`
 - `minio`
+
+Frontend export formats:
+- `csv`
+- `json`
+- `sql inserts`
+- `xml`
+- `html table`
 
 Runtime targets:
 - Electron desktop app with a built-in local backend

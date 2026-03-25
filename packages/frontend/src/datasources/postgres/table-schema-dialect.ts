@@ -1,5 +1,5 @@
 import type { SQLEditTableColumnDraft } from '@/types/sql'
-import type { TableColumnDraft, TableVirtualColumnDraft } from '@/types/table-schema'
+import type { TableColumnDraft } from '@/types/table-schema'
 import { quoteSqlIdentifier } from '@/datasources/shared-sql/dialect'
 import { defineSqlTableSchemaDialect } from '@/datasources/shared-sql/schema/dialect-types'
 import {

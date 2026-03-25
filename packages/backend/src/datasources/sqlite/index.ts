@@ -22,6 +22,7 @@ export const sqliteDataSourceModule = {
     capabilities: {
       sqlQuery: true,
       tableBrowser: true,
+      dataEditor: true,
       schemaEditor: true,
       resourceBrowser: false,
     },

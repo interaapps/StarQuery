@@ -1,39 +1,17 @@
 import ConfigForm from '@/datasources/postgres/ConfigForm.vue'
-import { defineDataSourceDefinition } from '@/datasources/shared/module'
+import { createNetworkSqlDataSourceDefinition } from '@/datasources/shared-sql/definition'
 
-export const postgresDataSourceDefinition = defineDataSourceDefinition({
+export const postgresDataSourceDefinition = createNetworkSqlDataSourceDefinition({
   type: 'postgres',
-  kind: 'sql',
   label: 'Postgres',
   icon: 'brand-postgresql',
+  formComponent: ConfigForm,
+  defaultPort: 5432,
   capabilities: {
     sqlQuery: true,
     tableBrowser: true,
+    dataEditor: true,
     schemaEditor: true,
     resourceBrowser: false,
-  },
-  formComponent: ConfigForm,
-  secretFields: ['password'],
-  createDefaultConfig() {
-    return {
-      host: '127.0.0.1',
-      port: 5432,
-      user: '',
-      password: '',
-      database: '',
-    }
-  },
-  canSubmit(input) {
-    return Boolean(
-      input.name.trim() &&
-        String(input.config.host ?? '').trim() &&
-        Number(input.config.port ?? 0) > 0 &&
-        String(input.config.user ?? '').trim() &&
-        String(input.config.database ?? '').trim() &&
-        (String(input.config.password ?? '').trim() || input.redactedSecretFields.includes('password')),
-    )
-  },
-  getFormProps({ redactedSecretFields }) {
-    return { redactedSecretFields }
   },
 })

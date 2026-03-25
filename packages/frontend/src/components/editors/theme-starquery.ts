@@ -8,17 +8,17 @@ import { tags as t } from '@lezer/highlight'
 const chalky = '#e5c07b',
   coral = '#bd5c64',
   cyan = '#4399a3',
-  invalid = '#000000',
+  invalid = '#ff7b72',
   ivory = '#abb2bf',
   stone = '#7d8799', // Brightened compared to original to increase contrast
   malibu = '#4f93ca',
   sage = '#61a134',
   whiskey = '#d19a66',
   violet = '#c678dd',
-  darkBackground = '#efefef',
-  highlightBackground = '#d6d6d6',
+  darkBackground = 'rgba(15, 23, 42, 0.92)',
+  highlightBackground = 'rgba(99, 102, 241, 0.18)',
   background = 'transparent',
-  tooltipBackground = '#f3f3f3',
+  tooltipBackground = 'rgba(17, 24, 39, 0.98)',
   selection = '#D6347222',
   cursor = '#3a65bc'
 
@@ -46,7 +46,7 @@ export const color = {
 export const oneDarkTheme = EditorView.theme(
   {
     '&': {
-      color: invalid,
+      color: 'inherit',
       backgroundColor: background,
     },
 
@@ -59,8 +59,8 @@ export const oneDarkTheme = EditorView.theme(
       { backgroundColor: selection },
 
     '.cm-panels': { backgroundColor: darkBackground, color: ivory },
-    '.cm-panels.cm-panels-top': { borderBottom: '2px solid black' },
-    '.cm-panels.cm-panels-bottom': { borderTop: '2px solid black' },
+    '.cm-panels.cm-panels-top': { borderBottom: '1px solid rgba(148, 163, 184, 0.25)' },
+    '.cm-panels.cm-panels-bottom': { borderTop: '1px solid rgba(148, 163, 184, 0.25)' },
 
     '.cm-searchMatch': {
       backgroundColor: '#72a1ff59',
@@ -83,9 +83,7 @@ export const oneDarkTheme = EditorView.theme(
       border: 'none',
     },
 
-    '.cm-activeLineGutter': {
-      backgroundColor: highlightBackground,
-    },
+    '.cm-activeLineGutter': { backgroundColor: 'rgba(99, 102, 241, 0.08)' },
 
     '.cm-foldPlaceholder': {
       backgroundColor: 'transparent',
@@ -96,6 +94,8 @@ export const oneDarkTheme = EditorView.theme(
     '.cm-tooltip': {
       border: 'none',
       backgroundColor: tooltipBackground,
+      color: ivory,
+      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.24)',
     },
     '.cm-tooltip .cm-tooltip-arrow:before': {
       borderTopColor: 'transparent',
@@ -108,7 +108,7 @@ export const oneDarkTheme = EditorView.theme(
     '.cm-tooltip-autocomplete': {
       '& > ul > li[aria-selected]': {
         backgroundColor: highlightBackground,
-        color: invalid,
+        color: ivory,
       },
     },
   },

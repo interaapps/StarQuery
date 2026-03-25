@@ -1,12 +1,6 @@
-import type { SQLTableColumn, SQLEditTableColumnDraft } from '@/types/sql'
+import type { SQLEditTableColumnDraft } from '@/types/sql'
 import type {
-  TableCheckDraft,
   TableColumnDraft,
-  TableForeignKeyDraft,
-  TableIndexDraft,
-  TableKeyDraft,
-  TableTriggerDraft,
-  TableVirtualColumnDraft,
 } from '@/types/table-schema'
 import { quoteSqlIdentifier } from '@/datasources/shared-sql/dialect'
 import { defineSqlTableSchemaDialect } from '@/datasources/shared-sql/schema/dialect-types'

@@ -13,7 +13,6 @@ import type { DataSourceType } from '@/types/sql'
 import type {
   TableCheckDraft,
   TableForeignKeyDraft,
-  TableIndexDraft,
   TableKeyDraft,
   TableSchemaDraft,
   TableSchemaSectionId,
@@ -107,7 +106,13 @@ export function buildCreateTableStatements(sourceType: DataSourceType, schema: T
 
   const quotedTableName = quoteSqlIdentifier(tableName, dialect.type)
 
-  const statements = [`CREATE TABLE ${quotedTableName} (\n  ${definitions.join(',\n  ')}\n)`]
+  const createTableStatement =
+    dialect.buildCreateTableStatement?.({
+      tableName,
+      definitions,
+    }) ?? `CREATE TABLE ${quotedTableName} (\n  ${definitions.join(',\n  ')}\n)`
+
+  const statements = [createTableStatement]
   statements.push(...schema.indexes.map((index) => dialect.buildIndexStatement(tableName, index)))
   statements.push(...schema.triggers.map((trigger) => normalizeTriggerSql(trigger)))
 

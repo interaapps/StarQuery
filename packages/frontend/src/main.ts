@@ -17,7 +17,7 @@ import Tooltip from 'primevue/tooltip'
 import ConfirmationService from 'primevue/confirmationservice'
 import theme from '@/theme.ts'
 
-// @ts-ignore
+// @ts-expect-error package ships without useful Vue typings here
 import vue3Shortkey from 'vue3-shortkey'
 export const config = useConfig()
 export const app = createApp(App)

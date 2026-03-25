@@ -9,6 +9,7 @@ export const s3DataSourceDefinition = defineDataSourceDefinition({
   capabilities: {
     sqlQuery: false,
     tableBrowser: false,
+    dataEditor: false,
     schemaEditor: false,
     resourceBrowser: true,
   },

@@ -4,7 +4,9 @@ import type { SQLNamespace } from '@codemirror/lang-sql'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import { useToast } from 'primevue/usetoast'
+import DataExportButton from '@/components/common/DataExportButton.vue'
 import { buildSqlCompletionCatalog } from '@/datasources/shared-sql/completion'
+import { supportsDataEditor } from '@/datasources/registry'
 import {
   buildTableQuery,
   normalizeOrderByClause,
@@ -170,6 +172,12 @@ const buildDraftRows = (resultRows: Record<string, unknown>[]) =>
 
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const paginationSummary = computed(() => `${total.value} row${total.value === 1 ? '' : 's'}`)
+const exportRows = computed(() =>
+  rows.value
+    .filter((row) => row.state !== 'deleted')
+    .map((row) => ({ ...row.values })),
+)
+const exportColumns = computed(() => columns.value.map((column) => column.field))
 const dirtyRows = computed(() => rows.value.filter((row) => row.state !== 'clean'))
 const defaultSortColumn = computed(
   () => tableDetails.value?.primaryKeys[0] ?? tableDetails.value?.columns[0]?.name ?? null,
@@ -216,9 +224,10 @@ const canQueryTable = computed(() =>
   ),
 )
 const canEditTable = computed(() =>
-  authStore.hasPermission(
-    dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
-  ),
+  supportsDataEditor(sourceType.value, workspaceStore.serverInfo) &&
+    authStore.hasPermission(
+      dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
+    ),
 )
 
 const tabIndex = computed(() =>
@@ -683,6 +692,13 @@ onMounted(async () => {
       class="border-b app-border flex h-[2.5rem] items-center px-2 justify-between gap-3"
     >
       <div class="flex items-center gap-0.5">
+        <DataExportButton
+          :file-base-name="`${props.data.sourceName}-${props.data.tableName}`"
+          :table-name="props.data.tableName"
+          :columns="exportColumns"
+          :rows="exportRows"
+          :disabled="!canQueryTable"
+        />
         <Button
           size="small"
           :icon="`ti ti-refresh ${isLoading ? 'animate-spin' : ''}`"

@@ -5,6 +5,20 @@ import { defineConfig } from 'vite'
 
 const pgNativeShim = fileURLToPath(new URL('./src/shims/pg-native.cjs', import.meta.url))
 const backendDrizzleMigrationsPath = fileURLToPath(new URL('../backend/src/meta/drizzle', import.meta.url))
+const externalNativePackages = [
+  '@duckdb/node-api',
+  '@duckdb/node-bindings',
+]
+
+function isExternalNativeModuleId(id) {
+  return (
+    externalNativePackages.includes(id) ||
+    id.startsWith('@duckdb/node-bindings-') ||
+    id.endsWith('.node') ||
+    id.includes('/node_modules/@duckdb/node-api/') ||
+    id.includes('/node_modules/@duckdb/node-bindings')
+  )
+}
 
 function patchNamespaceInteropHelper() {
   return {
@@ -45,11 +59,35 @@ function copyMetaMigrationsPlugin() {
   }
 }
 
+function externalizeNativeModulesPlugin() {
+  return {
+    name: 'externalize-native-modules',
+    resolveId(source) {
+      if (isExternalNativeModuleId(source)) {
+        return { id: source, external: true }
+      }
+
+      return null
+    },
+  }
+}
+
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      external(id) {
+        return isExternalNativeModuleId(id)
+      },
+    },
+  },
   resolve: {
     alias: {
       'pg-native': pgNativeShim,
     },
   },
-  plugins: [patchNamespaceInteropHelper(), copyMetaMigrationsPlugin()],
+  plugins: [
+    externalizeNativeModulesPlugin(),
+    patchNamespaceInteropHelper(),
+    copyMetaMigrationsPlugin(),
+  ],
 })

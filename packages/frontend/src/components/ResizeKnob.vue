@@ -40,7 +40,7 @@ const onMouseDown = (e: MouseEvent) => {
     e.stopPropagation()
   }
 
-  const windowMouseUp = (_event: MouseEvent) => {
+  const windowMouseUp = () => {
     window.removeEventListener('mousemove', windowMouseMove)
     window.removeEventListener('mouseup', windowMouseUp)
   }
@@ -53,8 +53,8 @@ const onMouseDown = (e: MouseEvent) => {
     @mousedown="onMouseDown"
     :class="
       direction === 'vertical'
-        ? 'w-full h-[0.6rem] bg-transparent cursor-row-resize hover:bg-primary-500/10 transition-all'
-        : 'w-[0.6rem] h-full bg-transparent cursor-col-resize hover:bg-primary-500/10 transition-all'
+        ? 'w-full h-[0.6rem] shrink-0 select-none bg-transparent cursor-row-resize hover:bg-primary-500/10 transition-all'
+        : 'w-[0.6rem] h-full shrink-0 select-none bg-transparent cursor-col-resize hover:bg-primary-500/10 transition-all'
     "
   ></div>
 </template>

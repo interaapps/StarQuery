@@ -71,8 +71,6 @@ const enumMenuItems = computed(() => [
   })) as Array<{ label: string; command: () => void }>),
 ])
 
-const pad = (value: number) => String(value).padStart(2, '0')
-
 const parseDateValue = (value: unknown, kind: EditorKind) => {
   if (value === null || value === undefined || value === '') {
     return null

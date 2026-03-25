@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted } from 'vue'
 import WorkspaceTabsBar from '@/components/workspace/WorkspaceTabsBar.vue'
 import ElasticsearchBrowserView from '@/datasources/elasticsearch/views/ElasticsearchBrowserView.vue'
+import MongoDbBrowserView from '@/datasources/mongodb/views/MongoDbBrowserView.vue'
 import ObjectStorageBrowserView from '@/datasources/shared-object-storage/views/ObjectStorageBrowserView.vue'
 import DataSourceBrowserView from '@/datasources/shared-resource/views/DataSourceBrowserView.vue'
 import SQLQueryView from '@/datasources/shared-sql/views/SQLQueryView.vue'
@@ -98,13 +99,18 @@ onBeforeUnmount(() => {
       class="opacity-0"
     />
 
-    <template v-for="(tab, index) of tabsStore.tabs">
+    <template v-for="(tab, index) of tabsStore.tabs" :key="tab.id">
       <div v-show="index === tabsStore.currentTab" class="h-full">
         <SqlTableView class="h-full" v-if="isSqlTableTab(tab)" :tab-id="tab.id" :data="tab.data" />
         <SQLQueryView class="h-full" v-else-if="isSqlQueryTab(tab)" :data="tab.data" />
         <ElasticsearchBrowserView
           class="h-full"
           v-else-if="isResourceBrowserTab(tab) && tab.data.sourceType === 'elasticsearch'"
+          :data="tab.data"
+        />
+        <MongoDbBrowserView
+          class="h-full"
+          v-else-if="isResourceBrowserTab(tab) && tab.data.sourceType === 'mongodb'"
           :data="tab.data"
         />
         <ObjectStorageBrowserView

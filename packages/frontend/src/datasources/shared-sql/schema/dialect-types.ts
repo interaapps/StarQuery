@@ -19,6 +19,10 @@ export type RegisteredSqlTableSchemaDialect = {
     tableName: string
     source: SqlTableSchemaSourceRecord
   }): string
+  buildCreateTableStatement?(input: {
+    tableName: string
+    definitions: string[]
+  }): string
   buildTriggerSql(tableName: string, row: Record<string, unknown>): string
   parseCheckExpression(row: Record<string, unknown>): string
   getVirtualColumnStorage(row: Record<string, unknown>): TableVirtualColumnDraft['storage']

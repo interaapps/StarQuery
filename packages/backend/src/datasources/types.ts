@@ -1,11 +1,28 @@
-export type DataSourceType = 'mysql' | 'postgres' | 'sqlite' | 'elasticsearch' | 's3' | 'minio'
+export type DataSourceType =
+  | 'mysql'
+  | 'mariadb'
+  | 'postgres'
+  | 'cockroachdb'
+  | 'sqlite'
+  | 'duckdb'
+  | 'mssql'
+  | 'clickhouse'
+  | 'oracle'
+  | 'mongodb'
+  | 'redis'
+  | 'cassandra'
+  | 'elasticsearch'
+  | 's3'
+  | 'minio'
 
-export type DataSourceKind = 'sql' | 'search' | 'objectStorage'
+export type DataSourceKind = 'sql' | 'search' | 'objectStorage' | 'resource'
 
 export type DataSourceCapabilities = {
   sqlQuery: boolean
   tableBrowser: boolean
+  dataEditor: boolean
   schemaEditor: boolean
+  tableCreate?: boolean
   resourceBrowser: boolean
 }
 
@@ -25,6 +42,9 @@ export type DataSourceConfig =
       user: string
       password: string
       database: string
+      schema?: string
+      ssl?: boolean
+      options?: Record<string, unknown>
     }
   | {
       filePath: string
@@ -46,6 +66,28 @@ export type DataSourceConfig =
       bucket?: string
       sessionToken?: string
       pathStyle?: boolean
+    }
+  | {
+      connectionString?: string
+      host: string
+      port: number
+      user?: string
+      password?: string
+      database?: string
+      schema?: string
+      ssl?: boolean
+      options?: Record<string, unknown>
+    }
+  | {
+      uri?: string
+      host?: string
+      port?: number
+      username?: string
+      password?: string
+      database?: string | number
+      authSource?: string
+      ssl?: boolean
+      options?: Record<string, unknown>
     }
 
 export type ResourceBrowserItem = {

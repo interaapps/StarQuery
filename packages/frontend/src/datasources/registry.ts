@@ -1,7 +1,16 @@
+import { cassandraDataSourceDefinition } from '@/datasources/cassandra/definition'
+import { clickHouseDataSourceDefinition } from '@/datasources/clickhouse/definition'
+import { cockroachDbDataSourceDefinition } from '@/datasources/cockroachdb/definition'
+import { duckDbDataSourceDefinition } from '@/datasources/duckdb/definition'
 import { elasticsearchDataSourceDefinition } from '@/datasources/elasticsearch/definition'
+import { mariadbDataSourceDefinition } from '@/datasources/mariadb/definition'
+import { mongodbDataSourceDefinition } from '@/datasources/mongodb/definition'
+import { mssqlDataSourceDefinition } from '@/datasources/mssql/definition'
 import { minioDataSourceDefinition } from '@/datasources/minio/definition'
 import { mysqlDataSourceDefinition } from '@/datasources/mysql/definition'
+import { oracleDataSourceDefinition } from '@/datasources/oracle/definition'
 import { postgresDataSourceDefinition } from '@/datasources/postgres/definition'
+import { redisDataSourceDefinition } from '@/datasources/redis/definition'
 import { s3DataSourceDefinition } from '@/datasources/s3/definition'
 import { sqliteDataSourceDefinition } from '@/datasources/sqlite/definition'
 import type { RegisteredDataSourceDefinition } from '@/datasources/shared/module'
@@ -12,8 +21,17 @@ export const REDACTED_SECRET_VALUE = '__STARQUERY_REDACTED__'
 
 const DATA_SOURCE_DEFINITIONS: Record<DataSourceType, RegisteredDataSourceDefinition> = {
   mysql: mysqlDataSourceDefinition,
+  mariadb: mariadbDataSourceDefinition,
   postgres: postgresDataSourceDefinition,
+  cockroachdb: cockroachDbDataSourceDefinition,
   sqlite: sqliteDataSourceDefinition,
+  duckdb: duckDbDataSourceDefinition,
+  mssql: mssqlDataSourceDefinition,
+  clickhouse: clickHouseDataSourceDefinition,
+  oracle: oracleDataSourceDefinition,
+  mongodb: mongodbDataSourceDefinition,
+  redis: redisDataSourceDefinition,
+  cassandra: cassandraDataSourceDefinition,
   elasticsearch: elasticsearchDataSourceDefinition,
   s3: s3DataSourceDefinition,
   minio: minioDataSourceDefinition,
@@ -71,6 +89,23 @@ export function isSqlDataSource(type: DataSourceType, serverInfo?: ServerInfo | 
 
 export function supportsResourceBrowser(type: DataSourceType, serverInfo?: ServerInfo | null) {
   return getRegisteredDataSourceDefinition(type, serverInfo).capabilities.resourceBrowser
+}
+
+export function supportsTableBrowser(type: DataSourceType, serverInfo?: ServerInfo | null) {
+  return getRegisteredDataSourceDefinition(type, serverInfo).capabilities.tableBrowser
+}
+
+export function supportsDataEditor(type: DataSourceType, serverInfo?: ServerInfo | null) {
+  return getRegisteredDataSourceDefinition(type, serverInfo).capabilities.dataEditor
+}
+
+export function supportsSchemaEditor(type: DataSourceType, serverInfo?: ServerInfo | null) {
+  return getRegisteredDataSourceDefinition(type, serverInfo).capabilities.schemaEditor
+}
+
+export function supportsTableCreate(type: DataSourceType, serverInfo?: ServerInfo | null) {
+  const capabilities = getRegisteredDataSourceDefinition(type, serverInfo).capabilities
+  return capabilities.tableCreate ?? capabilities.schemaEditor
 }
 
 export function getSecretFields(type: DataSourceType) {

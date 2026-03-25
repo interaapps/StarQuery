@@ -18,6 +18,7 @@ import {
   uploadDataSourceResourceObject,
 } from '@/datasources/shared-resource/browser'
 import ResizeKnob from '@/components/ResizeKnob.vue'
+import DataExportButton from '@/components/common/DataExportButton.vue'
 import CreateObjectDialog from '@/components/datasources/object-storage/CreateObjectDialog.vue'
 import ObjectStoragePreviewPanel from '@/components/datasources/object-storage/ObjectStoragePreviewPanel.vue'
 import ObjectStorageResourceTable from '@/components/datasources/object-storage/ObjectStorageResourceTable.vue'
@@ -114,6 +115,23 @@ const deleteTargets = computed(() => {
 })
 const hasMoreItems = computed(() => listing.value?.page?.hasMore === true)
 const nextCursor = computed(() => listing.value?.page?.nextCursor ?? null)
+const exportColumns = ['name', 'kind', 'path', 'description', 'metadata']
+const exportRows = computed(() =>
+  (listing.value?.items ?? []).map((item) => ({
+    name: item.name,
+    kind: item.kind,
+    path: item.path,
+    description: item.description ?? '',
+    metadata: item.metadata ? JSON.stringify(item.metadata) : '',
+  })),
+)
+const exportFileBaseName = computed(() => {
+  const base = props.data.sourceName.replace(/\s+/g, '-').toLowerCase() || 'object-storage'
+  const suffix = currentFolderPath.value
+    ? currentFolderPath.value.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    : 'buckets'
+  return `${base}-${suffix}`
+})
 
 async function loadFolder(options?: {
   path?: string
@@ -440,7 +458,7 @@ async function createObject(payload: { path: string; content: string; contentTyp
 
 watch(
   [() => props.data.path, defaultBucket, canBrowseSource],
-  async ([nextPath, _defaultBucket, nextCanBrowse]) => {
+  async ([nextPath, , nextCanBrowse]) => {
     if (!nextCanBrowse) {
       listing.value = null
       selectedListing.value = null
@@ -470,6 +488,12 @@ watch(
         </button>
       </div>
       <div class="ml-auto flex items-center gap-2">
+        <DataExportButton
+          :file-base-name="exportFileBaseName"
+          :columns="exportColumns"
+          :rows="exportRows"
+          :disabled="!listing?.items?.length"
+        />
         <Button
           size="small"
           icon="ti ti-arrow-up"

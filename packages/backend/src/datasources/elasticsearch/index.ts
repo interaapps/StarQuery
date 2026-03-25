@@ -29,6 +29,7 @@ export const elasticsearchDataSourceModule = {
     capabilities: {
       sqlQuery: false,
       tableBrowser: false,
+      dataEditor: true,
       schemaEditor: false,
       resourceBrowser: true,
     },

@@ -44,14 +44,21 @@ const sourceDefinition = computed(() =>
 )
 const sourceIcon = computed(() => sourceDefinition.value.icon)
 const defaultBrowserPath = computed(() => {
-  if (props.source.type !== 's3' && props.source.type !== 'minio') {
-    return ''
+  if (props.source.type === 'mongodb') {
+    const database = props.source.config?.database
+    return typeof database === 'string' && database.trim()
+      ? database.trim().replace(/^\/+|\/+$/g, '')
+      : ''
   }
 
-  const bucket = props.source.config?.bucket
-  return typeof bucket === 'string' && bucket.trim()
-    ? `${bucket.trim().replace(/^\/+|\/+$/g, '')}/`
-    : ''
+  if (props.source.type === 's3' || props.source.type === 'minio') {
+    const bucket = props.source.config?.bucket
+    return typeof bucket === 'string' && bucket.trim()
+      ? `${bucket.trim().replace(/^\/+|\/+$/g, '')}/`
+      : ''
+  }
+
+  return ''
 })
 const canBrowseSource = computed(() =>
   workspaceStore.currentProjectId
@@ -80,6 +87,9 @@ async function loadItems() {
       client,
       projectId: workspaceStore.currentProjectId,
       sourceId: props.source.id,
+      ...(props.source.type === 'mongodb' && defaultBrowserPath.value
+        ? { path: defaultBrowserPath.value }
+        : {}),
     })
     items.value = listing.items
   } catch (error) {

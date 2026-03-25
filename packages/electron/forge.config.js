@@ -1,4 +1,5 @@
 const { FusesPlugin } = require('@electron-forge/plugin-fuses');
+const { AutoUnpackNativesPlugin } = require('@electron-forge/plugin-auto-unpack-natives');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 const path = require('node:path');
 
@@ -41,6 +42,7 @@ module.exports = {
     },
   ],
   plugins: [
+    new AutoUnpackNativesPlugin({}),
     {
       name: '@electron-forge/plugin-vite',
       config: {

@@ -34,6 +34,7 @@
     "vite": "^5.0.12"
   },
   "dependencies": {
+    "@duckdb/node-api": "1.5.1-r.1",
     "electron-squirrel-startup": "^1.0.1"
   }
 }

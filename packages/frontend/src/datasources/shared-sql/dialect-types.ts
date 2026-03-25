@@ -3,7 +3,17 @@ import type { DataSourceType } from '@/types/datasources'
 import type { DataSourceRecord } from '@/types/workspace'
 import type { TableSchemaDraft, TableSchemaMode, TableSchemaSupport } from '@/types/table-schema'
 
-export type SqlDataSourceType = 'mysql' | 'postgres' | 'sqlite'
+export type SqlDataSourceType =
+  | 'mysql'
+  | 'mariadb'
+  | 'postgres'
+  | 'cockroachdb'
+  | 'sqlite'
+  | 'duckdb'
+  | 'mssql'
+  | 'clickhouse'
+  | 'oracle'
+  | 'cassandra'
 
 export type SqlCompletionSourceRecord = Pick<DataSourceRecord, 'type' | 'config' | 'name'>
 
@@ -19,13 +29,32 @@ export type RegisteredSqlDialect = {
   type: SqlDataSourceType
   editorDialect: SqlEditorDialect
   quoteIdentifier(identifier: string): string
+  buildTableQuery(input: {
+    tableName: string
+    orderByClause?: string
+    fallbackOrderByClause: string
+    page: number
+    pageSize: number
+    whereClause?: string
+  }): string
   getDefaultSchemaName(source: SqlCompletionSourceRecord): string
   getTableSchemaSupport(mode: TableSchemaMode): TableSchemaSupport
   createDefaultTableSchema(): TableSchemaDraft
   getTableSchemaUi(mode: TableSchemaMode): SqlTableSchemaUi
 }
 
-const SQL_DATA_SOURCE_TYPES: SqlDataSourceType[] = ['mysql', 'postgres', 'sqlite']
+const SQL_DATA_SOURCE_TYPES: SqlDataSourceType[] = [
+  'mysql',
+  'mariadb',
+  'postgres',
+  'cockroachdb',
+  'sqlite',
+  'duckdb',
+  'mssql',
+  'clickhouse',
+  'oracle',
+  'cassandra',
+]
 
 export const IDENTIFIER_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/
 

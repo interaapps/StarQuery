@@ -6,6 +6,7 @@ import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
+import DataExportButton from '@/components/common/DataExportButton.vue'
 import { loadDataSourceResources } from '@/datasources/shared-resource/browser'
 import { getErrorMessage } from '@/services/error-message'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
@@ -41,6 +42,23 @@ const breadcrumbItems = computed(() => {
 const previewJson = computed(() =>
   listing.value?.preview?.type === 'json' ? JSON.stringify(listing.value.preview.value, null, 2) : null,
 )
+const exportColumns = ['name', 'kind', 'path', 'description', 'metadata']
+const exportRows = computed(() =>
+  (listing.value?.items ?? []).map((item) => ({
+    name: item.name,
+    kind: item.kind,
+    path: item.path,
+    description: item.description ?? '',
+    metadata: item.metadata ? JSON.stringify(item.metadata) : '',
+  })),
+)
+const exportFileBaseName = computed(() => {
+  const base = props.data.sourceName.replace(/\s+/g, '-').toLowerCase() || 'resources'
+  const suffix = currentPath.value
+    ? currentPath.value.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    : 'root'
+  return `${base}-${suffix}`
+})
 
 async function loadListing(path = currentPath.value) {
   isLoading.value = true
@@ -90,7 +108,13 @@ watch(
   <div class="h-full flex flex-col">
     <div class="border-b app-border px-4 py-2 flex items-center gap-3">
       <Breadcrumb :home="{ icon: 'ti ti-home', command: () => navigateTo('') }" :model="breadcrumbItems" />
-      <div class="ml-auto">
+      <div class="ml-auto flex items-center gap-2">
+        <DataExportButton
+          :file-base-name="exportFileBaseName"
+          :columns="exportColumns"
+          :rows="exportRows"
+          :disabled="!listing?.items?.length"
+        />
         <Button size="small" icon="ti ti-refresh" text severity="secondary" @click="navigateTo(currentPath)" />
       </div>
     </div>

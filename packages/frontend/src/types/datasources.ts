@@ -1,11 +1,28 @@
-export type DataSourceType = 'mysql' | 'postgres' | 'sqlite' | 'elasticsearch' | 's3' | 'minio'
+export type DataSourceType =
+  | 'mysql'
+  | 'mariadb'
+  | 'postgres'
+  | 'cockroachdb'
+  | 'sqlite'
+  | 'duckdb'
+  | 'mssql'
+  | 'clickhouse'
+  | 'oracle'
+  | 'mongodb'
+  | 'redis'
+  | 'cassandra'
+  | 'elasticsearch'
+  | 's3'
+  | 'minio'
 
-export type DataSourceKind = 'sql' | 'search' | 'objectStorage'
+export type DataSourceKind = 'sql' | 'search' | 'objectStorage' | 'resource'
 
 export type DataSourceCapabilities = {
   sqlQuery: boolean
   tableBrowser: boolean
+  dataEditor: boolean
   schemaEditor: boolean
+  tableCreate?: boolean
   resourceBrowser: boolean
 }
 
@@ -82,6 +99,22 @@ export type ElasticsearchSearchResult = {
   tookMs: number | null
   total: number | null
   hits: ElasticsearchSearchHit[]
+}
+
+export type MongoDbSerializedDocument = {
+  idLabel: string
+  idValue: unknown
+  document: Record<string, unknown>
+}
+
+export type MongoDbQueryResult = {
+  database: string
+  collection: string
+  total: number
+  skip: number
+  limit: number
+  returned: number
+  documents: MongoDbSerializedDocument[]
 }
 
 export type DataSourceBrowserTabData = {

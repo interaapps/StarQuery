@@ -11,7 +11,7 @@ import type { DataSourceType } from '@/types/sql'
 import { getSqlEditorDialect } from '@/datasources/shared-sql/dialect'
 
 const singleLineExtension = EditorView.domEventHandlers({
-  beforeinput(event, view) {
+  beforeinput(event) {
     if (event.inputType === 'insertLineBreak') {
       event.preventDefault()
       return true

@@ -11,10 +11,12 @@ const props = withDefaults(
     name: string
     actionIcon: string
     actionDisabled?: boolean
+    collapsible?: boolean
   }>(),
   {
     loading: false,
     actionDisabled: false,
+    collapsible: true,
   },
 )
 
@@ -33,12 +35,15 @@ const emit = defineEmits<{
         text
         severity="contrast"
         size="small"
-        @click="emit('toggle')"
+        @click="props.collapsible && emit('toggle')"
         @contextmenu.prevent="emit('sourceContextmenu', $event)"
       >
         <div class="flex items-center gap-2 min-w-0">
           <LogoLoadingSpinner v-if="props.loading" width="1rem" />
-          <i v-else :class="`ti ${expanded ? 'ti-chevron-down' : 'ti-chevron-right'}`" />
+          <i
+            v-else-if="props.collapsible"
+            :class="`ti ${expanded ? 'ti-chevron-down' : 'ti-chevron-right'}`"
+          />
           <i :class="`ti ti-${props.sourceIcon}`" />
           <span class="truncate">{{ props.name }}</span>
         </div>
@@ -56,7 +61,7 @@ const emit = defineEmits<{
       />
     </div>
 
-    <div v-if="expanded" class="px-2 pb-2">
+    <div v-if="props.collapsible && expanded" class="px-2 pb-2">
       <div class="flex flex-col gap-0 pl-5">
         <slot name="items" />
       </div>

@@ -1,8 +1,17 @@
 import type { AppMode } from '../config/app-config.ts'
+import { cassandraDataSourceModule } from './cassandra/index.ts'
+import { clickHouseDataSourceModule } from './clickhouse/index.ts'
+import { cockroachDbDataSourceModule } from './cockroachdb/index.ts'
+import { duckDbDataSourceModule } from './duckdb/index.ts'
 import { elasticsearchDataSourceModule } from './elasticsearch/index.ts'
 import { minioDataSourceModule } from './minio/index.ts'
+import { mariadbDataSourceModule } from './mariadb/index.ts'
+import { mongodbDataSourceModule } from './mongodb/index.ts'
+import { mssqlDataSourceModule } from './mssql/index.ts'
 import { mysqlDataSourceModule } from './mysql/index.ts'
+import { oracleDataSourceModule } from './oracle/index.ts'
 import { postgresDataSourceModule } from './postgres/index.ts'
+import { redisDataSourceModule } from './redis/index.ts'
 import { s3DataSourceModule } from './s3/index.ts'
 import { sqliteDataSourceModule } from './sqlite/index.ts'
 import type { DataSourceModule, DataSourceModuleRegistry } from './shared/module.ts'
@@ -10,8 +19,17 @@ import type { DataSourceConfig, DataSourceDefinition, DataSourceType } from './t
 
 export const DATA_SOURCE_MODULES = {
   mysql: mysqlDataSourceModule,
+  mariadb: mariadbDataSourceModule,
   postgres: postgresDataSourceModule,
+  cockroachdb: cockroachDbDataSourceModule,
   sqlite: sqliteDataSourceModule,
+  duckdb: duckDbDataSourceModule,
+  mssql: mssqlDataSourceModule,
+  clickhouse: clickHouseDataSourceModule,
+  oracle: oracleDataSourceModule,
+  mongodb: mongodbDataSourceModule,
+  redis: redisDataSourceModule,
+  cassandra: cassandraDataSourceModule,
   elasticsearch: elasticsearchDataSourceModule,
   s3: s3DataSourceModule,
   minio: minioDataSourceModule,

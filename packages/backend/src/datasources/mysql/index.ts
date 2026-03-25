@@ -29,6 +29,7 @@ export const mysqlDataSourceModule = {
     capabilities: {
       sqlQuery: true,
       tableBrowser: true,
+      dataEditor: true,
       schemaEditor: true,
       resourceBrowser: false,
     },

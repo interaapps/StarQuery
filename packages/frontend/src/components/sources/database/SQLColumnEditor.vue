@@ -15,10 +15,8 @@ const notNull = ref(false)
 const hidden = ref(false)
 const autoIncrement = ref(false)
 const collation = ref('')
-const output = ref('')
-
 const buildOutput = computed(() => {
-  let sql = `ALTER TABLE \`${tablename}\`
+  const sql = `ALTER TABLE \`${tablename}\`
     ADD COLUMN \`${name.value}\` ${type.value}`
 
   return sql

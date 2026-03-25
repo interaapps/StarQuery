@@ -8,7 +8,7 @@ import type {
   SQLSaveTableChangesInput,
 } from '../../adapters/database/sql/default-sql-adapter/DefaultSQLAdapter.ts'
 import { normalizeWhereClause } from '../../adapters/database/sql/shared/where-clause.ts'
-import { isSqlDataSourceType } from '../registry.ts'
+import { getDataSourceDefinition, isSqlDataSourceType } from '../registry.ts'
 import { withSqlAdapter } from './adapter.ts'
 import { sendSourceError } from '../../routes/source-route-errors.ts'
 import { requireSource } from '../../routes/sources/shared.ts'
@@ -29,10 +29,32 @@ function ensureSqlSource(
   return source
 }
 
+function ensureSqlCapability(
+  source: Awaited<ReturnType<typeof requireSource>> | null,
+  capability: 'sqlQuery' | 'tableBrowser' | 'dataEditor' | 'schemaEditor',
+  res: Response,
+) {
+  if (!source) {
+    return null
+  }
+
+  const definition = getDataSourceDefinition(source.type)
+  if (!definition.capabilities[capability]) {
+    res.status(400).json({ error: `Datasource type ${source.type} does not support this SQL operation` })
+    return null
+  }
+
+  return source
+}
+
 export function registerSqlSourceRoutes(app: Express, context: AppContext) {
   app.get('/api/projects/:projectId/sources/:sourceId/tables', async (req, res) => {
     const authReq = req as AuthenticatedRequest
-    const requiredSource = ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res)
+    const requiredSource = ensureSqlCapability(
+      ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res),
+      'tableBrowser',
+      res,
+    )
     if (!requiredSource) return
 
     if (
@@ -46,7 +68,11 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
 
   app.get('/api/projects/:projectId/sources/:sourceId/tables/:table', async (req, res) => {
     const authReq = req as AuthenticatedRequest
-    const requiredSource = ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res)
+    const requiredSource = ensureSqlCapability(
+      ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res),
+      'tableBrowser',
+      res,
+    )
     if (!requiredSource) return
 
     if (
@@ -60,7 +86,11 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
 
   app.get('/api/projects/:projectId/sources/:sourceId/tables/:table/rows', async (req, res) => {
     const authReq = req as AuthenticatedRequest
-    const requiredSource = ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res)
+    const requiredSource = ensureSqlCapability(
+      ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res),
+      'tableBrowser',
+      res,
+    )
     if (!requiredSource) return
 
     if (
@@ -95,7 +125,11 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
 
   app.post('/api/projects/:projectId/sources/:sourceId/tables', async (req, res) => {
     const authReq = req as AuthenticatedRequest
-    const requiredSource = ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res)
+    const requiredSource = ensureSqlCapability(
+      ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res),
+      'schemaEditor',
+      res,
+    )
     if (!requiredSource) return
 
     if (
@@ -124,7 +158,11 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
 
   app.delete('/api/projects/:projectId/sources/:sourceId/tables/:table', async (req, res) => {
     const authReq = req as AuthenticatedRequest
-    const requiredSource = ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res)
+    const requiredSource = ensureSqlCapability(
+      ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res),
+      'schemaEditor',
+      res,
+    )
     if (!requiredSource) return
 
     if (
@@ -143,7 +181,11 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
 
   app.post('/api/projects/:projectId/sources/:sourceId/tables/:table/save', async (req, res) => {
     const authReq = req as AuthenticatedRequest
-    const requiredSource = ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res)
+    const requiredSource = ensureSqlCapability(
+      ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res),
+      'dataEditor',
+      res,
+    )
     if (!requiredSource) return
 
     if (
@@ -173,7 +215,11 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
 
   app.post('/api/projects/:projectId/sources/:sourceId/query', async (req, res) => {
     const authReq = req as AuthenticatedRequest
-    const requiredSource = ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res)
+    const requiredSource = ensureSqlCapability(
+      ensureSqlSource(await requireSource(context, req.params.projectId, req.params.sourceId, res), res),
+      'sqlQuery',
+      res,
+    )
     if (!requiredSource) return
 
     if (!requirePermission(authReq, res, dataSourceReadPermissionTargets(requiredSource.projectId, requiredSource.id))) {

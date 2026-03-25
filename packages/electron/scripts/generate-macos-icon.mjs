@@ -1,23 +1,21 @@
 import fs from 'node:fs/promises';
-import os from 'node:os';
 import path from 'node:path';
-import { execFileSync } from 'node:child_process';
 
 const rootDir = path.resolve(import.meta.dirname, '..');
-const sourcePath = path.join(rootDir, 'images', 'icon-iOS-Default-1024x1024@1x.png');
+const appIconSetPath = path.join(rootDir, 'images', 'Assets.xcassets', 'AppIcon.appiconset');
 const outputIcnsPath = path.join(rootDir, 'images', 'icon.icns');
 const outputIcoPath = path.join(rootDir, 'images', 'icon.ico');
 const outputPngPath = path.join(rootDir, 'images', 'icon.png');
 const outputWindowIconPath = path.join(rootDir, 'images', '128x128.png');
 
 const iconEntries = [
-  { type: 'icp4', size: 16 },
-  { type: 'icp5', size: 32 },
-  { type: 'icp6', size: 64 },
-  { type: 'ic07', size: 128 },
-  { type: 'ic08', size: 256 },
-  { type: 'ic09', size: 512 },
-  { type: 'ic10', size: 1024 },
+  { type: 'icp4', filename: '16-mac.png', size: 16 },
+  { type: 'icp5', filename: '32-mac.png', size: 32 },
+  { type: 'icp6', filename: '64-mac.png', size: 64 },
+  { type: 'ic07', filename: '128-mac.png', size: 128 },
+  { type: 'ic08', filename: '256-mac.png', size: 256 },
+  { type: 'ic09', filename: '512-mac.png', size: 512 },
+  { type: 'ic10', filename: '1024-mac.png', size: 1024 },
 ];
 
 function createChunk(type, data) {
@@ -53,41 +51,31 @@ function createIco(pngEntries) {
   return Buffer.concat([header, ...directoryEntries, ...pngEntries.map((entry) => entry.data)]);
 }
 
-async function generatePng(source, size, outputPath) {
-  execFileSync('sips', ['-z', String(size), String(size), source, '--out', outputPath], {
-    stdio: 'ignore',
-  });
-  return fs.readFile(outputPath);
+async function readIconAsset(filename) {
+  return fs.readFile(path.join(appIconSetPath, filename));
 }
 
 async function main() {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'starquery-icon-'));
+  const chunks = [];
+  const icoEntries = [];
 
-  try {
-    const chunks = [];
-    const icoEntries = [];
-
-    for (const entry of iconEntries) {
-      const tempOutputPath = path.join(tempDir, `${entry.type}.png`);
-      const pngData = await generatePng(sourcePath, entry.size, tempOutputPath);
-      chunks.push(createChunk(entry.type, pngData));
-      if ([16, 32, 64, 128, 256].includes(entry.size)) {
-        icoEntries.push({ size: entry.size, data: pngData });
-      }
+  for (const entry of iconEntries) {
+    const pngData = await readIconAsset(entry.filename);
+    chunks.push(createChunk(entry.type, pngData));
+    if ([16, 32, 64, 128, 256].includes(entry.size)) {
+      icoEntries.push({ size: entry.size, data: pngData });
     }
-
-    const fileSize = 8 + chunks.reduce((total, chunk) => total + chunk.length, 0);
-    const header = Buffer.alloc(8);
-    header.write('icns', 0, 4, 'ascii');
-    header.writeUInt32BE(fileSize, 4);
-
-    await fs.writeFile(outputIcnsPath, Buffer.concat([header, ...chunks]));
-    await fs.writeFile(outputIcoPath, createIco(icoEntries));
-    await generatePng(sourcePath, 512, outputPngPath);
-    await generatePng(sourcePath, 256, outputWindowIconPath);
-  } finally {
-    await fs.rm(tempDir, { recursive: true, force: true });
   }
+
+  const fileSize = 8 + chunks.reduce((total, chunk) => total + chunk.length, 0);
+  const header = Buffer.alloc(8);
+  header.write('icns', 0, 4, 'ascii');
+  header.writeUInt32BE(fileSize, 4);
+
+  await fs.writeFile(outputIcnsPath, Buffer.concat([header, ...chunks]));
+  await fs.writeFile(outputIcoPath, createIco(icoEntries));
+  await fs.copyFile(path.join(appIconSetPath, '1024-mac.png'), outputPngPath);
+  await fs.copyFile(path.join(appIconSetPath, '128-mac.png'), outputWindowIconPath);
 }
 
 await main();

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, dialog, ipcMain, nativeImage } from 'electron';
 import path from 'node:path';
 import fs from 'node:fs';
 import started from 'electron-squirrel-startup';
@@ -53,7 +53,11 @@ const writeDesktopConfig = (config) => {
   fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
 };
 
-const getWindowIconPath = () => path.join(__dirname, '../images/128x128.png');
+const getMacAppIconPath = () => path.join(__dirname, '../images/icon.icns');
+const getWindowIconPath = () =>
+  process.platform === 'darwin'
+    ? getMacAppIconPath()
+    : path.join(__dirname, '../images/128x128.png');
 
 const hasRunningLocalBackend = () => Boolean(localBackend?.server?.listening);
 
@@ -128,6 +132,10 @@ const createWindow = async () => {
 };
 
 app.whenReady().then(async () => {
+  if (process.platform === 'darwin') {
+    app.dock.setIcon(nativeImage.createFromPath(getMacAppIconPath()));
+  }
+
   try {
     await startLocalBackend();
   } catch (error) {

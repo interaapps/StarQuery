@@ -2,6 +2,7 @@ const { FusesPlugin } = require('@electron-forge/plugin-fuses');
 const { AutoUnpackNativesPlugin } = require('@electron-forge/plugin-auto-unpack-natives');
 const { FuseV1Options, FuseVersion } = require('@electron/fuses');
 const path = require('node:path');
+const vendorRuntimeDependencies = require('./scripts/vendor-runtime-dependencies.cjs');
 
 const iconBasePath = path.resolve(__dirname, 'images', 'icon');
 const pngIconPath = path.resolve(__dirname, 'images', 'icon.png');
@@ -117,6 +118,7 @@ module.exports = {
     appBundleId: process.env.STARQUERY_MAC_BUNDLE_ID || 'com.interaapps.starquery',
     appCategoryType:
       process.env.STARQUERY_MAC_APP_CATEGORY || 'public.app-category.developer-tools',
+    afterCopy: [vendorRuntimeDependencies],
     ...(macSignConfig ? { osxSign: macSignConfig } : {}),
     ...(macNotarizeConfig ? { osxNotarize: macNotarizeConfig } : {}),
   },

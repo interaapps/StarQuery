@@ -137,6 +137,7 @@ jobs:
           Write-Host "Using Windows SDK version $selectedVersion for MSIX packaging"
 
       - name: Build Electron distributables
+        if: runner.os != 'Windows'
         env:
           STARQUERY_MAC_SIGN: ${{ runner.os == 'macOS' && env.APPLE_SIGN_CERTIFICATE_P12_BASE64 != '' && 'true' || 'false' }}
           STARQUERY_MAC_NOTARIZE: ${{ runner.os == 'macOS' && ((env.APPLE_NOTARY_API_KEY_P8_BASE64 != '' && env.APPLE_API_KEY_ID != '' && env.APPLE_API_ISSUER != '') || (env.APPLE_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '' && env.APPLE_TEAM_ID != '')) && 'true' || 'false' }}
@@ -159,6 +160,40 @@ jobs:
           STARQUERY_MSIX_SIGN: ${{ vars.STARQUERY_MSIX_SIGN }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ env.STARQUERY_WINDOWS_CERTIFICATE_PASSWORD }}
         run: pnpm --dir packages/electron make
+
+      - name: Package Electron app
+        if: runner.os == 'Windows'
+        run: pnpm --dir packages/electron exec electron-forge package
+
+      - name: Build Windows Squirrel distributable
+        if: runner.os == 'Windows'
+        env:
+          STARQUERY_MSIX_PUBLISHER: ${{ vars.STARQUERY_MSIX_PUBLISHER }}
+          STARQUERY_MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.STARQUERY_MSIX_PUBLISHER_DISPLAY_NAME }}
+          STARQUERY_MSIX_IDENTITY_NAME: ${{ vars.STARQUERY_MSIX_IDENTITY_NAME }}
+          STARQUERY_MSIX_PACKAGE_DISPLAY_NAME: ${{ vars.STARQUERY_MSIX_PACKAGE_DISPLAY_NAME }}
+          STARQUERY_MSIX_APP_DISPLAY_NAME: ${{ vars.STARQUERY_MSIX_APP_DISPLAY_NAME }}
+          STARQUERY_MSIX_BACKGROUND_COLOR: ${{ vars.STARQUERY_MSIX_BACKGROUND_COLOR }}
+          STARQUERY_MSIX_MIN_OS_VERSION: ${{ vars.STARQUERY_MSIX_MIN_OS_VERSION }}
+          STARQUERY_MSIX_MAX_OS_VERSION_TESTED: ${{ vars.STARQUERY_MSIX_MAX_OS_VERSION_TESTED }}
+          STARQUERY_MSIX_SIGN: ${{ vars.STARQUERY_MSIX_SIGN }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ env.STARQUERY_WINDOWS_CERTIFICATE_PASSWORD }}
+        run: pnpm --dir packages/electron exec electron-forge make --skip-package --targets=@electron-forge/maker-squirrel
+
+      - name: Build Windows MSIX distributable
+        if: runner.os == 'Windows'
+        env:
+          STARQUERY_MSIX_PUBLISHER: ${{ vars.STARQUERY_MSIX_PUBLISHER }}
+          STARQUERY_MSIX_PUBLISHER_DISPLAY_NAME: ${{ vars.STARQUERY_MSIX_PUBLISHER_DISPLAY_NAME }}
+          STARQUERY_MSIX_IDENTITY_NAME: ${{ vars.STARQUERY_MSIX_IDENTITY_NAME }}
+          STARQUERY_MSIX_PACKAGE_DISPLAY_NAME: ${{ vars.STARQUERY_MSIX_PACKAGE_DISPLAY_NAME }}
+          STARQUERY_MSIX_APP_DISPLAY_NAME: ${{ vars.STARQUERY_MSIX_APP_DISPLAY_NAME }}
+          STARQUERY_MSIX_BACKGROUND_COLOR: ${{ vars.STARQUERY_MSIX_BACKGROUND_COLOR }}
+          STARQUERY_MSIX_MIN_OS_VERSION: ${{ vars.STARQUERY_MSIX_MIN_OS_VERSION }}
+          STARQUERY_MSIX_MAX_OS_VERSION_TESTED: ${{ vars.STARQUERY_MSIX_MAX_OS_VERSION_TESTED }}
+          STARQUERY_MSIX_SIGN: ${{ vars.STARQUERY_MSIX_SIGN }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ env.STARQUERY_WINDOWS_CERTIFICATE_PASSWORD }}
+        run: pnpm --dir packages/electron exec electron-forge make --skip-package --targets=@electron-forge/maker-msix
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4

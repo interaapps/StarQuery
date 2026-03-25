@@ -93,7 +93,16 @@ body {
 .VPNavBar {
   backdrop-filter: saturate(180%) blur(18px);
   background: color-mix(in srgb, var(--vp-c-bg) 78%, transparent);
-  border-bottom: 1px solid var(--vp-c-border);
+  border-bottom: 0;
+
+  .title {
+    span {
+      display: none;
+    }
+    img {
+      height: 40px;
+    }
+  }
 }
 
 .VPNavBar .content-body {

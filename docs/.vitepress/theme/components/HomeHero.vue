@@ -28,7 +28,7 @@ import InstallNavButton from "./InstallNavButton.vue";
         />
       </div>
       <div
-        class="relative animate-[spin_60s_linear_infinite] select-none opacity-20 block dark:hidden"
+        class="relative animate-[spin_60s_linear_infinite] select-none opacity-20 block dark:hidden w-full"
       >
         <img
           src="/logo-part-outline-dark.svg"
@@ -44,7 +44,8 @@ import InstallNavButton from "./InstallNavButton.vue";
     </div>
 
       <div class="absolute h-full w-full flex items-center justify-center top-0">
-        <img class="w-full !max-w-100%" src="/screenshot.png" />
+        <img class="!hidden !dark:block w-full !max-w-100%" src="/screenshot.png" />
+        <img class="!block !dark:hidden w-full !max-w-100%" src="/screenshot-light.png" />
       </div>
 
 

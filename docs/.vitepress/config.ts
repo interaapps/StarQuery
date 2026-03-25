@@ -14,7 +14,7 @@ export default defineConfig({
     ['meta', { name: 'theme-color', content: '#d63472' }],
   ],
   themeConfig: {
-    logo: '/logo.svg',
+    logo: '/big-logo.svg',
     siteTitle: 'StarQuery',
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
@@ -62,8 +62,8 @@ export default defineConfig({
       level: [2, 3],
     },
     footer: {
-      message: 'Tasteful data tools. Serious control.',
-      copyright: 'Copyright © StarQuery',
+      message: 'Tasteful data tools.',
+      copyright: '<a href="https://interaapps.de">InteraApps</a>',
     },
   },
 })

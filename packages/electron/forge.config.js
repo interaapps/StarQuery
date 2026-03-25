@@ -140,6 +140,7 @@ module.exports = {
       name: '@electron-forge/maker-deb',
       config: {
         options: {
+          bin: 'StarQuery',
           icon: pngIconPath,
         },
       },
@@ -148,6 +149,7 @@ module.exports = {
       name: '@electron-forge/maker-rpm',
       config: {
         options: {
+          bin: 'StarQuery',
           icon: pngIconPath,
         },
       },

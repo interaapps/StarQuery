@@ -36,6 +36,13 @@
   },
   "dependencies": {
     "@duckdb/node-api": "1.5.1-r.1",
-    "electron-squirrel-startup": "^1.0.1"
+    "@elastic/elasticsearch": "^9.3.4",
+    "bson": "^7.0.0",
+    "cassandra-driver": "^4.8.0",
+    "electron-squirrel-startup": "^1.0.1",
+    "minio": "^8.0.7",
+    "mongodb": "^7.1.1",
+    "oracledb": "^6.10.0",
+    "redis": "^5.11.0"
   }
 }

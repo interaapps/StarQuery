@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted } from 'vue'
 import WorkspaceTabsBar from '@/components/workspace/WorkspaceTabsBar.vue'
+import ConvexBrowserView from '@/datasources/convex/views/ConvexBrowserView.vue'
+import ConvexQueryView from '@/datasources/convex/views/ConvexQueryView.vue'
 import ElasticsearchBrowserView from '@/datasources/elasticsearch/views/ElasticsearchBrowserView.vue'
 import MongoDbBrowserView from '@/datasources/mongodb/views/MongoDbBrowserView.vue'
 import RedisBrowserView from '@/datasources/redis/views/RedisBrowserView.vue'
@@ -11,7 +13,7 @@ import SQLQueryView from '@/datasources/shared-sql/views/SQLQueryView.vue'
 import SqlTableView from '@/datasources/shared-sql/views/SQLTableView.vue'
 import { isElectronDesktop } from '@/services/desktop-config'
 import { useTabsStore } from '@/stores/tabs-store.ts'
-import { isRedisQueryTab, isResourceBrowserTab, isSqlQueryTab, isSqlTableTab } from '@/types/tabs'
+import { isDataSourceQueryTab, isResourceBrowserTab, isSqlQueryTab, isSqlTableTab } from '@/types/tabs'
 import Button from 'primevue/button'
 
 const tabsStore = useTabsStore()
@@ -105,7 +107,16 @@ onBeforeUnmount(() => {
       <div v-show="index === tabsStore.currentTab" class="h-full">
         <SqlTableView class="h-full" v-if="isSqlTableTab(tab)" :tab-id="tab.id" :data="tab.data" />
         <SQLQueryView class="h-full" v-else-if="isSqlQueryTab(tab)" :data="tab.data" />
-        <RedisQueryView class="h-full" v-else-if="isRedisQueryTab(tab)" :data="tab.data" />
+        <RedisQueryView
+          class="h-full"
+          v-else-if="isDataSourceQueryTab(tab) && tab.data.sourceType === 'redis'"
+          :data="tab.data"
+        />
+        <ConvexQueryView
+          class="h-full"
+          v-else-if="isDataSourceQueryTab(tab) && tab.data.sourceType === 'convex'"
+          :data="tab.data"
+        />
         <ElasticsearchBrowserView
           class="h-full"
           v-else-if="isResourceBrowserTab(tab) && tab.data.sourceType === 'elasticsearch'"
@@ -119,6 +130,11 @@ onBeforeUnmount(() => {
         <RedisBrowserView
           class="h-full"
           v-else-if="isResourceBrowserTab(tab) && tab.data.sourceType === 'redis'"
+          :data="tab.data"
+        />
+        <ConvexBrowserView
+          class="h-full"
+          v-else-if="isResourceBrowserTab(tab) && tab.data.sourceType === 'convex'"
           :data="tab.data"
         />
         <ObjectStorageBrowserView

@@ -10,6 +10,7 @@ export type DataSourceType =
   | "oracle"
   | "mongodb"
   | "redis"
+  | "convex"
   | "cassandra"
   | "elasticsearch"
   | "s3"
@@ -89,6 +90,11 @@ export type DataSourceConfig =
       authSource?: string;
       ssl?: boolean;
       options?: Record<string, unknown>;
+    }
+  | {
+      deploymentUrl: string;
+      adminKey?: string;
+      authToken?: string;
     };
 
 export type ResourceBrowserItem = {

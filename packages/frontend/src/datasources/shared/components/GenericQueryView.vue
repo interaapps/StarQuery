@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, useSlots } from 'vue'
+import { computed, ref, useSlots } from 'vue'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
@@ -76,6 +76,11 @@ const buildRows = (rows: Record<string, unknown>[], prefix: string | number): SQ
     original: row,
     state: 'clean' as const,
   }))
+
+const selectedTableTab = ref(0)
+const selectedResultTable = computed(
+  () => props.resultTables[selectedTableTab.value] ?? props.resultTables[0] ?? null,
+)
 </script>
 
 <template>
@@ -160,45 +165,57 @@ const buildRows = (rows: Record<string, unknown>[], prefix: string | number): SQ
         </slot>
       </div>
 
-      <div v-else class="h-full flex flex-col gap-4">
-        <div
-          v-if="slots.output || resultTables.length"
-          class="min-h-0 flex-1 overflow-auto px-3 py-3 pr-4"
-        >
-          <div class="min-h-0 flex flex-col gap-4">
-            <slot v-if="slots.output" name="output" :result-tables="resultTables" />
+      <div v-else class="h-full min-h-0 flex flex-col gap-4">
+        <div v-if="slots.output || resultTables.length" class="min-h-0 flex-1 overflow-hidden">
+          <div class="min-h-0 h-full flex flex-col gap-4">
+            <div v-if="slots.output" class="px-3 py-3 pr-4">
+              <slot name="output" :result-tables="resultTables" />
+            </div>
 
-            <template v-else>
+            <template v-else-if="selectedResultTable">
+              <div class="shrink-0 flex flex-wrap gap-2">
+                <Button
+                  v-for="(_, index) in resultTables"
+                  @click="selectedTableTab = index"
+                  :key="index"
+                  size="small"
+                  :class="selectedTableTab === index ? 'p-button-outlined' : ''"
+                >
+                  {{ index }}
+                </Button>
+              </div>
+
               <section
-                v-for="(resultTable, index) in resultTables"
-                :key="resultTable.id ?? index"
-                class="rounded-2xl border app-border overflow-hidden shrink-0"
+                :key="selectedResultTable.id ?? selectedTableTab"
+                class="min-h-0 overflow-hidden flex flex-col"
               >
                 <div class="px-3 py-2 border-b app-border flex items-center justify-between">
                   <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">
-                    {{ resultTable.title }}
+                    {{ selectedResultTable.title }}
                   </span>
                   <div class="flex items-center gap-2">
-                    <span v-if="resultTable.kind" class="text-xs opacity-50 mono">
-                      {{ resultTable.kind }}
+                    <span v-if="selectedResultTable.kind" class="text-xs opacity-50 mono">
+                      {{ selectedResultTable.kind }}
                     </span>
                     <DataExportButton
-                      :file-base-name="resultTable.exportFileBaseName"
-                      :table-name="resultTable.exportTableName"
-                      :columns="resultTable.columns"
-                      :rows="resultTable.rows"
+                      :file-base-name="selectedResultTable.exportFileBaseName"
+                      :table-name="selectedResultTable.exportTableName"
+                      :columns="selectedResultTable.columns"
+                      :rows="selectedResultTable.rows"
                     />
                   </div>
                 </div>
 
-                <div
-                  class="min-h-0 overflow-hidden"
-                  :style="{ height: resultTable.height ?? resultTableHeight }"
-                >
+                <div class="min-h-0 overflow-hidden">
                   <ExtendedDataTable
                     class="h-full"
-                    :columns="toColumns(resultTable.columns)"
-                    :rows="buildRows(resultTable.rows, resultTable.id ?? index)"
+                    :columns="toColumns(selectedResultTable.columns)"
+                    :rows="
+                      buildRows(
+                        selectedResultTable.rows,
+                        selectedResultTable.id ?? selectedTableTab,
+                      )
+                    "
                     :can-edit="false"
                   />
                 </div>

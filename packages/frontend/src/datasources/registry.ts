@@ -1,6 +1,7 @@
 import { cassandraDataSourceDefinition } from '@/datasources/cassandra/definition'
 import { clickHouseDataSourceDefinition } from '@/datasources/clickhouse/definition'
 import { cockroachDbDataSourceDefinition } from '@/datasources/cockroachdb/definition'
+import { convexDataSourceDefinition } from '@/datasources/convex/definition'
 import { duckDbDataSourceDefinition } from '@/datasources/duckdb/definition'
 import { elasticsearchDataSourceDefinition } from '@/datasources/elasticsearch/definition'
 import { mariadbDataSourceDefinition } from '@/datasources/mariadb/definition'
@@ -24,6 +25,7 @@ const DATA_SOURCE_DEFINITIONS: Record<DataSourceType, RegisteredDataSourceDefini
   mariadb: mariadbDataSourceDefinition,
   postgres: postgresDataSourceDefinition,
   cockroachdb: cockroachDbDataSourceDefinition,
+  convex: convexDataSourceDefinition,
   sqlite: sqliteDataSourceDefinition,
   duckdb: duckDbDataSourceDefinition,
   mssql: mssqlDataSourceDefinition,

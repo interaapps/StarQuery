@@ -10,6 +10,7 @@ export type DataSourceType =
   | 'oracle'
   | 'mongodb'
   | 'redis'
+  | 'convex'
   | 'cassandra'
   | 'elasticsearch'
   | 's3'

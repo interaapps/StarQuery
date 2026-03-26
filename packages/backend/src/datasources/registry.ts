@@ -2,6 +2,7 @@ import type { AppMode } from '../config/app-config.ts'
 import { cassandraDataSourceModule } from './cassandra/index.ts'
 import { clickHouseDataSourceModule } from './clickhouse/index.ts'
 import { cockroachDbDataSourceModule } from './cockroachdb/index.ts'
+import { convexDataSourceModule } from './convex/index.ts'
 import { duckDbDataSourceModule } from './duckdb/index.ts'
 import { elasticsearchDataSourceModule } from './elasticsearch/index.ts'
 import { minioDataSourceModule } from './minio/index.ts'
@@ -17,11 +18,14 @@ import { sqliteDataSourceModule } from './sqlite/index.ts'
 import type { DataSourceModule, DataSourceModuleRegistry } from './shared/module.ts'
 import type { DataSourceConfig, DataSourceDefinition, DataSourceType } from './types.ts'
 
+const DISABLED_DATA_SOURCE_TYPES = new Set<DataSourceType>()
+
 export const DATA_SOURCE_MODULES = {
   mysql: mysqlDataSourceModule,
   mariadb: mariadbDataSourceModule,
   postgres: postgresDataSourceModule,
   cockroachdb: cockroachDbDataSourceModule,
+  convex: convexDataSourceModule,
   sqlite: sqliteDataSourceModule,
   duckdb: duckDbDataSourceModule,
   mssql: mssqlDataSourceModule,
@@ -47,10 +51,15 @@ export function getDataSourceDefinition(type: DataSourceType): DataSourceDefinit
   return getDataSourceModule(type).definition
 }
 
+export function isDataSourceAvailable(type: DataSourceType, mode: AppMode) {
+  const definition = getDataSourceDefinition(type)
+  return !DISABLED_DATA_SOURCE_TYPES.has(type) && !(definition.localOnly && mode !== 'local')
+}
+
 export function listAvailableDataSourceDefinitions(mode: AppMode) {
   return Object.values(DATA_SOURCE_MODULES)
     .map((module): DataSourceDefinition => module.definition)
-    .filter((definition) => !(definition.localOnly && mode !== 'local'))
+    .filter((definition) => isDataSourceAvailable(definition.type, mode))
 }
 
 export function isSqlDataSourceType(type: DataSourceType) {

@@ -36,7 +36,7 @@ function getTabIcon(tab: WorkspaceTab) {
   return {
     'database.sql.query': 'file-type-sql',
     'database.sql.table': 'table',
-    'datasource.redis.query': 'terminal-2',
+    'datasource.query': 'terminal-2',
     'datasource.resource.browser': 'folders',
   }[tab.type]
 }

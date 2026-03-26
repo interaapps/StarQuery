@@ -15,8 +15,8 @@ import {
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
-import type { RedisQueryTabData } from '@/types/redis'
 import type { DataSourceBrowserTabData, DataSourceResourceItem } from '@/types/datasources'
+import type { DataSourceQueryTabData } from '@/types/query-console'
 import type { DataSourceRecord } from '@/types/workspace'
 
 const props = defineProps<{
@@ -178,21 +178,40 @@ async function openQueryConsole() {
     return
   }
 
-  const tabData: RedisQueryTabData = {
-    serverId: currentServer.id,
-    serverUrl: currentServer.url,
-    projectId: workspaceStore.currentProjectId,
-    sourceId: props.source.id,
-    sourceName: props.source.name,
-    sourceType: 'redis',
+  let tabData: DataSourceQueryTabData | null = null
+
+  if (props.source.type === 'redis') {
+    tabData = {
+      serverId: currentServer.id,
+      serverUrl: currentServer.url,
+      projectId: workspaceStore.currentProjectId,
+      sourceId: props.source.id,
+      sourceName: props.source.name,
+      sourceType: 'redis',
+    }
+  }
+
+  if (props.source.type === 'convex') {
+    tabData = {
+      serverId: currentServer.id,
+      serverUrl: currentServer.url,
+      projectId: workspaceStore.currentProjectId,
+      sourceId: props.source.id,
+      sourceName: props.source.name,
+      sourceType: 'convex',
+    }
+  }
+
+  if (!tabData) {
+    return
   }
 
   tabsStore.openNewTab({
     id: tabsStore.createTransientTabId(
-      `datasource.redis.query:${tabData.serverId}:${tabData.projectId}:${tabData.sourceId}`,
+      `datasource.query:${tabData.serverId}:${tabData.projectId}:${tabData.sourceId}:${tabData.sourceType}`,
     ),
-    name: `Redis • ${props.source.name}`,
-    type: 'datasource.redis.query',
+    name: `${sourceDefinition.value.label} • ${props.source.name}`,
+    type: 'datasource.query',
     data: tabData,
   })
 }
@@ -260,6 +279,14 @@ function showItemMenu(event: MouseEvent, item: DataSourceResourceItem) {
   selectedItem.value = item
   itemMenu.value?.show(event)
 }
+
+function getItemIcon(item: DataSourceResourceItem) {
+  if (props.source.type === 'convex' && item.kind === 'container') {
+    return 'ti ti-table'
+  }
+
+  return `ti ${item.kind === 'container' ? 'ti-folder' : 'ti-file'}`
+}
 </script>
 
 <template>
@@ -278,7 +305,7 @@ function showItemMenu(event: MouseEvent, item: DataSourceResourceItem) {
       <SidebarSourceItemButton
         v-for="item of items"
         :key="item.id"
-        :icon="`ti ${item.kind === 'container' ? 'ti-folder' : 'ti-file'}`"
+        :icon="getItemIcon(item)"
         :label="item.name"
         :disabled="!canBrowseSource"
         @click="openBrowser(item.path)"

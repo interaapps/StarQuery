@@ -8,7 +8,8 @@ import { createBackendClient } from '@/services/backend-api'
 import { getErrorMessage } from '@/services/error-message'
 import { dataSourceReadPermissionTargets } from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
-import type { RedisQueryResponse, RedisQueryTabData } from '@/types/redis'
+import type { RedisQueryTabData } from '@/types/query-console'
+import type { RedisQueryResponse } from '@/types/redis'
 import type { SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
 
 const props = defineProps<{

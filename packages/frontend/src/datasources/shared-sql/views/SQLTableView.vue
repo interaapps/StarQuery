@@ -1,10 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import type { SQLNamespace } from '@codemirror/lang-sql'
 import Button from 'primevue/button'
-import Message from 'primevue/message'
-import { useToast } from 'primevue/usetoast'
-import DataExportButton from '@/components/common/DataExportButton.vue'
 import { buildSqlCompletionCatalog } from '@/datasources/shared-sql/completion'
 import { supportsDataEditor } from '@/datasources/registry'
 import {
@@ -13,13 +10,9 @@ import {
   normalizeWhereClause,
   quoteIdentifier,
 } from '@/datasources/shared-sql/query'
-import DataPaginationBar from '@/components/common/DataPaginationBar.vue'
-import CollapsibleActivityPanel from '@/components/sql/CollapsibleActivityPanel.vue'
-import LoadingContainer from '@/components/LoadingContainer.vue'
 import type { SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
-import ResizeKnob from '@/components/ResizeKnob.vue'
 import SQLEditor from '@/components/editors/SQLEditor.vue'
-import ExtendedDataTable from '@/components/table/ExtendedDataTable.vue'
+import GenericTableView from '@/datasources/shared/components/GenericTableView.vue'
 import { createBackendClient } from '@/services/backend-api'
 import { getErrorMessage } from '@/services/error-message'
 import { dataSourceReadPermissionTargets } from '@/services/permissions'
@@ -41,8 +34,6 @@ const props = defineProps<{
   data: SQLTableTabData
 }>()
 
-const extendedDataTable = useTemplateRef<typeof ExtendedDataTable>('extendedDataTable')
-const toast = useToast()
 const authStore = useAuthStore()
 const tabsStore = useTabsStore()
 const workspaceStore = useWorkspaceStore()
@@ -61,8 +52,6 @@ const appliedWhereClause = ref(props.data.whereClause?.trim() ?? '')
 const sortInput = ref(props.data.sortClause ?? '')
 const appliedSortClause = ref(props.data.sortClause?.trim() ?? '')
 const activityLogs = ref<SQLActivityEntry[]>([])
-const logsVisible = ref(true)
-const logsHeight = ref(160)
 const completionSchema = ref<SQLNamespace>()
 const completionDefaultSchema = ref<string>()
 
@@ -172,11 +161,6 @@ const buildDraftRows = (resultRows: Record<string, unknown>[]) =>
 
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 const paginationSummary = computed(() => `${total.value} row${total.value === 1 ? '' : 's'}`)
-const exportRows = computed(() =>
-  rows.value.filter((row) => row.state !== 'deleted').map((row) => ({ ...row.values })),
-)
-const exportColumns = computed(() => columns.value.map((column) => column.field))
-const dirtyRows = computed(() => rows.value.filter((row) => row.state !== 'clean'))
 const defaultSortColumn = computed(
   () => tableDetails.value?.primaryKeys[0] ?? tableDetails.value?.columns[0]?.name ?? null,
 )
@@ -209,7 +193,7 @@ const isGeneratedDefaultValue = (value: unknown) => {
 
 const shouldOmitInsertedValue = (column: SQLTableColumn, value: unknown) =>
   value == null && (column.autoIncrement === true || isGeneratedDefaultValue(column.defaultValue))
-const hasPendingChanges = computed(() => dirtyRows.value.length > 0)
+const hasPendingChanges = computed(() => rows.value.some((row) => row.state !== 'clean'))
 const sourceRecord = computed(() =>
   workspaceStore.dataSources.find((source) => source.id === props.data.sourceId),
 )
@@ -228,6 +212,17 @@ const canEditTable = computed(
       dataSourceReadPermissionTargets(props.data.projectId, props.data.sourceId),
     ),
 )
+const statusMessage = computed(() => {
+  if (appliedWhereClause.value) {
+    return `Filtered by: ${appliedWhereClause.value}`
+  }
+
+  if (appliedSortClause.value) {
+    return `Sorted by: ${appliedSortClause.value}`
+  }
+
+  return null
+})
 
 const tabIndex = computed(() =>
   tabsStore.tabs.findIndex((tab) =>
@@ -644,75 +639,37 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex flex-col w-full h-full">
-    <div class="border-b app-border flex h-[2.5rem] items-center px-1 justify-between gap-3">
-      <div class="flex items-center gap-0.5">
-        <Button
-          size="small"
-          :icon="`ti ti-refresh ${isLoading ? 'animate-spin' : ''}`"
-          class="size-[1.8rem]"
-          rounded
-          text
-          severity="contrast"
-          :disabled="!canQueryTable"
-          @click="refreshTable"
-        />
-        <Button
-          size="small"
-          icon="ti ti-device-floppy"
-          class="size-[1.8rem]"
-          rounded
-          text
-          :severity="hasPendingChanges ? 'primary' : 'contrast'"
-          :disabled="!canEditTable || !hasPendingChanges || isSaving"
-          @click="saveChanges"
-          aria-label="Save changes"
-        />
-        <Button
-          size="small"
-          icon="ti ti-reload"
-          class="size-[1.8rem]"
-          rounded
-          text
-          severity="contrast"
-          :disabled="!canQueryTable || !hasPendingChanges"
-          @click="discardChanges"
-          aria-label="Discard"
-        />
-        <Button
-          size="small"
-          @click="() => extendedDataTable?.addRow()"
-          icon="ti ti-plus"
-          class="h-[1.8rem] w-[1.8rem]"
-          rounded
-          text
-          severity="contrast"
-          :disabled="!canEditTable"
-        />
-        <Button
-          size="small"
-          @click="() => extendedDataTable?.deleteSelectedRows()"
-          icon="ti ti-trash"
-          class="h-[1.8rem] w-[1.8rem]"
-          rounded
-          text
-          severity="contrast"
-          :disabled="!canEditTable"
-        />
-      </div>
-
-      <div class="flex items-center gap-4">
-        <DataExportButton
-          :file-base-name="`${props.data.sourceName}-${props.data.tableName}`"
-          :table-name="props.data.tableName"
-          :columns="exportColumns"
-          :rows="exportRows"
-          :disabled="!canQueryTable"
-        />
-      </div>
-    </div>
-
-    <div class="border-b app-border flex flex-wrap px-3 py-0 items-center gap-3">
+  <GenericTableView
+    v-model:columns="columns"
+    v-model:rows="rows"
+    :can-load-rows="canQueryTable"
+    :can-edit="canEditTable"
+    :is-loading="isLoading"
+    :is-saving="isSaving"
+    :file-base-name="`${props.data.sourceName}-${props.data.tableName}`"
+    :table-name="props.data.tableName"
+    :page="page"
+    :page-size="pageSize"
+    :total-pages="pageCount"
+    :pagination-summary="paginationSummary"
+    :pagination-disabled="!canQueryTable"
+    :can-previous-page="page > 1"
+    :can-next-page="page < pageCount"
+    :activity-logs="activityLogs"
+    empty-log-message="No table logs yet."
+    :read-warning-message="
+      !canQueryTable
+        ? 'This server account can inspect the schema but cannot load table rows from this datasource.'
+        : null
+    "
+    :status-message="statusMessage"
+    @refresh="refreshTable"
+    @save="saveChanges"
+    @discard="discardChanges"
+    @update:page="changePage"
+    @update:page-size="changePageSize"
+  >
+    <template #filters>
       <div class="flex items-center gap-2 min-w-0 flex-[1.4]">
         <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">Where</span>
         <div
@@ -774,74 +731,6 @@ onMounted(async () => {
           @click="resetSortClause"
         />
       </div>
-    </div>
-
-    <Message v-if="!canQueryTable" severity="warn" class="m-3 mb-0">
-      This server account can inspect the schema but cannot load table rows from this datasource.
-    </Message>
-
-    <div v-if="isLoading" class="border-b h-full app-border">
-      <LoadingContainer />
-    </div>
-
-    <div v-else class="border-b app-border overflow-hidden h-full min-h-0">
-      <div class="h-full min-h-0 flex flex-col">
-        <div class="min-h-0 flex-1 overflow-hidden relative">
-          <ExtendedDataTable
-            ref="extendedDataTable"
-            v-model:columns="columns"
-            v-model:rows="rows"
-            :can-edit="canEditTable"
-            class="pb-20"
-          />
-
-          <div class="absolute bottom-6 left-[50%] translate-x-[-50%]">
-            <DataPaginationBar
-              :page="page"
-              :page-size="pageSize"
-              :total-pages="pageCount"
-              :summary="paginationSummary"
-              :disabled="!canQueryTable"
-              :can-previous="page > 1"
-              :can-next="page < pageCount"
-              @update:page="changePage"
-              @update:page-size="changePageSize"
-            />
-          </div>
-        </div>
-
-        <ResizeKnob
-          v-if="activityLogs.length && logsVisible"
-          v-model:height="logsHeight"
-          direction="vertical"
-          :min-height="96"
-          :max-height="280"
-          class="border-t app-border"
-        />
-
-        <CollapsibleActivityPanel
-          v-model:expanded="logsVisible"
-          :entries="activityLogs"
-          empty-message="No table logs yet."
-          expanded-class="border-t app-border"
-          panel-class="h-full"
-          :expanded-style="{ height: `${logsHeight}px` }"
-        />
-      </div>
-    </div>
-
-    <div
-      class="border-t app-border px-3 py-2 flex items-center justify-between text-xs mono opacity-60"
-    >
-      <span>
-        {{ dirtyRows.filter((row) => row.state === 'new').length }} inserted /
-        {{ dirtyRows.filter((row) => row.state === 'modified').length }} updated /
-        {{ dirtyRows.filter((row) => row.state === 'deleted').length }} deleted
-      </span>
-      <span v-if="hasPendingChanges">Unsaved changes on current page</span>
-      <span v-else-if="appliedWhereClause">Filtered by: {{ appliedWhereClause }}</span>
-      <span v-else-if="appliedSortClause">Sorted by: {{ appliedSortClause }}</span>
-      <span v-else>Everything saved</span>
-    </div>
-  </div>
+    </template>
+  </GenericTableView>
 </template>

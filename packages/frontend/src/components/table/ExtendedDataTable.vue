@@ -14,6 +14,8 @@ type CellPosition = {
 const CELL_PREVIEW_TEXT_LIMIT = 150
 const DRAG_SCROLL_THRESHOLD = 48
 const DRAG_SCROLL_STEP = 20
+const DEFAULT_ROW_HEIGHT = 34
+const VIRTUAL_ROW_OVERSCAN = 12
 
 const props = withDefaults(
   defineProps<{
@@ -33,6 +35,8 @@ const rows = defineModel<SQLTableRowDraft[]>('rows', { required: true })
 
 const toast = useToast()
 const gridContainer = useTemplateRef<HTMLDivElement>('gridContainer')
+const tableHead = useTemplateRef<HTMLTableSectionElement>('tableHead')
+const rowHeaderCell = useTemplateRef<HTMLTableCellElement>('rowHeaderCell')
 const editingEditor = useTemplateRef<InstanceType<typeof SQLTableCellEditor>>('editingEditor')
 const contextMenu = useTemplateRef<ContextMenuMethods>('contextMenu')
 
@@ -45,8 +49,23 @@ const editingValue = ref<unknown>('')
 const isDragging = ref(false)
 const contextCell = ref<CellPosition | null>(null)
 const dragPointer = ref<{ x: number; y: number } | null>(null)
+const scrollTop = ref(0)
+const viewportHeight = ref(0)
+const headerHeight = ref(0)
+const rowHeaderWidth = ref(48)
+const rowHeight = ref(DEFAULT_ROW_HEIGHT)
 
 let dragScrollFrame = 0
+let dragSelectionFrame = 0
+let resizeObserver: ResizeObserver | null = null
+
+const cellDisplayCache = new Map<
+  string,
+  {
+    value: unknown
+    segments: string[]
+  }
+>()
 
 const createRowId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -112,7 +131,48 @@ watch(
   { immediate: true },
 )
 
+watch(rows, () => {
+  cellDisplayCache.clear()
+  scheduleGridMeasurement()
+})
+
+watch(columns, () => {
+  cellDisplayCache.clear()
+  scheduleGridMeasurement()
+})
+
 const hasRows = computed(() => rows.value.length > 0 && columns.value.length > 0)
+const visibleRowCount = computed(() => {
+  if (!hasRows.value) {
+    return 0
+  }
+
+  const availableHeight = Math.max(viewportHeight.value - headerHeight.value, rowHeight.value)
+  return Math.ceil(availableHeight / rowHeight.value) + VIRTUAL_ROW_OVERSCAN * 2
+})
+const visibleRowStart = computed(() => {
+  if (!hasRows.value) {
+    return 0
+  }
+
+  return Math.max(
+    0,
+    Math.floor(Math.max(scrollTop.value - headerHeight.value, 0) / rowHeight.value) -
+      VIRTUAL_ROW_OVERSCAN,
+  )
+})
+const visibleRowEnd = computed(() =>
+  Math.min(rows.value.length, visibleRowStart.value + visibleRowCount.value),
+)
+const visibleRows = computed(() =>
+  rows.value
+    .slice(visibleRowStart.value, visibleRowEnd.value)
+    .map((row, index) => ({ row, rowIndex: visibleRowStart.value + index })),
+)
+const virtualPaddingTop = computed(() => visibleRowStart.value * rowHeight.value)
+const virtualPaddingBottom = computed(() =>
+  Math.max(0, (rows.value.length - visibleRowEnd.value) * rowHeight.value),
+)
 const focusedRowIndex = computed(() => {
   if (focusCell.value === null) {
     return null
@@ -154,9 +214,66 @@ const selectionIsSingleCell = computed(
     selectionRange.value.startRow === selectionRange.value.endRow &&
     selectionRange.value.startColumn === selectionRange.value.endColumn,
 )
+const selectionOverlayStyle = computed(() => {
+  if (!selectionRange.value || !columns.value.length) {
+    return null
+  }
+
+  const startColumn = Math.max(0, Math.min(selectionRange.value.startColumn, columns.value.length - 1))
+  const endColumn = Math.max(0, Math.min(selectionRange.value.endColumn, columns.value.length - 1))
+
+  let width = 0
+  for (let columnIndex = startColumn; columnIndex <= endColumn; columnIndex += 1) {
+    width += widths.value[columns.value[columnIndex]!.field] ?? 220
+  }
+
+  let left = rowHeaderWidth.value
+  for (let columnIndex = 0; columnIndex < startColumn; columnIndex += 1) {
+    left += widths.value[columns.value[columnIndex]!.field] ?? 220
+  }
+
+  return {
+    top: `${headerHeight.value + selectionRange.value.startRow * rowHeight.value}px`,
+    left: `${left}px`,
+    width: `${Math.max(width, 1)}px`,
+    height: `${Math.max(
+      (selectionRange.value.endRow - selectionRange.value.startRow + 1) * rowHeight.value,
+      rowHeight.value,
+    )}px`,
+  }
+})
 
 const focusGrid = () => {
   gridContainer.value?.focus()
+}
+
+const measureGridMetrics = () => {
+  viewportHeight.value = gridContainer.value?.clientHeight ?? viewportHeight.value
+
+  const nextHeaderHeight = tableHead.value?.getBoundingClientRect().height
+  if (nextHeaderHeight && Number.isFinite(nextHeaderHeight)) {
+    headerHeight.value = nextHeaderHeight
+  }
+
+  const nextRowHeaderWidth = rowHeaderCell.value?.getBoundingClientRect().width
+  if (nextRowHeaderWidth && Number.isFinite(nextRowHeaderWidth)) {
+    rowHeaderWidth.value = nextRowHeaderWidth
+  }
+
+  const nextRowHeight = gridContainer.value
+    ?.querySelector<HTMLTableRowElement>('tr[data-row-index]')
+    ?.getBoundingClientRect().height
+  if (nextRowHeight && Number.isFinite(nextRowHeight)) {
+    rowHeight.value = nextRowHeight
+  }
+}
+
+const scheduleGridMeasurement = () => {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      measureGridMetrics()
+    })
+  })
 }
 
 const getCellElement = (cell: CellPosition) =>
@@ -166,10 +283,39 @@ const getCellElement = (cell: CellPosition) =>
 
 const ensureCellVisible = (cell: CellPosition) => {
   nextTick(() => {
+    const container = gridContainer.value
+    if (!container) {
+      return
+    }
+
     const targetCell = getCellElement(cell)
-    targetCell?.scrollIntoView({
-      block: 'nearest',
-      inline: 'nearest',
+    if (targetCell) {
+      targetCell.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+      })
+      return
+    }
+
+    const targetTop = headerHeight.value + cell.row * rowHeight.value
+    const targetBottom = targetTop + rowHeight.value
+    const viewportTop = container.scrollTop + headerHeight.value
+    const viewportBottom = container.scrollTop + container.clientHeight
+
+    if (targetTop < viewportTop) {
+      container.scrollTop = Math.max(0, targetTop - headerHeight.value)
+      scrollTop.value = container.scrollTop
+    } else if (targetBottom > viewportBottom) {
+      container.scrollTop = Math.max(0, targetBottom - container.clientHeight)
+      scrollTop.value = container.scrollTop
+    }
+
+    requestAnimationFrame(() => {
+      const nextTargetCell = getCellElement(cell)
+      nextTargetCell?.scrollIntoView({
+        block: 'nearest',
+        inline: 'nearest',
+      })
     })
   })
 }
@@ -294,6 +440,8 @@ const getValue = (rowIndex: number, columnIndex: number) => {
   return row?.values?.[column.field]
 }
 
+const getRowValue = (row: SQLTableRowDraft, column: SQLTableColumn) => row.values[column.field]
+
 const formatDisplayValue = (value: unknown) => {
   const text =
     typeof value === 'string' ? value : value === null || value === undefined ? '' : String(value)
@@ -309,6 +457,23 @@ const getDisplaySegments = (value: unknown) => {
   const text = formatDisplayValue(value)
 
   return text.split(/(\r?\n)/).filter((segment) => segment.length > 0)
+}
+
+const getCachedDisplaySegments = (row: SQLTableRowDraft, column: SQLTableColumn) => {
+  const key = `${row.id}:${column.field}`
+  const value = getRowValue(row, column)
+  const cached = cellDisplayCache.get(key)
+
+  if (cached && cached.value === value) {
+    return cached.segments
+  }
+
+  const segments = getDisplaySegments(value)
+  cellDisplayCache.set(key, {
+    value,
+    segments,
+  })
+  return segments
 }
 
 const pad = (value: number) => String(value).padStart(2, '0')
@@ -611,6 +776,31 @@ const updateDragSelectionFromPointer = (clientX: number, clientY: number) => {
   focusCell.value = clampCell({ row, column })
 }
 
+const runDragSelection = () => {
+  dragSelectionFrame = 0
+
+  if (!isDragging.value || !dragPointer.value) {
+    return
+  }
+
+  updateDragSelectionFromPointer(dragPointer.value.x, dragPointer.value.y)
+}
+
+const scheduleDragSelection = () => {
+  if (dragSelectionFrame) {
+    return
+  }
+
+  dragSelectionFrame = requestAnimationFrame(runDragSelection)
+}
+
+const stopDragSelection = () => {
+  if (dragSelectionFrame) {
+    cancelAnimationFrame(dragSelectionFrame)
+    dragSelectionFrame = 0
+  }
+}
+
 const stopDragAutoScroll = () => {
   if (dragScrollFrame) {
     cancelAnimationFrame(dragScrollFrame)
@@ -656,6 +846,7 @@ const runDragAutoScroll = () => {
   if (deltaX || deltaY) {
     container.scrollLeft += deltaX
     container.scrollTop += deltaY
+    scrollTop.value = container.scrollTop
     updateDragSelectionFromPointer(dragPointer.value.x, dragPointer.value.y)
   }
 
@@ -759,27 +950,25 @@ const onCellMouseDown = (event: MouseEvent, rowIndex: number, columnIndex: numbe
   startDragAutoScroll()
 }
 
-const onCellMouseEnter = (_event: MouseEvent, rowIndex: number, columnIndex: number) => {
-  if (!isDragging.value) return
-  if (!anchorCell.value) return
-
-  focusCell.value = clampCell({ row: rowIndex, column: columnIndex })
-}
-
 const onDocumentMouseMove = (event: MouseEvent) => {
   if (!isDragging.value) {
     return
   }
 
   dragPointer.value = { x: event.clientX, y: event.clientY }
-  updateDragSelectionFromPointer(event.clientX, event.clientY)
+  scheduleDragSelection()
   startDragAutoScroll()
 }
 
 const onDocumentMouseUp = () => {
   isDragging.value = false
   dragPointer.value = null
+  stopDragSelection()
   stopDragAutoScroll()
+}
+
+const onGridScroll = () => {
+  scrollTop.value = gridContainer.value?.scrollTop ?? 0
 }
 
 const showContextMenu = (event: MouseEvent, rowIndex?: number, columnIndex?: number) => {
@@ -852,11 +1041,27 @@ const contextMenuItems = computed(() => [
 ])
 
 onMounted(() => {
+  measureGridMetrics()
+  resizeObserver = new ResizeObserver(() => {
+    measureGridMetrics()
+  })
+  if (gridContainer.value) {
+    resizeObserver.observe(gridContainer.value)
+  }
+  if (tableHead.value) {
+    resizeObserver.observe(tableHead.value)
+  }
+  if (rowHeaderCell.value) {
+    resizeObserver.observe(rowHeaderCell.value)
+  }
   window.addEventListener('mousemove', onDocumentMouseMove)
   window.addEventListener('mouseup', onDocumentMouseUp)
 })
 
 onUnmounted(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
+  stopDragSelection()
   stopDragAutoScroll()
   window.removeEventListener('mousemove', onDocumentMouseMove)
   window.removeEventListener('mouseup', onDocumentMouseUp)
@@ -891,14 +1096,23 @@ defineExpose({
   <div
     ref="gridContainer"
     tabindex="0"
-    class="h-full overflow-auto outline-none"
+    class="relative h-full overflow-auto outline-none"
     @keydown="onGridKeyDown"
+    @scroll="onGridScroll"
     @contextmenu.prevent="showContextMenu($event)"
   >
-    <table class="m-[-1px] select-none" style="width: max-content">
-      <thead>
+    <div class="relative w-fit min-w-full">
+      <div
+        v-if="selectionOverlayStyle"
+        class="pointer-events-none absolute z-10 rounded-[3px] bg-primary-500/15 ring-inset ring-1 ring-primary-500/30"
+        :style="selectionOverlayStyle"
+      />
+
+      <table class="m-[-1px] select-none" style="width: max-content">
+      <thead ref="tableHead">
         <tr class="sticky top-0 left-0 bg-[#F9F9F9] dark:bg-[#202020] z-20">
           <th
+            ref="rowHeaderCell"
             class="sticky left-0 z-30 bg-[#F9F9F9] dark:bg-[#202020] border app-border border-t-0 border-l-0"
           >
             <button
@@ -942,9 +1156,18 @@ defineExpose({
       </thead>
 
       <tbody>
+        <tr v-if="virtualPaddingTop > 0" aria-hidden="true">
+          <td
+            :colspan="columns.length + 1"
+            class="border-0 p-0"
+            :style="{ height: `${virtualPaddingTop}px` }"
+          />
+        </tr>
+
         <tr
-          v-for="(row, rowIndex) in rows"
+          v-for="{ row, rowIndex } in visibleRows"
           :key="row.id"
+          :data-row-index="rowIndex"
           :class="{
             'bg-neutral-500/5': (rowIndex + 1) % 2 === 0 && row.state === 'clean',
             'bg-emerald-500/8': row.state === 'new',
@@ -978,10 +1201,6 @@ defineExpose({
             :data-cell-column="columnIndex"
             class="border app-border mono text-xs align-top"
             :class="{
-              'bg-primary-500/18 ring-inset ring-1 ring-primary-500/30': isCellSelected(
-                rowIndex,
-                columnIndex,
-              ),
               'opacity-65': row.state === 'deleted',
             }"
             :style="{
@@ -990,7 +1209,6 @@ defineExpose({
               maxWidth: `${widths[column.field] || 220}px`,
             }"
             @mousedown="onCellMouseDown($event, rowIndex, columnIndex)"
-            @mouseenter="onCellMouseEnter($event, rowIndex, columnIndex)"
             @dblclick="startEditing(rowIndex, columnIndex)"
             @contextmenu.prevent="showContextMenu($event, rowIndex, columnIndex)"
           >
@@ -1015,25 +1233,14 @@ defineExpose({
                 'text-amber-500/90': row.state === 'modified',
               }"
             >
-              <span
-                v-if="
-                  getValue(rowIndex, columnIndex) === null ||
-                  getValue(rowIndex, columnIndex) === undefined
-                "
-                class="opacity-35"
-              >
+              <span v-if="getRowValue(row, column) === null || getRowValue(row, column) === undefined" class="opacity-35">
                 NULL
               </span>
               <span
                 v-else
                 class="inline-flex max-w-full items-center gap-1 overflow-hidden truncate align-top"
               >
-                <template
-                  v-for="(segment, segmentIndex) in getDisplaySegments(
-                    getValue(rowIndex, columnIndex),
-                  )"
-                  :key="segmentIndex"
-                >
+                <template v-for="(segment, segmentIndex) in getCachedDisplaySegments(row, column)" :key="segmentIndex">
                   <span
                     v-if="/^\r?\n$/.test(segment)"
                     class="inline-flex shrink-0 items-center rounded-sm bg-neutral-100 px-1 py-0.5 text-[11px] leading-none text-neutral-500 dark:bg-neutral-800 dark:text-neutral-400"
@@ -1049,8 +1256,17 @@ defineExpose({
             </div>
           </td>
         </tr>
+
+        <tr v-if="virtualPaddingBottom > 0" aria-hidden="true">
+          <td
+            :colspan="columns.length + 1"
+            class="border-0 p-0"
+            :style="{ height: `${virtualPaddingBottom}px` }"
+          />
+        </tr>
       </tbody>
     </table>
+    </div>
 
     <ContextMenu
       ref="contextMenu"

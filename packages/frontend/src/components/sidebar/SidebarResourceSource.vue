@@ -3,6 +3,12 @@ import { computed, ref, useTemplateRef } from 'vue'
 import ContextMenu, { type ContextMenuMethods } from 'primevue/contextmenu'
 import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
+import MongoDbCreateCollectionDialog from '@/components/datasources/mongodb/MongoDbCreateCollectionDialog.vue'
+import {
+  createMongoDbCollection,
+  deleteMongoDbCollection,
+  parseMongoPath,
+} from '@/datasources/mongodb/browser'
 import SidebarSourceItemButton from '@/components/sidebar/source/SidebarSourceItemButton.vue'
 import SidebarSourceSection from '@/components/sidebar/source/SidebarSourceSection.vue'
 import { getRegisteredDataSourceDefinition, supportsQueryConsole } from '@/datasources/registry'
@@ -11,12 +17,14 @@ import { getErrorMessage } from '@/services/error-message'
 import {
   dataSourceConfigPermissionTargets,
   dataSourceReadPermissionTargets,
+  dataSourceWritePermissionTargets,
 } from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
 import type { DataSourceBrowserTabData, DataSourceResourceItem } from '@/types/datasources'
 import type { DataSourceQueryTabData } from '@/types/query-console'
+import { isResourceBrowserTab } from '@/types/tabs'
 import type { DataSourceRecord } from '@/types/workspace'
 
 const props = defineProps<{
@@ -37,6 +45,8 @@ const isExpanded = ref(false)
 const isLoading = ref(false)
 const items = ref<DataSourceResourceItem[]>([])
 const selectedItem = ref<DataSourceResourceItem | null>(null)
+const createCollectionVisible = ref(false)
+const createCollectionDatabase = ref('')
 const sourceMenu = useTemplateRef<ContextMenuMethods>('sourceMenu')
 const itemMenu = useTemplateRef<ContextMenuMethods>('itemMenu')
 
@@ -78,8 +88,21 @@ const canManageSource = computed(() =>
       )
     : false,
 )
+const canWriteSource = computed(() =>
+  workspaceStore.currentProjectId
+    ? authStore.hasPermission(
+        dataSourceWritePermissionTargets(workspaceStore.currentProjectId, props.source.id),
+      )
+    : false,
+)
 const primaryActionIcon = computed(() =>
   canQuerySource.value ? 'ti ti-terminal-2' : 'ti ti-folder-open',
+)
+const defaultMongoDatabase = computed(() =>
+  props.source.type === 'mongodb' ? parseMongoPath(defaultBrowserPath.value).database : '',
+)
+const selectedMongoTarget = computed(() =>
+  props.source.type === 'mongodb' ? parseMongoPath(selectedItem.value?.path) : null,
 )
 
 async function loadItems() {
@@ -168,6 +191,120 @@ async function deleteDatasource() {
   })
 }
 
+function showMongoCreateCollectionDialog(database: string) {
+  if (!database || !canWriteSource.value) {
+    return
+  }
+
+  createCollectionDatabase.value = database
+  createCollectionVisible.value = true
+}
+
+async function createMongoCollection(collectionName: string) {
+  if (
+    props.source.type !== 'mongodb' ||
+    !canWriteSource.value ||
+    !workspaceStore.currentProjectId ||
+    !createCollectionDatabase.value
+  ) {
+    return
+  }
+
+  try {
+    const client = await workspaceStore.getClient()
+    await createMongoDbCollection({
+      client,
+      projectId: workspaceStore.currentProjectId,
+      sourceId: props.source.id,
+      database: createCollectionDatabase.value,
+      collection: collectionName,
+    })
+    createCollectionVisible.value = false
+
+    if (isExpanded.value) {
+      await loadItems()
+    }
+
+    toast.add({
+      severity: 'success',
+      summary: 'Collection created',
+      detail: `${collectionName} is now available in ${createCollectionDatabase.value}`,
+      life: 2200,
+    })
+
+    await openBrowser(`${createCollectionDatabase.value}/${collectionName}`)
+  } catch (error) {
+    toast.add({
+      severity: 'error',
+      summary: 'Collection create failed',
+      detail: getErrorMessage(error, 'The MongoDB collection could not be created'),
+      life: 3200,
+    })
+  }
+}
+
+async function deleteMongoCollection(item: DataSourceResourceItem) {
+  if (
+    props.source.type !== 'mongodb' ||
+    !canWriteSource.value ||
+    !workspaceStore.currentProjectId
+  ) {
+    return
+  }
+
+  const parsed = parseMongoPath(item.path)
+  if (!parsed.database || !parsed.collection) {
+    return
+  }
+
+  confirm.require({
+    header: 'Delete Collection',
+    message: `Delete collection ${parsed.collection}?`,
+    acceptClass: 'p-button-danger',
+    accept: async () => {
+      try {
+        const client = await workspaceStore.getClient()
+        await deleteMongoDbCollection({
+          client,
+          projectId: workspaceStore.currentProjectId!,
+          sourceId: props.source.id,
+          database: parsed.database,
+          collection: parsed.collection,
+        })
+
+        tabsStore.closeTabsMatching(
+          (tab) =>
+            isResourceBrowserTab(tab) &&
+            tab.data.sourceType === 'mongodb' &&
+            tab.data.sourceId === props.source.id &&
+            Boolean(
+              tab.data.path === item.path ||
+                tab.data.path?.startsWith(`${item.path}/_doc/`),
+            ),
+        )
+
+        if (isExpanded.value) {
+          await loadItems()
+        }
+
+        toast.add({
+          severity: 'success',
+          summary: 'Collection deleted',
+          detail: `${parsed.collection} has been removed`,
+          life: 2200,
+        })
+      } catch (error) {
+        toast.add({
+          severity: 'error',
+          summary: 'Collection delete failed',
+          detail: getErrorMessage(error, 'The MongoDB collection could not be deleted'),
+          life: 3200,
+        })
+      }
+    },
+  })
+}
+
 async function openQueryConsole() {
   if (!canQuerySource.value || !workspaceStore.currentProjectId) {
     return
@@ -248,6 +385,16 @@ const sourceMenuItems = computed(() => [
     command: () => emit('editDatasource'),
     disabled: !canManageSource.value,
   },
+  ...(props.source.type === 'mongodb' && defaultMongoDatabase.value
+    ? [
+        {
+          label: 'Add collection',
+          icon: 'ti ti-plus',
+          command: () => showMongoCreateCollectionDialog(defaultMongoDatabase.value),
+          disabled: !canWriteSource.value,
+        },
+      ]
+    : []),
   {
     label: 'Refresh resources',
     icon: 'ti ti-refresh',
@@ -269,6 +416,29 @@ const itemMenuItems = computed(() => [
     command: () => selectedItem.value && openBrowser(selectedItem.value.path),
     disabled: !canBrowseSource.value,
   },
+  ...(props.source.type === 'mongodb' &&
+  selectedMongoTarget.value?.database &&
+  !selectedMongoTarget.value.collection
+    ? [
+        {
+          label: 'Add collection',
+          icon: 'ti ti-plus',
+          command: () => showMongoCreateCollectionDialog(selectedMongoTarget.value!.database),
+          disabled: !canWriteSource.value,
+        },
+      ]
+    : []),
+  ...(props.source.type === 'mongodb' && selectedMongoTarget.value?.collection
+    ? [
+        { separator: true },
+        {
+          label: 'Delete collection',
+          icon: 'ti ti-trash',
+          command: () => selectedItem.value && deleteMongoCollection(selectedItem.value),
+          disabled: !canWriteSource.value,
+        },
+      ]
+    : []),
 ])
 
 function showSourceMenu(event: MouseEvent) {
@@ -316,6 +486,12 @@ function getItemIcon(item: DataSourceResourceItem) {
     <template #overlay>
       <ContextMenu ref="sourceMenu" :model="sourceMenuItems" />
       <ContextMenu ref="itemMenu" :model="itemMenuItems" />
+      <MongoDbCreateCollectionDialog
+        v-if="source.type === 'mongodb'"
+        v-model:visible="createCollectionVisible"
+        :database="createCollectionDatabase"
+        @create="createMongoCollection"
+      />
     </template>
   </SidebarSourceSection>
 </template>

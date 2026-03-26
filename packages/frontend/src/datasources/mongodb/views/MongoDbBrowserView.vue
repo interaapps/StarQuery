@@ -3,13 +3,11 @@ import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import Button from 'primevue/button'
 import InputNumber from 'primevue/inputnumber'
 import Message from 'primevue/message'
-import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
 import DataExportButton from '@/components/common/DataExportButton.vue'
 import DataPaginationBar from '@/components/common/DataPaginationBar.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
-import MongoDbCreateCollectionDialog from '@/components/datasources/mongodb/MongoDbCreateCollectionDialog.vue'
 import MongoDbDocumentViewer from '@/components/datasources/mongodb/MongoDbDocumentViewer.vue'
 import MongoDbResultsTable from '@/components/datasources/mongodb/MongoDbResultsTable.vue'
 import JsonEditor from '@/components/editors/JsonEditor.vue'
@@ -17,11 +15,9 @@ import SQLActivityPanel, { type SQLActivityEntry } from '@/components/sql/SQLAct
 import {
   applyMongoDocumentToRow,
   buildMongoMutationPayload,
-  createMongoDbCollection,
   DEFAULT_MONGODB_FILTER,
   DEFAULT_MONGODB_PROJECTION,
   DEFAULT_MONGODB_SORT,
-  deleteMongoDbCollection,
   deleteMongoDbDocuments,
   buildMongoDocumentFromRow,
   getMongoDocumentIdFromRow,
@@ -51,7 +47,6 @@ const props = defineProps<{
 }>()
 
 const toast = useToast()
-const confirm = useConfirm()
 const authStore = useAuthStore()
 const client = createBackendClient(props.data.serverUrl)
 const resultsTable = useTemplateRef<InstanceType<typeof MongoDbResultsTable>>('resultsTable')
@@ -81,7 +76,6 @@ const logs = ref<SQLActivityEntry[]>([])
 const documentViewerMode = ref<'new' | 'selected'>('selected')
 const documentJson = ref('{\n}')
 const selectedDocumentId = ref<unknown | null>(null)
-const createCollectionVisible = ref(false)
 const pendingFocusDocumentKey = ref<string | null>(null)
 const hydratingDocumentViewer = ref(false)
 const suppressNextRowViewerSync = ref(false)
@@ -153,7 +147,6 @@ const selectedDocumentLabel = computed(() => {
 
   return result.value.documents[focusedRowIndex.value]?.idLabel ?? null
 })
-const canCreateCollection = computed(() => hasSelectedDatabase.value && canWrite.value)
 
 function pushLog(entry: Omit<SQLActivityEntry, 'id'>) {
   logs.value = [
@@ -591,77 +584,6 @@ function deleteCurrentViewerDocument() {
   markRowsDeleted([focusedRowIndex.value])
 }
 
-async function createCollection(collection: string) {
-  try {
-    await createMongoDbCollection({
-      client,
-      projectId: props.data.projectId,
-      sourceId: props.data.sourceId,
-      database: databaseName.value,
-      collection,
-    })
-    collectionName.value = collection
-    createCollectionVisible.value = false
-    pushLog({
-      level: 'success',
-      title: `Collection created in ${databaseName.value}`,
-      message: `${collection} is now available.`,
-    })
-    await loadCollectionItems()
-    await runQuery()
-  } catch (error) {
-    const detail = getErrorMessage(error, 'The MongoDB collection could not be created')
-    pushLog({
-      level: 'error',
-      title: 'Collection create failed',
-      message: detail,
-    })
-    logsVisible.value = true
-  }
-}
-
-function confirmDeleteCollection() {
-  if (!hasSelectedCollection.value || !canWrite.value) {
-    return
-  }
-
-  confirm.require({
-    header: 'Delete Collection',
-    message: `Delete collection ${collectionName.value}?`,
-    acceptClass: 'p-button-danger',
-    accept: async () => {
-      try {
-        await deleteMongoDbCollection({
-          client,
-          projectId: props.data.projectId,
-          sourceId: props.data.sourceId,
-          database: databaseName.value,
-          collection: collectionName.value,
-        })
-        pushLog({
-          level: 'success',
-          title: `Collection deleted from ${databaseName.value}`,
-          message: `${collectionName.value} has been removed.`,
-        })
-        collectionName.value = ''
-        result.value = null
-        await loadCollectionItems()
-        columns.value = []
-        rows.value = []
-        startNewDocument()
-      } catch (error) {
-        const detail = getErrorMessage(error, 'The MongoDB collection could not be deleted')
-        pushLog({
-          level: 'error',
-          title: 'Collection delete failed',
-          message: detail,
-        })
-        logsVisible.value = true
-      }
-    },
-  })
-}
-
 watch(
   () => props.data.path,
   async (nextPath) => {
@@ -765,32 +687,6 @@ watch(
 
       <div class="flex items-center gap-2">
         <Button
-          icon="ti ti-plus"
-          label="Collection"
-          text
-          severity="secondary"
-          size="small"
-          :disabled="!canCreateCollection || isRunningQuery || isSavingChanges"
-          @click="createCollectionVisible = true"
-        />
-        <Button
-          icon="ti ti-folder-minus"
-          label="Delete collection"
-          text
-          severity="danger"
-          size="small"
-          :disabled="!hasSelectedCollection || !canWrite || isRunningQuery || isSavingChanges"
-          @click="confirmDeleteCollection"
-        />
-        <Button
-          icon="ti ti-refresh"
-          text
-          severity="secondary"
-          size="small"
-          :disabled="!hasSelectedCollection || isRunningQuery || isSavingChanges"
-          @click="runQuery({ keepPage: true })"
-        />
-        <Button
           icon="ti ti-player-play"
           label="Run"
           size="small"
@@ -823,13 +719,6 @@ watch(
             :disabled="isLoadingCollectionItems"
             @click="loadCollectionItems"
           />
-          <Button
-            icon="ti ti-plus"
-            label="Collection"
-            size="small"
-            :disabled="!canCreateCollection"
-            @click="createCollectionVisible = true"
-          />
         </div>
       </div>
 
@@ -849,7 +738,7 @@ watch(
         />
       </div>
       <div v-else class="px-3 py-4 text-sm opacity-60">
-        No collections in {{ databaseName }} yet. Create one to start managing documents.
+        No collections in {{ databaseName }} yet. Use the sidebar context menu to create one.
       </div>
     </div>
 
@@ -1127,11 +1016,5 @@ watch(
         </div>
       </div>
     </template>
-
-    <MongoDbCreateCollectionDialog
-      v-model:visible="createCollectionVisible"
-      :database="databaseName"
-      @create="createCollection"
-    />
   </div>
 </template>

@@ -36,7 +36,6 @@ const rows = defineModel<SQLTableRowDraft[]>('rows', { required: true })
 const toast = useToast()
 const gridContainer = useTemplateRef<HTMLDivElement>('gridContainer')
 const tableHead = useTemplateRef<HTMLTableSectionElement>('tableHead')
-const rowHeaderCell = useTemplateRef<HTMLTableCellElement>('rowHeaderCell')
 const editingEditor = useTemplateRef<InstanceType<typeof SQLTableCellEditor>>('editingEditor')
 const contextMenu = useTemplateRef<ContextMenuMethods>('contextMenu')
 
@@ -52,7 +51,6 @@ const dragPointer = ref<{ x: number; y: number } | null>(null)
 const scrollTop = ref(0)
 const viewportHeight = ref(0)
 const headerHeight = ref(0)
-const rowHeaderWidth = ref(48)
 const rowHeight = ref(DEFAULT_ROW_HEIGHT)
 
 let dragScrollFrame = 0
@@ -173,6 +171,10 @@ const virtualPaddingTop = computed(() => visibleRowStart.value * rowHeight.value
 const virtualPaddingBottom = computed(() =>
   Math.max(0, (rows.value.length - visibleRowEnd.value) * rowHeight.value),
 )
+const rowHeaderColumnWidth = computed(() => {
+  const rowDigits = Math.max(3, String(Math.max(rows.value.length, 1)).length)
+  return Math.max(56, 48 + rowDigits * 8)
+})
 const focusedRowIndex = computed(() => {
   if (focusCell.value === null) {
     return null
@@ -227,7 +229,7 @@ const selectionOverlayStyle = computed(() => {
     width += widths.value[columns.value[columnIndex]!.field] ?? 220
   }
 
-  let left = rowHeaderWidth.value
+  let left = rowHeaderColumnWidth.value
   for (let columnIndex = 0; columnIndex < startColumn; columnIndex += 1) {
     left += widths.value[columns.value[columnIndex]!.field] ?? 220
   }
@@ -255,11 +257,6 @@ const measureGridMetrics = () => {
     headerHeight.value = nextHeaderHeight
   }
 
-  const nextRowHeaderWidth = rowHeaderCell.value?.getBoundingClientRect().width
-  if (nextRowHeaderWidth && Number.isFinite(nextRowHeaderWidth)) {
-    rowHeaderWidth.value = nextRowHeaderWidth
-  }
-
   const nextRowHeight = gridContainer.value
     ?.querySelector<HTMLTableRowElement>('tr[data-row-index]')
     ?.getBoundingClientRect().height
@@ -281,6 +278,30 @@ const getCellElement = (cell: CellPosition) =>
     `td[data-cell-row="${cell.row}"][data-cell-column="${cell.column}"]`,
   ) ?? null
 
+const scrollRenderedCellIntoView = (
+  container: HTMLDivElement,
+  targetCell: HTMLTableCellElement,
+) => {
+  const containerRect = container.getBoundingClientRect()
+  const cellRect = targetCell.getBoundingClientRect()
+  const viewportLeft = containerRect.left + rowHeaderColumnWidth.value
+  const viewportTop = containerRect.top + headerHeight.value
+
+  if (cellRect.left < viewportLeft) {
+    container.scrollLeft = Math.max(0, container.scrollLeft - (viewportLeft - cellRect.left))
+  } else if (cellRect.right > containerRect.right) {
+    container.scrollLeft += cellRect.right - containerRect.right
+  }
+
+  if (cellRect.top < viewportTop) {
+    container.scrollTop = Math.max(0, container.scrollTop - (viewportTop - cellRect.top))
+  } else if (cellRect.bottom > containerRect.bottom) {
+    container.scrollTop += cellRect.bottom - containerRect.bottom
+  }
+
+  scrollTop.value = container.scrollTop
+}
+
 const ensureCellVisible = (cell: CellPosition) => {
   nextTick(() => {
     const container = gridContainer.value
@@ -290,10 +311,7 @@ const ensureCellVisible = (cell: CellPosition) => {
 
     const targetCell = getCellElement(cell)
     if (targetCell) {
-      targetCell.scrollIntoView({
-        block: 'nearest',
-        inline: 'nearest',
-      })
+      scrollRenderedCellIntoView(container, targetCell)
       return
     }
 
@@ -312,10 +330,9 @@ const ensureCellVisible = (cell: CellPosition) => {
 
     requestAnimationFrame(() => {
       const nextTargetCell = getCellElement(cell)
-      nextTargetCell?.scrollIntoView({
-        block: 'nearest',
-        inline: 'nearest',
-      })
+      if (nextTargetCell) {
+        scrollRenderedCellIntoView(container, nextTargetCell)
+      }
     })
   })
 }
@@ -1051,9 +1068,6 @@ onMounted(() => {
   if (tableHead.value) {
     resizeObserver.observe(tableHead.value)
   }
-  if (rowHeaderCell.value) {
-    resizeObserver.observe(rowHeaderCell.value)
-  }
   window.addEventListener('mousemove', onDocumentMouseMove)
   window.addEventListener('mouseup', onDocumentMouseUp)
 })
@@ -1112,8 +1126,12 @@ defineExpose({
       <thead ref="tableHead">
         <tr class="sticky top-0 left-0 bg-[#F9F9F9] dark:bg-[#202020] z-20">
           <th
-            ref="rowHeaderCell"
             class="sticky left-0 z-30 bg-[#F9F9F9] dark:bg-[#202020] border app-border border-t-0 border-l-0"
+            :style="{
+              width: `${rowHeaderColumnWidth}px`,
+              minWidth: `${rowHeaderColumnWidth}px`,
+              maxWidth: `${rowHeaderColumnWidth}px`,
+            }"
           >
             <button
               class="w-full h-full min-w-[3rem] hover:bg-neutral-500/10 text-xs uppercase tracking-[0.14em] rounded-md py-2 opacity-55"
@@ -1177,6 +1195,11 @@ defineExpose({
         >
           <td
             class="border app-border px-3 text-center sticky left-0 z-10 bg-neutral-50 dark:bg-neutral-900 mono text-xs border-l-0"
+            :style="{
+              width: `${rowHeaderColumnWidth}px`,
+              minWidth: `${rowHeaderColumnWidth}px`,
+              maxWidth: `${rowHeaderColumnWidth}px`,
+            }"
             @click="selectRow(rowIndex)"
           >
             <div class="flex items-center gap-2 py-1">

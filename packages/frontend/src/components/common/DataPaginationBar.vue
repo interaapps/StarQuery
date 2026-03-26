@@ -15,7 +15,7 @@ const props = withDefaults(
     summary?: string | null
   }>(),
   {
-    pageSizeOptions: () => [5, 10, 15, 25, 50, 100, 200, 500, 1000, 2000],
+    pageSizeOptions: () => [5, 10, 15, 25, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 1000000],
     canPrevious: false,
     canNext: false,
     disabled: false,

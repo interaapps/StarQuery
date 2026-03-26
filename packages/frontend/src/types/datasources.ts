@@ -10,6 +10,7 @@ export type DataSourceType =
   | 'oracle'
   | 'mongodb'
   | 'redis'
+  | 'convex'
   | 'cassandra'
   | 'elasticsearch'
   | 's3'
@@ -19,6 +20,7 @@ export type DataSourceKind = 'sql' | 'search' | 'objectStorage' | 'resource'
 
 export type DataSourceCapabilities = {
   sqlQuery: boolean
+  queryConsole?: boolean
   tableBrowser: boolean
   dataEditor: boolean
   schemaEditor: boolean

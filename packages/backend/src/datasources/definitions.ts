@@ -1,5 +1,6 @@
 export {
   getDataSourceDefinition,
+  isDataSourceAvailable,
   isKnownDataSourceType,
   isSqlDataSourceType,
   listAvailableDataSourceDefinitions,

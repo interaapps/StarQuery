@@ -1,11 +1,11 @@
-import ConfigForm from '@/datasources/redis/ConfigForm.vue'
+import ConfigForm from '@/datasources/convex/ConfigForm.vue'
 import { defineDataSourceDefinition } from '@/datasources/shared/module'
 
-export const redisDataSourceDefinition = defineDataSourceDefinition({
-  type: 'redis',
+export const convexDataSourceDefinition = defineDataSourceDefinition({
+  type: 'convex',
   kind: 'resource',
-  label: 'Redis',
-  icon: 'database',
+  label: 'Convex',
+  icon: 'stack-2',
   capabilities: {
     sqlQuery: false,
     queryConsole: true,
@@ -15,22 +15,20 @@ export const redisDataSourceDefinition = defineDataSourceDefinition({
     resourceBrowser: true,
   },
   formComponent: ConfigForm,
-  secretFields: ['password'],
+  secretFields: ['adminKey', 'authToken'],
   createDefaultConfig() {
     return {
-      host: '127.0.0.1',
-      port: 6379,
-      username: '',
-      password: '',
-      database: 0,
-      ssl: false,
+      deploymentUrl: '',
+      adminKey: '',
+      authToken: '',
     }
   },
   canSubmit(input) {
     return Boolean(
       input.name.trim() &&
-        String(input.config.host ?? '').trim() &&
-        Number(input.config.port ?? 0) > 0,
+        String(input.config.deploymentUrl ?? '').trim() &&
+        (String(input.config.adminKey ?? '').trim() ||
+          input.redactedSecretFields.includes('adminKey')),
     )
   },
   getFormProps({ redactedSecretFields }) {

@@ -1,28 +1,19 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import type { SQLNamespace } from '@codemirror/lang-sql'
-import Button from 'primevue/button'
-import Message from 'primevue/message'
 import { useToast } from 'primevue/usetoast'
 import { loadSqlCompletionCatalog } from '@/datasources/shared-sql/completion'
 import { splitSqlStatements } from '@/datasources/shared-sql/statements'
-import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
-import DataExportButton from '@/components/common/DataExportButton.vue'
-import CollapsibleActivityPanel from '@/components/sql/CollapsibleActivityPanel.vue'
-import ResizeKnob from '@/components/ResizeKnob.vue'
 import type { SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
 import SQLEditor from '@/components/editors/SQLEditor.vue'
-import ExtendedDataTable from '@/components/table/ExtendedDataTable.vue'
+import GenericQueryView from '@/datasources/shared/components/GenericQueryView.vue'
+import type { GenericQueryResultTable } from '@/datasources/shared/query-view'
 import { createBackendClient } from '@/services/backend-api'
 import { getErrorMessage } from '@/services/error-message'
 import { dataSourceReadPermissionTargets } from '@/services/permissions'
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
-import type {
-  SQLExecutionResult,
-  SQLQueryTabData,
-  SQLTableColumn,
-} from '@/types/sql'
+import type { SQLExecutionResult, SQLQueryTabData } from '@/types/sql'
 
 const props = defineProps<{
   data: SQLQueryTabData
@@ -36,32 +27,27 @@ const client = createBackendClient(props.data.serverUrl)
 const isRunning = ref(false)
 const query = ref(props.data.initialQuery ?? `SELECT * FROM `)
 const results = ref<SQLExecutionResult[]>([])
-const editorHeight = ref(320)
 const logs = ref<SQLActivityEntry[]>([])
-const editorVisible = ref(true)
-const logsVisible = ref(true)
 const completionSchema = ref<SQLNamespace>()
 const completionDefaultSchema = ref<string>()
 
-const buildRows = (rows: Record<string, unknown>[]) =>
-  rows.map((row) => ({
-    id:
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : `row-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    values: row,
-    original: row,
-    state: 'clean' as const,
-  }))
+const isSelectResult = (
+  result: SQLExecutionResult,
+): result is Extract<SQLExecutionResult, { type: 'SELECT' }> => result.type === 'SELECT'
 
-const toColumns = (columns: string[]): SQLTableColumn[] =>
-  columns.map((column) => ({
-    name: column,
-    field: column,
-  }))
-
-const resultSets = computed(() => results.value.filter((result) => result.type === 'SELECT'))
+const resultSets = computed(() => results.value.filter(isSelectResult))
 const hasOutput = computed(() => results.value.length > 0)
+const resultTables = computed<GenericQueryResultTable[]>(() =>
+  resultSets.value.map((result, index) => ({
+    id: `result-${index + 1}`,
+    title: `Result ${index + 1}`,
+    kind: result.type,
+    columns: result.columns,
+    rows: result.rows,
+    exportFileBaseName: `${props.data.sourceName}-result-${index + 1}`,
+    exportTableName: `result_${index + 1}`,
+  })),
+)
 const sourceRecord = computed(() =>
   workspaceStore.dataSources.find((source) => source.id === props.data.sourceId),
 )
@@ -187,124 +173,36 @@ watch(sourceRecord, async (nextSource) => {
 </script>
 
 <template>
-  <div class="flex flex-col h-full">
-    <div class="border-b app-border flex items-center justify-between px-3 py-2">
-      <div class="flex items-center gap-3">
-        <span class="text-xs uppercase tracking-[0.16em] opacity-55 mono">{{
-          props.data.sourceName
-        }}</span>
-        <span class="text-xs uppercase tracking-[0.16em] opacity-40 mono">SQL Console</span>
-      </div>
-
-      <Button
-        :icon="`ti ti-player-play ${isRunning ? 'animate-pulse' : ''}`"
-        label="Run query"
-        :loading="isRunning"
-        :disabled="!canRunQuery"
-        @click="runQuery"
-        size="small"
+  <GenericQueryView
+    :source-name="props.data.sourceName"
+    console-label="SQL Console"
+    run-button-label="Run query"
+    :run-button-disabled="!canRunQuery"
+    :is-running="isRunning"
+    :warning-message="
+      !canRunQuery
+        ? 'This server account can open the console but cannot run SQL on this datasource.'
+        : null
+    "
+    editor-title="Editor"
+    :result-tables="resultTables"
+    :has-output="hasOutput"
+    empty-state-message="Run a query from the selected datasource to inspect one or more result sets here."
+    :logs="logs"
+    empty-log-message="No query logs yet."
+    @run="runQuery"
+  >
+    <template #editor="{ height }">
+      <SQLEditor
+        v-model="query"
+        multiline
+        :height="height"
+        :source-type="sourceType"
+        :schema="completionSchema"
+        :default-schema="completionDefaultSchema"
+        class="w-full"
+        @submit="runQuery"
       />
-    </div>
-
-    <Message v-if="!canRunQuery" severity="warn" class="m-3 mb-0">
-      This server account can open the console but cannot run SQL on this datasource.
-    </Message>
-
-    <CollapsiblePanel
-      v-model:expanded="editorVisible"
-      title="Editor"
-      root-class="border-b app-border"
-      body-class="overflow-hidden"
-    >
-      <template #title>
-        <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">Editor</span>
-      </template>
-
-      <template #default>
-        <SQLEditor
-          v-model="query"
-          multiline
-          :height="`${editorHeight}px`"
-          :source-type="sourceType"
-          :schema="completionSchema"
-          :default-schema="completionDefaultSchema"
-          class="w-full"
-          @submit="runQuery"
-        />
-      </template>
-    </CollapsiblePanel>
-
-    <ResizeKnob
-      v-if="editorVisible"
-      v-model:height="editorHeight"
-      direction="vertical"
-      :min-height="180"
-      :max-height="680"
-      class="border-b app-border"
-    />
-
-    <div class="min-h-0 flex-1 overflow-hidden">
-      <div v-if="!hasOutput" class="h-full flex flex-col">
-        <CollapsibleActivityPanel
-          v-if="logs.length"
-          v-model:expanded="logsVisible"
-          :entries="logs"
-          empty-message="No query logs yet."
-          expanded-class="min-h-0 flex-1"
-          panel-class="h-full"
-        />
-        <div v-else class="h-full flex flex-col items-center justify-center gap-3 opacity-50">
-          <p class="opacity-60">
-            Run a query from the selected datasource to inspect one or more result sets here.
-          </p>
-        </div>
-      </div>
-
-      <div v-else class="h-full flex flex-col gap-4">
-        <div
-          v-if="resultSets.length"
-          class="min-h-0 flex-1 overflow-auto flex flex-col gap-4 px-3 py-3 pr-4"
-        >
-          <section
-            v-for="(result, index) in resultSets"
-            :key="index"
-            class="rounded-2xl border app-border overflow-hidden shrink-0"
-          >
-            <div class="px-3 py-2 border-b app-border flex items-center justify-between">
-              <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">
-                Result {{ index + 1 }}
-              </span>
-              <div class="flex items-center gap-2">
-                <span class="text-xs opacity-50 mono">{{ result.type }}</span>
-                <DataExportButton
-                  :file-base-name="`${props.data.sourceName}-result-${index + 1}`"
-                  :table-name="`result_${index + 1}`"
-                  :columns="result.columns"
-                  :rows="result.rows"
-                />
-              </div>
-            </div>
-
-            <div class="h-[20rem] overflow-hidden">
-              <ExtendedDataTable
-                :columns="toColumns(result.columns)"
-                :rows="buildRows(result.rows)"
-                :can-edit="false"
-              />
-            </div>
-          </section>
-        </div>
-
-        <CollapsibleActivityPanel
-          v-if="logs.length"
-          v-model:expanded="logsVisible"
-          :entries="logs"
-          empty-message="No query logs yet."
-          expanded-class="border-t app-border shrink-0"
-          collapsed-class="border-t app-border px-3 py-2 flex items-center justify-between shrink-0"
-          panel-class="h-[12rem]"
-        />
-      </div>
-    </div>
-  </div>
+    </template>
+  </GenericQueryView>
 </template>

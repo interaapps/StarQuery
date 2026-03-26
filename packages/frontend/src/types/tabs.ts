@@ -1,9 +1,11 @@
 import type { DataSourceBrowserTabData } from '@/types/datasources'
+import type { DataSourceQueryTabData } from '@/types/query-console'
 import type { SQLQueryTabData, SQLTableTabData } from '@/types/sql'
 
 export type WorkspaceTabDataMap = {
   'database.sql.query': SQLQueryTabData
   'database.sql.table': SQLTableTabData
+  'datasource.query': DataSourceQueryTabData
   'datasource.resource.browser': DataSourceBrowserTabData
 }
 
@@ -25,6 +27,12 @@ export function isSqlQueryTab(tab: WorkspaceTab): tab is WorkspaceTab<'database.
   return tab.type === 'database.sql.query'
 }
 
-export function isResourceBrowserTab(tab: WorkspaceTab): tab is WorkspaceTab<'datasource.resource.browser'> {
+export function isDataSourceQueryTab(tab: WorkspaceTab): tab is WorkspaceTab<'datasource.query'> {
+  return tab.type === 'datasource.query'
+}
+
+export function isResourceBrowserTab(
+  tab: WorkspaceTab,
+): tab is WorkspaceTab<'datasource.resource.browser'> {
   return tab.type === 'datasource.resource.browser'
 }

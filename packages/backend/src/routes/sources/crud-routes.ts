@@ -3,7 +3,11 @@ import type { AppContext } from '../../app-context.ts'
 import type { AuthenticatedRequest } from '../../auth/request.ts'
 import { requireAuthenticated, requirePermission } from '../../auth/middleware.ts'
 import { dataSourceConfigPermissionTargets } from '../../auth/permissions.ts'
-import { getDataSourceDefinition, isKnownDataSourceType } from '../../datasources/definitions.ts'
+import {
+  getDataSourceDefinition,
+  isDataSourceAvailable,
+  isKnownDataSourceType,
+} from '../../datasources/definitions.ts'
 import { normalizeDataSourceConfig } from '../../datasources/config.ts'
 import type { DataSourceRecord } from '../../meta/types.ts'
 import { mergeDataSourceConfig, sanitizeDataSourceRecord } from '../../datasources/shared/secrets.ts'
@@ -19,7 +23,15 @@ export function registerSourceCrudRoutes(app: Express, context: AppContext) {
     if (!project) return
 
     const sources = await context.metaStore.listDataSources(project.id)
-    res.json(sources.filter((source) => canViewSource(authReq, project.id, source.id)).map(sanitizeDataSourceRecord))
+    res.json(
+      sources
+        .filter(
+          (source) =>
+            canViewSource(authReq, project.id, source.id) &&
+            isDataSourceAvailable(source.type, context.config.mode),
+        )
+        .map(sanitizeDataSourceRecord),
+    )
   })
 
   app.post('/api/projects/:projectId/sources', async (req, res) => {
@@ -45,7 +57,7 @@ export function registerSourceCrudRoutes(app: Express, context: AppContext) {
     }
 
     const definition = getDataSourceDefinition(type)
-    if (!definition || (definition.localOnly && context.config.mode !== 'local')) {
+    if (!definition || !isDataSourceAvailable(type, context.config.mode)) {
       res.status(400).json({ error: `${type} datasources are not available on this server` })
       return
     }
@@ -94,7 +106,7 @@ export function registerSourceCrudRoutes(app: Express, context: AppContext) {
 
     const nextType = type ?? source.type
     const definition = getDataSourceDefinition(nextType)
-    if (!definition || (definition.localOnly && context.config.mode !== 'local')) {
+    if (!definition || !isDataSourceAvailable(nextType, context.config.mode)) {
       res.status(400).json({ error: `${nextType} datasources are not available on this server` })
       return
     }

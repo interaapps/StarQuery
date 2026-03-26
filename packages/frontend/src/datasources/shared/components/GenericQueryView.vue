@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref, useSlots } from 'vue'
+import { computed, ref, useSlots, watch } from 'vue'
 import Button from 'primevue/button'
 import Message from 'primevue/message'
 import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
 import DataExportButton from '@/components/common/DataExportButton.vue'
+import DataPaginationBar from '@/components/common/DataPaginationBar.vue'
 import TabStrip from '@/components/common/TabStrip.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
 import CollapsibleActivityPanel from '@/components/sql/CollapsibleActivityPanel.vue'
@@ -79,6 +80,8 @@ const buildRows = (rows: Record<string, unknown>[], prefix: string | number): SQ
   }))
 
 const selectedTableTab = ref(0)
+const selectedTablePage = ref(1)
+const selectedTablePageSize = ref(50)
 const selectedResultTable = computed(
   () => props.resultTables[selectedTableTab.value] ?? props.resultTables[0] ?? null,
 )
@@ -89,6 +92,48 @@ const resultTabItems = computed(() =>
     icon: null,
   })),
 )
+const selectedResultTableRows = computed(() => selectedResultTable.value?.rows ?? [])
+const selectedResultTotalPages = computed(() =>
+  Math.max(1, Math.ceil(selectedResultTableRows.value.length / selectedTablePageSize.value)),
+)
+const selectedResultPageRows = computed(() => {
+  const start = (selectedTablePage.value - 1) * selectedTablePageSize.value
+  return selectedResultTableRows.value.slice(start, start + selectedTablePageSize.value)
+})
+const selectedResultPaginationSummary = computed(() => {
+  const totalRows = selectedResultTableRows.value.length
+  return `${totalRows} row${totalRows === 1 ? '' : 's'}`
+})
+const canPreviousResultPage = computed(() => selectedTablePage.value > 1)
+const canNextResultPage = computed(() => selectedTablePage.value < selectedResultTotalPages.value)
+
+watch(
+  () => props.resultTables.length,
+  (nextLength) => {
+    if (selectedTableTab.value >= nextLength) {
+      selectedTableTab.value = Math.max(0, nextLength - 1)
+    }
+  },
+)
+
+watch(selectedResultTable, () => {
+  selectedTablePage.value = 1
+})
+
+watch(selectedResultTotalPages, (nextTotalPages) => {
+  if (selectedTablePage.value > nextTotalPages) {
+    selectedTablePage.value = nextTotalPages
+  }
+})
+
+function changeSelectedResultPage(value: number) {
+  selectedTablePage.value = Math.min(Math.max(1, value), selectedResultTotalPages.value)
+}
+
+function changeSelectedResultPageSize(value: number) {
+  selectedTablePageSize.value = value
+  selectedTablePage.value = 1
+}
 </script>
 
 <template>
@@ -214,18 +259,28 @@ const resultTabItems = computed(() =>
                   </div>
                 </div>
 
-                <div class="min-h-0 overflow-hidden">
+                <div class="min-h-0 overflow-hidden relative">
                   <ExtendedDataTable
-                    class="h-full"
+                    class="h-full pb-20"
                     :columns="toColumns(selectedResultTable.columns)"
                     :rows="
-                      buildRows(
-                        selectedResultTable.rows,
-                        selectedResultTable.id ?? selectedTableTab,
-                      )
+                      buildRows(selectedResultPageRows, selectedResultTable.id ?? selectedTableTab)
                     "
                     :can-edit="false"
                   />
+
+                  <div class="absolute bottom-6 left-[50%] translate-x-[-50%]">
+                    <DataPaginationBar
+                      :page="selectedTablePage"
+                      :page-size="selectedTablePageSize"
+                      :total-pages="selectedResultTotalPages"
+                      :summary="selectedResultPaginationSummary"
+                      :can-previous="canPreviousResultPage"
+                      :can-next="canNextResultPage"
+                      @update:page="changeSelectedResultPage"
+                      @update:page-size="changeSelectedResultPageSize"
+                    />
+                  </div>
                 </div>
               </section>
             </template>

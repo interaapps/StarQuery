@@ -1,9 +1,11 @@
 import type { DataSourceBrowserTabData } from '@/types/datasources'
+import type { RedisQueryTabData } from '@/types/redis'
 import type { SQLQueryTabData, SQLTableTabData } from '@/types/sql'
 
 export type WorkspaceTabDataMap = {
   'database.sql.query': SQLQueryTabData
   'database.sql.table': SQLTableTabData
+  'datasource.redis.query': RedisQueryTabData
   'datasource.resource.browser': DataSourceBrowserTabData
 }
 
@@ -25,6 +27,12 @@ export function isSqlQueryTab(tab: WorkspaceTab): tab is WorkspaceTab<'database.
   return tab.type === 'database.sql.query'
 }
 
-export function isResourceBrowserTab(tab: WorkspaceTab): tab is WorkspaceTab<'datasource.resource.browser'> {
+export function isRedisQueryTab(tab: WorkspaceTab): tab is WorkspaceTab<'datasource.redis.query'> {
+  return tab.type === 'datasource.redis.query'
+}
+
+export function isResourceBrowserTab(
+  tab: WorkspaceTab,
+): tab is WorkspaceTab<'datasource.resource.browser'> {
   return tab.type === 'datasource.resource.browser'
 }

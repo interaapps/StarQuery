@@ -41,6 +41,8 @@ const props = withDefaults(
     showDiscardButton?: boolean
     showAddRowButton?: boolean
     showDeleteRowsButton?: boolean
+    showActivityPanel?: boolean
+    showFooter?: boolean
   }>(),
   {
     canLoadRows: true,
@@ -69,6 +71,8 @@ const props = withDefaults(
     showDiscardButton: true,
     showAddRowButton: true,
     showDeleteRowsButton: true,
+    showActivityPanel: true,
+    showFooter: true,
   },
 )
 
@@ -259,7 +263,7 @@ defineExpose({
         </div>
 
         <ResizeKnob
-          v-if="activityLogs.length && logsVisible"
+          v-if="showActivityPanel && activityLogs.length && logsVisible"
           v-model:height="logsHeight"
           direction="vertical"
           :min-height="96"
@@ -268,6 +272,7 @@ defineExpose({
         />
 
         <CollapsibleActivityPanel
+          v-if="showActivityPanel"
           v-model:expanded="logsVisible"
           :entries="activityLogs"
           :empty-message="emptyLogMessage"
@@ -279,6 +284,7 @@ defineExpose({
     </div>
 
     <div
+      v-if="showFooter"
       class="border-t app-border px-3 py-2 flex items-center justify-between text-xs mono opacity-60"
     >
       <span>

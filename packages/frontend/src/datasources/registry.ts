@@ -62,7 +62,12 @@ function normalizeDataSourceDefinition(
     return isDataSourceType(entry) ? DATA_SOURCE_DEFINITIONS[entry] : null
   }
 
-  if (!entry || typeof entry !== 'object' || !('type' in entry) || !isDataSourceType(String(entry.type))) {
+  if (
+    !entry ||
+    typeof entry !== 'object' ||
+    !('type' in entry) ||
+    !isDataSourceType(String(entry.type))
+  ) {
     return null
   }
 
@@ -71,7 +76,8 @@ function normalizeDataSourceDefinition(
 
 export function listRegisteredDataSourceDefinitions(serverInfo: ServerInfo | null | undefined) {
   const entries =
-    serverInfo?.capabilities?.dataSources ?? (Object.values(DATA_SOURCE_DEFINITIONS) as Array<DataSourceDefinition | DataSourceType>)
+    serverInfo?.capabilities?.dataSources ??
+    (Object.values(DATA_SOURCE_DEFINITIONS) as Array<DataSourceDefinition | DataSourceType>)
   const normalized = entries
     .map((entry) => normalizeDataSourceDefinition(entry))
     .filter((entry): entry is RegisteredDataSourceDefinition => entry !== null)
@@ -79,8 +85,14 @@ export function listRegisteredDataSourceDefinitions(serverInfo: ServerInfo | nul
   return normalized.length ? normalized : Object.values(DATA_SOURCE_DEFINITIONS)
 }
 
-export function getRegisteredDataSourceDefinition(type: DataSourceType, serverInfo?: ServerInfo | null) {
-  return listRegisteredDataSourceDefinitions(serverInfo).find((entry) => entry.type === type) ?? DATA_SOURCE_DEFINITIONS[type]
+export function getRegisteredDataSourceDefinition(
+  type: DataSourceType,
+  serverInfo?: ServerInfo | null,
+) {
+  return (
+    listRegisteredDataSourceDefinitions(serverInfo).find((entry) => entry.type === type) ??
+    DATA_SOURCE_DEFINITIONS[type]
+  )
 }
 
 export function isSqlDataSource(type: DataSourceType, serverInfo?: ServerInfo | null) {
@@ -89,6 +101,11 @@ export function isSqlDataSource(type: DataSourceType, serverInfo?: ServerInfo | 
 
 export function supportsResourceBrowser(type: DataSourceType, serverInfo?: ServerInfo | null) {
   return getRegisteredDataSourceDefinition(type, serverInfo).capabilities.resourceBrowser
+}
+
+export function supportsQueryConsole(type: DataSourceType, serverInfo?: ServerInfo | null) {
+  const capabilities = getRegisteredDataSourceDefinition(type, serverInfo).capabilities
+  return capabilities.queryConsole ?? capabilities.sqlQuery
 }
 
 export function supportsTableBrowser(type: DataSourceType, serverInfo?: ServerInfo | null) {
@@ -112,12 +129,16 @@ export function getSecretFields(type: DataSourceType) {
   return [...getRegisteredDataSourceDefinition(type).secretFields]
 }
 
-export function getRedactedSecretFields(source: Pick<DataSourceRecord, 'type' | 'config'> | null | undefined) {
+export function getRedactedSecretFields(
+  source: Pick<DataSourceRecord, 'type' | 'config'> | null | undefined,
+) {
   if (!source) {
     return []
   }
 
-  return getSecretFields(source.type).filter((field) => source.config[field] === REDACTED_SECRET_VALUE)
+  return getSecretFields(source.type).filter(
+    (field) => source.config[field] === REDACTED_SECRET_VALUE,
+  )
 }
 
 export function stripRedactedSecrets(type: DataSourceType, config: Record<string, unknown>) {
@@ -161,7 +182,11 @@ export function buildDataSourcePayload(input: {
 }) {
   const config = { ...input.config }
   for (const secretField of input.redactedSecretFields ?? []) {
-    if (config[secretField] === '' || config[secretField] === undefined || config[secretField] === null) {
+    if (
+      config[secretField] === '' ||
+      config[secretField] === undefined ||
+      config[secretField] === null
+    ) {
       config[secretField] = REDACTED_SECRET_VALUE
     }
   }

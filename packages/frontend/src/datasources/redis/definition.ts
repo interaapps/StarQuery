@@ -8,6 +8,7 @@ export const redisDataSourceDefinition = defineDataSourceDefinition({
   icon: 'database',
   capabilities: {
     sqlQuery: false,
+    queryConsole: true,
     tableBrowser: false,
     dataEditor: false,
     schemaEditor: false,
@@ -27,7 +28,9 @@ export const redisDataSourceDefinition = defineDataSourceDefinition({
   },
   canSubmit(input) {
     return Boolean(
-      input.name.trim() && String(input.config.host ?? '').trim() && Number(input.config.port ?? 0) > 0,
+      input.name.trim() &&
+        String(input.config.host ?? '').trim() &&
+        Number(input.config.port ?? 0) > 0,
     )
   },
   getFormProps({ redactedSecretFields }) {

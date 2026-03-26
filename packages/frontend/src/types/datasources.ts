@@ -19,6 +19,7 @@ export type DataSourceKind = 'sql' | 'search' | 'objectStorage' | 'resource'
 
 export type DataSourceCapabilities = {
   sqlQuery: boolean
+  queryConsole?: boolean
   tableBrowser: boolean
   dataEditor: boolean
   schemaEditor: boolean

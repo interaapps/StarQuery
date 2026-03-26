@@ -163,45 +163,48 @@ const buildRows = (rows: Record<string, unknown>[], prefix: string | number): SQ
       <div v-else class="h-full flex flex-col gap-4">
         <div
           v-if="slots.output || resultTables.length"
-          class="min-h-0 flex-1 overflow-auto flex flex-col"
+          class="min-h-0 flex-1 overflow-auto px-3 py-3 pr-4"
         >
-          <slot v-if="slots.output" name="output" :result-tables="resultTables" />
+          <div class="min-h-0 flex flex-col gap-4">
+            <slot v-if="slots.output" name="output" :result-tables="resultTables" />
 
-          <template v-else>
-            <section
-              v-for="(resultTable, index) in resultTables"
-              :key="resultTable.id ?? index"
-              class="overflow-hidden shrink-0"
-            >
-              <div class="px-3 py-2 border-b app-border flex items-center justify-between">
-                <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">
-                  {{ resultTable.title }}
-                </span>
-                <div class="flex items-center gap-2">
-                  <span v-if="resultTable.kind" class="text-xs opacity-50 mono">
-                    {{ resultTable.kind }}
+            <template v-else>
+              <section
+                v-for="(resultTable, index) in resultTables"
+                :key="resultTable.id ?? index"
+                class="rounded-2xl border app-border overflow-hidden shrink-0"
+              >
+                <div class="px-3 py-2 border-b app-border flex items-center justify-between">
+                  <span class="text-xs uppercase tracking-[0.16em] opacity-60 mono">
+                    {{ resultTable.title }}
                   </span>
-                  <DataExportButton
-                    :file-base-name="resultTable.exportFileBaseName"
-                    :table-name="resultTable.exportTableName"
-                    :columns="resultTable.columns"
-                    :rows="resultTable.rows"
+                  <div class="flex items-center gap-2">
+                    <span v-if="resultTable.kind" class="text-xs opacity-50 mono">
+                      {{ resultTable.kind }}
+                    </span>
+                    <DataExportButton
+                      :file-base-name="resultTable.exportFileBaseName"
+                      :table-name="resultTable.exportTableName"
+                      :columns="resultTable.columns"
+                      :rows="resultTable.rows"
+                    />
+                  </div>
+                </div>
+
+                <div
+                  class="min-h-0 overflow-hidden"
+                  :style="{ height: resultTable.height ?? resultTableHeight }"
+                >
+                  <ExtendedDataTable
+                    class="h-full"
+                    :columns="toColumns(resultTable.columns)"
+                    :rows="buildRows(resultTable.rows, resultTable.id ?? index)"
+                    :can-edit="false"
                   />
                 </div>
-              </div>
-
-              <div
-                class="overflow-hidden"
-                :x-style="{ height: resultTable.height ?? resultTableHeight }"
-              >
-                <ExtendedDataTable
-                  :columns="toColumns(resultTable.columns)"
-                  :rows="buildRows(resultTable.rows, resultTable.id ?? index)"
-                  :can-edit="false"
-                />
-              </div>
-            </section>
-          </template>
+              </section>
+            </template>
+          </div>
         </div>
 
         <CollapsibleActivityPanel

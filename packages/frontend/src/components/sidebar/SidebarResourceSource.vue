@@ -5,7 +5,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import SidebarSourceItemButton from '@/components/sidebar/source/SidebarSourceItemButton.vue'
 import SidebarSourceSection from '@/components/sidebar/source/SidebarSourceSection.vue'
-import { getRegisteredDataSourceDefinition } from '@/datasources/registry'
+import { getRegisteredDataSourceDefinition, supportsQueryConsole } from '@/datasources/registry'
 import { loadDataSourceResources } from '@/datasources/shared-resource/browser'
 import { getErrorMessage } from '@/services/error-message'
 import {
@@ -15,6 +15,7 @@ import {
 import { useAuthStore } from '@/stores/auth-store.ts'
 import { useTabsStore } from '@/stores/tabs-store.ts'
 import { useWorkspaceStore } from '@/stores/workspace-store.ts'
+import type { RedisQueryTabData } from '@/types/redis'
 import type { DataSourceBrowserTabData, DataSourceResourceItem } from '@/types/datasources'
 import type { DataSourceRecord } from '@/types/workspace'
 
@@ -44,7 +45,6 @@ const sourceDefinition = computed(() =>
 )
 const sourceIcon = computed(() => sourceDefinition.value.icon)
 const defaultBrowserPath = computed(() => {
-  console.log(sourceDefinition.value)
   if (props.source.type === 'mongodb') {
     const database = props.source.config?.database
     return typeof database === 'string' && database.trim()
@@ -68,12 +68,18 @@ const canBrowseSource = computed(() =>
       )
     : false,
 )
+const canQuerySource = computed(
+  () => supportsQueryConsole(props.source.type, workspaceStore.serverInfo) && canBrowseSource.value,
+)
 const canManageSource = computed(() =>
   workspaceStore.currentProjectId
     ? authStore.hasPermission(
         dataSourceConfigPermissionTargets(workspaceStore.currentProjectId, props.source.id),
       )
     : false,
+)
+const primaryActionIcon = computed(() =>
+  canQuerySource.value ? 'ti ti-terminal-2' : 'ti ti-folder-open',
 )
 
 async function loadItems() {
@@ -162,7 +168,55 @@ async function deleteDatasource() {
   })
 }
 
+async function openQueryConsole() {
+  if (!canQuerySource.value || !workspaceStore.currentProjectId) {
+    return
+  }
+
+  const currentServer = await workspaceStore.resolveCurrentServer()
+  if (!currentServer) {
+    return
+  }
+
+  const tabData: RedisQueryTabData = {
+    serverId: currentServer.id,
+    serverUrl: currentServer.url,
+    projectId: workspaceStore.currentProjectId,
+    sourceId: props.source.id,
+    sourceName: props.source.name,
+    sourceType: 'redis',
+  }
+
+  tabsStore.openNewTab({
+    id: tabsStore.createTransientTabId(
+      `datasource.redis.query:${tabData.serverId}:${tabData.projectId}:${tabData.sourceId}`,
+    ),
+    name: `Redis • ${props.source.name}`,
+    type: 'datasource.redis.query',
+    data: tabData,
+  })
+}
+
+async function runPrimaryAction() {
+  if (canQuerySource.value) {
+    await openQueryConsole()
+    return
+  }
+
+  await openBrowser()
+}
+
 const sourceMenuItems = computed(() => [
+  ...(canQuerySource.value
+    ? [
+        {
+          label: 'Open console',
+          icon: 'ti ti-terminal-2',
+          command: () => openQueryConsole(),
+          disabled: !canQuerySource.value,
+        },
+      ]
+    : []),
   {
     label: 'Open browser',
     icon: 'ti ti-folder-open',
@@ -214,10 +268,10 @@ function showItemMenu(event: MouseEvent, item: DataSourceResourceItem) {
     :loading="isLoading"
     :source-icon="sourceIcon"
     :name="source.name"
-    action-icon="ti ti-folder-open"
-    :action-disabled="!canBrowseSource"
+    :action-icon="primaryActionIcon"
+    :action-disabled="!canBrowseSource && !canQuerySource"
     @toggle="toggleExpanded"
-    @action="openBrowser()"
+    @action="runPrimaryAction()"
     @source-contextmenu="showSourceMenu"
   >
     <template #items>

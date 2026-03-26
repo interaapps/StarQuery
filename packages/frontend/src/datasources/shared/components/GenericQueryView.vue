@@ -4,6 +4,7 @@ import Button from 'primevue/button'
 import Message from 'primevue/message'
 import CollapsiblePanel from '@/components/common/CollapsiblePanel.vue'
 import DataExportButton from '@/components/common/DataExportButton.vue'
+import TabStrip from '@/components/common/TabStrip.vue'
 import ResizeKnob from '@/components/ResizeKnob.vue'
 import CollapsibleActivityPanel from '@/components/sql/CollapsibleActivityPanel.vue'
 import type { SQLActivityEntry } from '@/components/sql/SQLActivityPanel.vue'
@@ -81,6 +82,13 @@ const selectedTableTab = ref(0)
 const selectedResultTable = computed(
   () => props.resultTables[selectedTableTab.value] ?? props.resultTables[0] ?? null,
 )
+const resultTabItems = computed(() =>
+  props.resultTables.map((resultTable, index) => ({
+    id: resultTable.id ? String(resultTable.id) : `result-${index}`,
+    label: resultTable.title,
+    icon: null,
+  })),
+)
 </script>
 
 <template>
@@ -116,7 +124,7 @@ const selectedResultTable = computed(
       v-model:expanded="editorVisible"
       :title="editorTitle"
       root-class="border-b app-border"
-      body-class="overflow-hidden"
+      body-class="overflow-hidden relative"
     >
       <template #title>
         <slot name="editor-title">
@@ -165,24 +173,24 @@ const selectedResultTable = computed(
         </slot>
       </div>
 
-      <div v-else class="h-full min-h-0 flex flex-col gap-4">
+      <div v-else class="h-full min-h-0 flex flex-col">
         <div v-if="slots.output || resultTables.length" class="min-h-0 flex-1 overflow-hidden">
-          <div class="min-h-0 h-full flex flex-col gap-4">
+          <div class="min-h-0 h-full flex flex-col">
             <div v-if="slots.output" class="px-3 py-3 pr-4">
               <slot name="output" :result-tables="resultTables" />
             </div>
 
             <template v-else-if="selectedResultTable">
-              <div class="shrink-0 flex flex-wrap gap-2">
-                <Button
-                  v-for="(_, index) in resultTables"
-                  @click="selectedTableTab = index"
-                  :key="index"
-                  size="small"
-                  :class="selectedTableTab === index ? 'p-button-outlined' : ''"
-                >
-                  {{ index }}
-                </Button>
+              <div class="shrink-0 border-b app-border">
+                <TabStrip
+                  v-if="resultTabItems.length > 1"
+                  v-model:current-tab="selectedTableTab"
+                  :tabs="resultTabItems"
+                  :show-close-buttons="false"
+                  :context-menu-enabled="false"
+                  :close-on-middle-click="false"
+                  :draggable="false"
+                />
               </div>
 
               <section

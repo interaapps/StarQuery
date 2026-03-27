@@ -69,7 +69,7 @@ export function loadAppConfig(): AppConfig {
     serverName:
       process.env.STARQUERY_SERVER_NAME ?? (mode === 'hosted' ? 'Hosted Server' : 'Local Computer'),
     mode,
-    requestBodyLimit: process.env.STARQUERY_REQUEST_BODY_LIMIT ?? '100mb',
+    requestBodyLimit: process.env.STARQUERY_REQUEST_BODY_LIMIT ?? '99gb',
     auth: {
       enabled: mode !== 'local',
       sessionTtlHours: Number(process.env.STARQUERY_AUTH_SESSION_TTL_HOURS ?? '720'),

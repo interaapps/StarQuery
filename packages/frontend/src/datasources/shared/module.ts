@@ -16,6 +16,7 @@ export type DataSourceFormContext = {
 
 export type RegisteredDataSourceDefinition = DataSourceDefinition & {
   formComponent: Component
+  sidebarResourceExtensionComponent?: Component
   secretFields: readonly string[]
   createDefaultConfig(): Record<string, unknown>
   canSubmit(input: DataSourceFormInput): boolean
@@ -33,5 +34,8 @@ export function defineDataSourceDefinition(definition: RegisteredDataSourceDefin
   return {
     ...definition,
     formComponent: markRaw(definition.formComponent),
+    ...(definition.sidebarResourceExtensionComponent
+      ? { sidebarResourceExtensionComponent: markRaw(definition.sidebarResourceExtensionComponent) }
+      : {}),
   }
 }

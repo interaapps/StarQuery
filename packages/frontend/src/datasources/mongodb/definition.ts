@@ -1,4 +1,5 @@
 import ConfigForm from '@/datasources/mongodb/ConfigForm.vue'
+import MongoDbSidebarResourceExtension from '@/datasources/mongodb/components/MongoDbSidebarResourceExtension.vue'
 import { defineDataSourceDefinition } from '@/datasources/shared/module'
 
 export const mongodbDataSourceDefinition = defineDataSourceDefinition({
@@ -14,6 +15,7 @@ export const mongodbDataSourceDefinition = defineDataSourceDefinition({
     resourceBrowser: true,
   },
   formComponent: ConfigForm,
+  sidebarResourceExtensionComponent: MongoDbSidebarResourceExtension,
   secretFields: ['password'],
   createDefaultConfig() {
     return {

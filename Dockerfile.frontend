@@ -4,6 +4,7 @@ WORKDIR /app
 
 RUN corepack enable
 
+COPY .npmrc .npmrc
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY packages/frontend/package.json packages/frontend/package.json
 

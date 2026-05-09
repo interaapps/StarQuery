@@ -1,14 +1,17 @@
 {
   "name": "starquery",
   "version": "1.0.0",
+  "packageManager": "pnpm@10.2.1",
   "description": "",
   "main": "index.js",
   "pnpm": {
     "onlyBuiltDependencies": [
+      "@tailwindcss/oxide",
       "better-sqlite3",
       "electron",
       "electron-winstaller",
-      "esbuild"
+      "esbuild",
+      "sharp"
     ]
   },
   "scripts": {

@@ -39,3 +39,4 @@ For the single-image hosted deployment, the frontend can be locked to the same o
 - `STARQUERY_AUTH_OPENID_*`
 
 Use the [Configuration Reference](/reference/configuration) for the full list.
+For the actual login flow and access-control behavior, see [OpenID Connect (OIDC)](/deploy/oidc).

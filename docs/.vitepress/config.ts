@@ -40,6 +40,7 @@ export default defineConfig({
           items: [
             { text: 'Hosted', link: '/deploy/hosted' },
             { text: 'Docker', link: '/deploy/docker' },
+            { text: 'OpenID Connect (OIDC)', link: '/deploy/oidc' },
             { text: 'Hosted Configuration', link: '/deploy/hosted-configuration' },
           ],
         },

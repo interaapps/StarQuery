@@ -65,4 +65,6 @@ This page summarizes the most important configuration surfaces.
 | `STARQUERY_AUTH_OPENID_CLIENT_SECRET` | unset | Client secret. |
 | `STARQUERY_AUTH_OPENID_SCOPES` | `openid profile email` | Requested scopes. |
 
+See [OpenID Connect (OIDC)](/deploy/oidc) for the login flow, auto-provisioning behavior, and access-control guidance.
+
 For deeper narrative guidance, also see [Hosted Configuration](/deploy/hosted-configuration).

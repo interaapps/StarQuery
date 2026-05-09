@@ -63,5 +63,6 @@ This default setup gives you:
 ## Next Steps
 
 - Need the exact Docker details? Go to [Docker Deployment](/deploy/docker).
+- Want to configure SSO or understand OIDC access control? Read [OpenID Connect (OIDC)](/deploy/oidc).
 - Want environment variables and hosted settings? Open [Hosted Configuration](/deploy/hosted-configuration).
 - Need every config option? Use [Configuration Reference](/reference/configuration).

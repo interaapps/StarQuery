@@ -1,5 +1,6 @@
 import type { DataSourceRecord } from '../../meta/types.ts'
 import { getSecretFields } from '../registry.ts'
+import { deleteValueAtPath, getValueAtPath, mergePlainObjects, setValueAtPath } from './object-path.ts'
 
 export const REDACTED_PASSWORD = '__STARQUERY_REDACTED__'
 
@@ -13,15 +14,12 @@ export function sanitizeDataSourceRecord(source: DataSourceRecord): DataSourceRe
   let changed = false
 
   for (const key of secretFields) {
-    const secretValue = nextConfig[key]
+    const secretValue = getValueAtPath(nextConfig, key)
     if (secretValue === undefined || secretValue === null || secretValue === '') {
       continue
     }
 
-    nextConfig = {
-      ...nextConfig,
-      [key]: REDACTED_PASSWORD,
-    }
+    nextConfig = setValueAtPath(nextConfig, key, REDACTED_PASSWORD)
     changed = true
   }
 
@@ -38,15 +36,17 @@ export function mergeDataSourceConfig(
   }
 
   const currentConfig = source.config ?? {}
-  const nextConfig = {
-    ...currentConfig,
-    ...configPatch,
-  }
+  let nextConfig = mergePlainObjects(currentConfig, configPatch)
 
   for (const key of getSecretFields(nextType)) {
-    const patchValue = configPatch[key]
+    const patchValue = getValueAtPath(configPatch, key)
     if (patchValue === undefined || patchValue === REDACTED_PASSWORD) {
-      nextConfig[key] = currentConfig[key]
+      const currentValue = getValueAtPath(currentConfig, key)
+      if (currentValue === undefined) {
+        nextConfig = deleteValueAtPath(nextConfig, key)
+      } else {
+        nextConfig = setValueAtPath(nextConfig, key, currentValue)
+      }
     }
   }
 

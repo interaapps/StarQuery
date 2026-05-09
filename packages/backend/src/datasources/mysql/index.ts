@@ -1,24 +1,8 @@
 import { MySQLAdapter } from '../../adapters/database/sql/mysql-adapter/MySQLAdapter.ts'
-import { requirePort, requireString } from '../shared/config-helpers.ts'
+import { resolveTcpTransportConfig } from '../shared/runtime.ts'
+import { getTransportSecretFields } from '../shared/transport.ts'
+import { normalizeNetworkSqlConfig } from '../shared-sql/network-config.ts'
 import type { DataSourceModule } from '../shared/module.ts'
-
-type MySqlConfig = {
-  host: string
-  port: number
-  user: string
-  password: string
-  database: string
-}
-
-function normalizeMySqlConfig(config: Record<string, unknown>): MySqlConfig {
-  return {
-    host: requireString(config, 'host'),
-    port: requirePort(config, 3306),
-    user: requireString(config, 'user'),
-    password: requireString(config, 'password'),
-    database: requireString(config, 'database'),
-  }
-}
 
 export const mysqlDataSourceModule = {
   definition: {
@@ -33,10 +17,26 @@ export const mysqlDataSourceModule = {
       schemaEditor: true,
       resourceBrowser: false,
     },
+    transportSupport: {
+      ssh: true,
+      tls: true,
+    },
   },
-  secretFields: ['password'],
-  normalizeConfig: normalizeMySqlConfig,
+  secretFields: ['password', ...getTransportSecretFields({ ssh: true, tls: true })],
+  normalizeConfig(config) {
+    return normalizeNetworkSqlConfig(config, {
+      defaultPort: 3306,
+      requireUser: true,
+      requirePassword: true,
+      requireDatabase: true,
+      includeTls: true,
+      includeSsh: true,
+    })
+  },
+  resolveRuntimeConfig(config, context) {
+    return resolveTcpTransportConfig(config as never, context)
+  },
   createSqlAdapter(config) {
-    return new MySQLAdapter(config as MySqlConfig)
+    return new MySQLAdapter(config as never)
   },
 } satisfies DataSourceModule

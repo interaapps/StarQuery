@@ -8,6 +8,7 @@ import { createCorsOptions } from './auth/cors.ts'
 import type { AppContext } from './app-context.ts'
 import { loadBootstrapConfig } from './bootstrap/load-bootstrap-config.ts'
 import { loadAppConfig, type AppConfig } from './config/app-config.ts'
+import { SshTunnelManager } from './datasources/shared/ssh-tunnel-manager.ts'
 import { MetaStore } from './meta/store.ts'
 import { registerAdminRoutes } from './routes/admin-routes.ts'
 import { registerAuthRoutes } from './routes/auth-routes.ts'
@@ -62,9 +63,11 @@ export async function startBackendServer(overrides: StartBackendServerOptions = 
     await metaStore.applyBootstrapConfig(bootstrapConfig)
   }
 
+  const sshTunnelManager = new SshTunnelManager()
   const context: AppContext = {
     config,
     metaStore,
+    sshTunnelManager,
   }
 
   const app = express()
@@ -106,6 +109,7 @@ export async function startBackendServer(overrides: StartBackendServerOptions = 
     close: async () => {
       if (closed) return
       closed = true
+      await sshTunnelManager.closeAll()
       await metaStore.close()
       await new Promise<void>((resolve, reject) => {
         server.close((error) => {

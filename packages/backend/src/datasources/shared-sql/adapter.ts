@@ -1,26 +1,27 @@
 import type { DefaultSQLAdapter } from '../../adapters/database/sql/default-sql-adapter/DefaultSQLAdapter.ts'
+import type { AppContext } from '../../app-context.ts'
 import type { DataSourceRecord } from '../../meta/types.ts'
 import { getDataSourceModule } from '../registry.ts'
+import { resolveDataSourceRuntime } from '../shared/runtime.ts'
 
-export function createSqlAdapter(source: DataSourceRecord): DefaultSQLAdapter {
+export async function withSqlAdapter<T>(
+  source: DataSourceRecord,
+  context: AppContext,
+  callback: (adapter: DefaultSQLAdapter) => Promise<T>,
+) {
   const dataSourceModule = getDataSourceModule(source.type)
   if (!dataSourceModule.createSqlAdapter) {
     throw new Error(`Datasource type ${source.type} does not support SQL operations`)
   }
 
-  return dataSourceModule.createSqlAdapter(dataSourceModule.normalizeConfig(source.config))
-}
-
-export async function withSqlAdapter<T>(
-  source: DataSourceRecord,
-  callback: (adapter: DefaultSQLAdapter) => Promise<T>,
-) {
-  const adapter = createSqlAdapter(source)
-  await adapter.connect()
+  const resolved = await resolveDataSourceRuntime(source, context)
+  const adapter = dataSourceModule.createSqlAdapter(resolved.config)
 
   try {
+    await adapter.connect()
     return await callback(adapter)
   } finally {
-    await adapter.close()
+    await adapter.close().catch(() => undefined)
+    await resolved.cleanup().catch(() => undefined)
   }
 }

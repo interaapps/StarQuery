@@ -7,6 +7,7 @@ export const postgresDataSourceDefinition = createNetworkSqlDataSourceDefinition
   icon: 'brand-postgresql',
   formComponent: ConfigForm,
   defaultPort: 5432,
+  showSsl: true,
   capabilities: {
     sqlQuery: true,
     tableBrowser: true,

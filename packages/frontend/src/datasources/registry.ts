@@ -14,6 +14,8 @@ import { postgresDataSourceDefinition } from '@/datasources/postgres/definition'
 import { redisDataSourceDefinition } from '@/datasources/redis/definition'
 import { s3DataSourceDefinition } from '@/datasources/s3/definition'
 import { sqliteDataSourceDefinition } from '@/datasources/sqlite/definition'
+import { deleteValueAtPath, getValueAtPath, setValueAtPath } from '@/datasources/shared/object-path'
+import { hydrateTransportConfig } from '@/datasources/shared/transport'
 import type { RegisteredDataSourceDefinition } from '@/datasources/shared/module'
 import type { DataSourceDefinition, DataSourceType } from '@/types/datasources'
 import type { DataSourceRecord, ServerInfo } from '@/types/workspace'
@@ -139,16 +141,16 @@ export function getRedactedSecretFields(
   }
 
   return getSecretFields(source.type).filter(
-    (field) => source.config[field] === REDACTED_SECRET_VALUE,
+    (field) => getValueAtPath(source.config, field) === REDACTED_SECRET_VALUE,
   )
 }
 
 export function stripRedactedSecrets(type: DataSourceType, config: Record<string, unknown>) {
-  const nextConfig = { ...config }
+  let nextConfig = { ...config }
 
   for (const secretField of getSecretFields(type)) {
-    if (nextConfig[secretField] === REDACTED_SECRET_VALUE) {
-      delete nextConfig[secretField]
+    if (getValueAtPath(nextConfig, secretField) === REDACTED_SECRET_VALUE) {
+      nextConfig = deleteValueAtPath(nextConfig, secretField)
     }
   }
 
@@ -159,13 +161,10 @@ export function createDataSourceFormState(type: DataSourceType, source?: DataSou
   const nextType = source?.type ?? type
   const definition = getRegisteredDataSourceDefinition(nextType)
   const redactedSecretFields = getRedactedSecretFields(source)
-  const config = {
-    ...definition.createDefaultConfig(),
-    ...(source?.config ?? {}),
-  }
+  let config = hydrateTransportConfig(source?.config ?? {}, definition.createDefaultConfig())
 
   for (const secretField of redactedSecretFields) {
-    config[secretField] = ''
+    config = setValueAtPath(config, secretField, '')
   }
 
   return {
@@ -182,14 +181,14 @@ export function buildDataSourcePayload(input: {
   config: Record<string, unknown>
   redactedSecretFields?: string[]
 }) {
-  const config = { ...input.config }
+  let config = { ...input.config }
   for (const secretField of input.redactedSecretFields ?? []) {
     if (
-      config[secretField] === '' ||
-      config[secretField] === undefined ||
-      config[secretField] === null
+      getValueAtPath(config, secretField) === '' ||
+      getValueAtPath(config, secretField) === undefined ||
+      getValueAtPath(config, secretField) === null
     ) {
-      config[secretField] = REDACTED_SECRET_VALUE
+      config = setValueAtPath(config, secretField, REDACTED_SECRET_VALUE)
     }
   }
 

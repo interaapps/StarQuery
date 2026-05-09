@@ -1,5 +1,11 @@
 import ConfigForm from '@/datasources/redis/ConfigForm.vue'
 import { defineDataSourceDefinition } from '@/datasources/shared/module'
+import {
+  canSubmitTransportConfig,
+  createDefaultSshTunnelConfig,
+  createDefaultTlsConfig,
+  getTransportSecretFields,
+} from '@/datasources/shared/transport'
 
 export const redisDataSourceDefinition = defineDataSourceDefinition({
   type: 'redis',
@@ -15,7 +21,11 @@ export const redisDataSourceDefinition = defineDataSourceDefinition({
     resourceBrowser: true,
   },
   formComponent: ConfigForm,
-  secretFields: ['password'],
+  transportSupport: {
+    ssh: true,
+    tls: true,
+  },
+  secretFields: ['password', ...getTransportSecretFields({ ssh: true, tls: true })],
   createDefaultConfig() {
     return {
       host: '127.0.0.1',
@@ -23,14 +33,21 @@ export const redisDataSourceDefinition = defineDataSourceDefinition({
       username: '',
       password: '',
       database: 0,
-      ssl: false,
+      tls: createDefaultTlsConfig(),
+      ssh: createDefaultSshTunnelConfig(),
     }
   },
   canSubmit(input) {
-    return Boolean(
-      input.name.trim() &&
-        String(input.config.host ?? '').trim() &&
-        Number(input.config.port ?? 0) > 0,
+    return (
+      Boolean(
+        input.name.trim() &&
+          String(input.config.host ?? '').trim() &&
+          Number(input.config.port ?? 0) > 0,
+      ) &&
+      canSubmitTransportConfig({
+        config: input.config,
+        redactedSecretFields: input.redactedSecretFields,
+      })
     )
   },
   getFormProps({ redactedSecretFields }) {

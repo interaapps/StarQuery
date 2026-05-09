@@ -40,7 +40,7 @@ export function registerResourceSourceRoutes(app: Express, context: AppContext) 
       const search = typeof req.query.search === 'string' ? req.query.search : undefined
       const limit = parseListLimit(req.query.limit)
       const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined
-      res.json(await withResourceAdapter(source, async (adapter) => adapter.list(path, { search, limit, cursor })))
+      res.json(await withResourceAdapter(source, context, async (adapter) => adapter.list(path, { search, limit, cursor })))
     } catch (error) {
       sendSourceError(res, error, 'The datasource resources could not be loaded')
     }

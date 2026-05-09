@@ -3,7 +3,8 @@ import type { AppContext } from '../../app-context.ts'
 import { requirePermission } from '../../auth/middleware.ts'
 import type { AuthenticatedRequest } from '../../auth/request.ts'
 import { dataSourceReadPermissionTargets, dataSourceWritePermissionTargets } from '../../auth/permissions.ts'
-import { normalizeDataSourceConfig } from '../registry.ts'
+import type { DataSourceRecord } from '../../meta/types.ts'
+import { resolveDataSourceRuntime } from '../shared/runtime.ts'
 import { MongoDbResourceAdapter } from './adapter.ts'
 import { sendSourceError } from '../../routes/source-route-errors.ts'
 import { requireSource } from '../../routes/sources/shared.ts'
@@ -39,8 +40,15 @@ function parseMongoCollectionTarget(value: unknown) {
   }
 }
 
-function createMongoAdapter(source: { config: Record<string, unknown> }) {
-  return new MongoDbResourceAdapter(normalizeDataSourceConfig('mongodb', source.config) as never)
+async function createMongoAdapter(
+  source: Pick<DataSourceRecord, 'type' | 'config'>,
+  context: AppContext,
+) {
+  const resolved = await resolveDataSourceRuntime(source, context)
+  return {
+    adapter: new MongoDbResourceAdapter(resolved.config as never),
+    cleanup: resolved.cleanup,
+  }
 }
 
 export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
@@ -85,7 +93,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       return
     }
 
-    const adapter = createMongoAdapter(source)
+    const { adapter, cleanup } = await createMongoAdapter(source, context)
 
     try {
       await adapter.connect()
@@ -103,6 +111,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       sendSourceError(res, error, 'The MongoDB documents could not be loaded')
     } finally {
       await adapter.close().catch(() => undefined)
+      await cleanup().catch(() => undefined)
     }
   })
 
@@ -128,7 +137,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       return
     }
 
-    const adapter = createMongoAdapter(source)
+    const { adapter, cleanup } = await createMongoAdapter(source, context)
 
     try {
       await adapter.connect()
@@ -142,6 +151,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       sendSourceError(res, error, 'The MongoDB document could not be created')
     } finally {
       await adapter.close().catch(() => undefined)
+      await cleanup().catch(() => undefined)
     }
   })
 
@@ -167,7 +177,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       return
     }
 
-    const adapter = createMongoAdapter(source)
+    const { adapter, cleanup } = await createMongoAdapter(source, context)
 
     try {
       await adapter.connect()
@@ -182,6 +192,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       sendSourceError(res, error, 'The MongoDB document could not be saved')
     } finally {
       await adapter.close().catch(() => undefined)
+      await cleanup().catch(() => undefined)
     }
   })
 
@@ -208,7 +219,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       return
     }
 
-    const adapter = createMongoAdapter(source)
+    const { adapter, cleanup } = await createMongoAdapter(source, context)
 
     try {
       await adapter.connect()
@@ -222,6 +233,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       sendSourceError(res, error, 'The MongoDB documents could not be deleted')
     } finally {
       await adapter.close().catch(() => undefined)
+      await cleanup().catch(() => undefined)
     }
   })
 
@@ -247,7 +259,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       return
     }
 
-    const adapter = createMongoAdapter(source)
+    const { adapter, cleanup } = await createMongoAdapter(source, context)
 
     try {
       await adapter.connect()
@@ -256,6 +268,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       sendSourceError(res, error, 'The MongoDB collection could not be created')
     } finally {
       await adapter.close().catch(() => undefined)
+      await cleanup().catch(() => undefined)
     }
   })
 
@@ -281,7 +294,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       return
     }
 
-    const adapter = createMongoAdapter(source)
+    const { adapter, cleanup } = await createMongoAdapter(source, context)
 
     try {
       await adapter.connect()
@@ -290,6 +303,7 @@ export function registerMongoDbSourceRoutes(app: Express, context: AppContext) {
       sendSourceError(res, error, 'The MongoDB collection could not be deleted')
     } finally {
       await adapter.close().catch(() => undefined)
+      await cleanup().catch(() => undefined)
     }
   })
 }

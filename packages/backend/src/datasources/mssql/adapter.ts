@@ -7,6 +7,8 @@ import type {
 } from '../../adapters/database/sql/default-sql-adapter/DefaultSQLAdapter.ts'
 import { assertIdentifier } from '../../adapters/database/sql/shared/identifier.ts'
 import { normalizeWhereClause } from '../../adapters/database/sql/shared/where-clause.ts'
+import type { ResolvedNetworkTransport, TlsConfig } from '../shared/transport.ts'
+import { createNodeTlsOptions, isTlsEnabled } from '../shared/transport.ts'
 import { createSelectResultFromRows } from '../shared-sql/query-only-adapter.ts'
 import { ParameterizedSqlAdapter } from '../shared-sql/parameterized-adapter.ts'
 
@@ -17,7 +19,8 @@ type MssqlConfig = {
   password: string
   database: string
   schema?: string
-  ssl?: boolean
+  tls?: TlsConfig
+  transport?: ResolvedNetworkTransport
 }
 
 type MssqlMetadataRow = {
@@ -92,15 +95,32 @@ export class MssqlSqlAdapter extends ParameterizedSqlAdapter {
   }
 
   async connect() {
+    const transport = this.config.transport
+    const tlsOptions = createNodeTlsOptions(this.config.tls, transport?.serverHost ?? this.config.host)
     this.pool = await new mssql.ConnectionPool({
-      server: this.config.host,
-      port: this.config.port,
+      server: transport?.connectHost ?? this.config.host,
+      port: transport?.connectPort ?? this.config.port,
       user: this.config.user,
       password: this.config.password,
       database: this.config.database,
       options: {
-        trustServerCertificate: true,
-        encrypt: this.config.ssl ?? false,
+        trustServerCertificate: this.config.tls?.mode === 'require',
+        encrypt: isTlsEnabled(this.config.tls),
+        ...(isTlsEnabled(this.config.tls)
+          ? {
+              serverName: tlsOptions?.servername ?? transport?.serverHost ?? this.config.host,
+            }
+          : {}),
+        ...(tlsOptions
+          ? {
+              cryptoCredentialsDetails: {
+                ca: tlsOptions.ca,
+                cert: tlsOptions.cert,
+                key: tlsOptions.key,
+                passphrase: tlsOptions.passphrase,
+              },
+            }
+          : {}),
       },
     }).connect()
   }

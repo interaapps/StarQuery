@@ -1,12 +1,15 @@
 import { createRequire } from 'node:module'
 import type { BucketItem, Client } from 'minio'
 import type * as MinioNamespace from 'minio'
+import type http from 'node:http'
+import type https from 'node:https'
 import type { Readable } from 'node:stream'
 import type { ResourceBrowserItem, ResourceBrowserListing } from '../types.ts'
 import { buildS3ObjectDetails, buildS3ObjectPreview, getS3ContentType, getS3PreviewByteLimit } from './preview.ts'
 import { getS3ParentPath, getS3ResourceName, parseS3ResourcePath } from './paths.ts'
 import type { ResourceDataSourceAdapter, ResourceDeleteResult, ResourceListOptions } from '../shared-resource/types.ts'
 import type { S3CompatibleConfig } from './config.ts'
+import { createHttpTransportAgent, destroyHttpTransportAgent } from '../shared/transport.ts'
 
 const DEFAULT_LIST_LIMIT = 200
 const MAX_LIST_LIMIT = 500
@@ -87,6 +90,7 @@ function mapBucketItem(bucket: string, item: BucketItem): ResourceBrowserItem {
 export class S3ResourceAdapter implements ResourceDataSourceAdapter {
   private static readonly require = createRequire(import.meta.url)
   private client!: Client
+  private agent?: http.Agent | https.Agent
 
   constructor(private readonly config: S3CompatibleConfig) {}
 
@@ -96,6 +100,17 @@ export class S3ResourceAdapter implements ResourceDataSourceAdapter {
 
   async connect() {
     const { Client } = this.loadMinioModule()
+    const transport = this.config.transport ?? {
+      connectHost: this.config.endPoint,
+      connectPort: this.config.port,
+      serverHost: this.config.endPoint,
+      serverPort: this.config.port,
+      tls: this.config.tls,
+    }
+    this.agent = createHttpTransportAgent({
+      secure: this.config.useSSL,
+      transport,
+    })
     this.client = new Client({
       endPoint: this.config.endPoint,
       port: this.config.port,
@@ -105,10 +120,14 @@ export class S3ResourceAdapter implements ResourceDataSourceAdapter {
       region: this.config.region,
       sessionToken: this.config.sessionToken,
       pathStyle: this.config.pathStyle,
+      transportAgent: this.agent,
     })
   }
 
-  async close() {}
+  async close() {
+    destroyHttpTransportAgent(this.agent)
+    this.agent = undefined
+  }
 
   async list(path: string, options?: ResourceListOptions): Promise<ResourceBrowserListing> {
     const parsed = parseS3ResourcePath(path)

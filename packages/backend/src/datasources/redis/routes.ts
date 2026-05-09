@@ -8,22 +8,15 @@ import {
 } from "../../auth/permissions.ts";
 import { sendSourceError } from "../../routes/source-route-errors.ts";
 import { requireSource } from "../../routes/sources/shared.ts";
+import { resolveDataSourceRuntime } from "../shared/runtime.ts";
 import { parseRedisCommand, isReadOnlyRedisTokens } from "./command.ts";
 import { RedisResourceAdapter } from "./adapter.ts";
-import { redisDataSourceModule } from "./index.ts";
 
 async function withRedisAdapter<T>(
-  config: {
-    host: string;
-    port: number;
-    username?: string;
-    password?: string;
-    database?: number;
-    ssl?: boolean;
-  },
+  config: Record<string, unknown>,
   callback: (adapter: RedisResourceAdapter) => Promise<T>,
 ) {
-  const adapter = new RedisResourceAdapter(config);
+  const adapter = new RedisResourceAdapter(config as never);
   await adapter.connect();
 
   try {
@@ -74,21 +67,16 @@ export function registerRedisSourceRoutes(app: Express, context: AppContext) {
           return;
         }
 
-        const normalizedConfig = redisDataSourceModule.normalizeConfig(
-          source.config,
-        ) as {
-          host: string;
-          port: number;
-          username?: string;
-          password?: string;
-          database?: number;
-          ssl?: boolean;
-        };
-
-        const reply = await withRedisAdapter(
-          normalizedConfig,
-          async (adapter) => adapter.executeCommand(args),
-        );
+        const resolved = await resolveDataSourceRuntime(source, context);
+        let reply;
+        try {
+          reply = await withRedisAdapter(
+            resolved.config,
+            async (adapter) => adapter.executeCommand(args),
+          );
+        } finally {
+          await resolved.cleanup();
+        }
 
         res.json({
           command,

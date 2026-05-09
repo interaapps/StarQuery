@@ -1,4 +1,6 @@
 import { createClient, type ClickHouseClient } from '@clickhouse/client'
+import type http from 'node:http'
+import type https from 'node:https'
 import type {
   QueryResult,
   SQLCreateTableColumnInput,
@@ -7,6 +9,8 @@ import type {
 } from '../../adapters/database/sql/default-sql-adapter/DefaultSQLAdapter.ts'
 import { assertIdentifier } from '../../adapters/database/sql/shared/identifier.ts'
 import { normalizeWhereClause } from '../../adapters/database/sql/shared/where-clause.ts'
+import type { ResolvedNetworkTransport, TlsConfig } from '../shared/transport.ts'
+import { createHttpTransportAgent, destroyHttpTransportAgent, isTlsEnabled } from '../shared/transport.ts'
 import { createSelectResultFromRows, QueryOnlySqlAdapter } from '../shared-sql/query-only-adapter.ts'
 
 type ClickHouseConfig = {
@@ -15,7 +19,8 @@ type ClickHouseConfig = {
   user?: string
   password?: string
   database?: string
-  ssl?: boolean
+  tls?: TlsConfig
+  transport?: ResolvedNetworkTransport
 }
 
 type ClickHouseTableRow = {
@@ -35,6 +40,7 @@ function isSelectLikeStatement(sqlText: string) {
 
 export class ClickHouseSqlAdapter extends QueryOnlySqlAdapter {
   private client!: ClickHouseClient
+  private agent?: http.Agent | https.Agent
 
   constructor(private readonly config: ClickHouseConfig) {
     super()
@@ -63,17 +69,32 @@ export class ClickHouseSqlAdapter extends QueryOnlySqlAdapter {
   }
 
   async connect() {
-    const protocol = this.config.ssl ? 'https' : 'http'
+    const secure = isTlsEnabled(this.config.tls)
+    const transport = this.config.transport ?? {
+      connectHost: this.config.host,
+      connectPort: this.config.port,
+      serverHost: this.config.host,
+      serverPort: this.config.port,
+      tls: this.config.tls,
+    }
+    const protocol = secure ? 'https' : 'http'
+    this.agent = createHttpTransportAgent({
+      secure,
+      transport,
+    })
     this.client = createClient({
       url: `${protocol}://${this.config.host}:${this.config.port}`,
       username: this.config.user,
       password: this.config.password,
       database: this.database,
+      http_agent: this.agent,
     })
   }
 
   async close() {
     await this.client?.close()
+    destroyHttpTransportAgent(this.agent)
+    this.agent = undefined
   }
 
   async getTables() {

@@ -1,3 +1,4 @@
+import net from 'node:net'
 import mysql from 'mysql2/promise'
 import { escapeId } from 'mysql2'
 import type { ResultSetHeader, RowDataPacket } from 'mysql2'
@@ -12,6 +13,8 @@ import {
 import { assertIdentifier } from '../shared/identifier.ts'
 import { splitSqlStatements } from '../shared/sql-statements.ts'
 import { normalizeWhereClause } from '../shared/where-clause.ts'
+import type { ResolvedNetworkTransport, TlsConfig } from '../../../../datasources/shared/transport.ts'
+import { createMysqlTlsOptions, getTlsServerName } from '../../../../datasources/shared/transport.ts'
 
 export class MySQLAdapter extends DefaultSQLAdapter {
   private connection!: mysql.Connection
@@ -23,6 +26,8 @@ export class MySQLAdapter extends DefaultSQLAdapter {
       user: string
       password: string
       database: string
+      tls?: TlsConfig
+      transport?: ResolvedNetworkTransport
     },
   ) {
     super()
@@ -81,12 +86,27 @@ export class MySQLAdapter extends DefaultSQLAdapter {
   }
 
   async connect() {
+    const transport = this.options.transport
+    const connectHost = transport?.connectHost ?? this.options.host
+    const connectPort = transport?.connectPort ?? this.options.port
+    const tlsHost = getTlsServerName(this.options.tls, this.options.host)
+    const useCustomStream = Boolean(transport) || tlsHost !== connectHost
+
     this.connection = await mysql.createConnection({
-      host: this.options.host,
-      port: this.options.port,
+      host: useCustomStream ? tlsHost : connectHost,
+      port: useCustomStream ? this.options.port : connectPort,
       user: this.options.user,
       password: this.options.password,
       database: this.options.database,
+      ...(useCustomStream
+        ? {
+            stream: net.connect({
+              host: connectHost,
+              port: connectPort,
+            }),
+          }
+        : {}),
+      ssl: createMysqlTlsOptions(this.options.tls),
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,

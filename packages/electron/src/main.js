@@ -94,6 +94,7 @@ const createWindow = async () => {
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     icon: getWindowIconPath(),
+    autoHideMenuBar: true,
     width: 1280,
     height: 720,
     ...(process.platform === 'darwin' ?

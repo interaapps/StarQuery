@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
+import TransportConfigSections from '@/datasources/shared/TransportConfigSections.vue'
+import type { SshTunnelConfig, TlsConfig } from '@/datasources/shared/transport'
 
 defineProps<{
   redactedSecretFields?: string[]
@@ -12,6 +14,8 @@ const config = defineModel<{
   password?: string
   apiKey?: string
   index?: string
+  tls?: TlsConfig
+  ssh?: SshTunnelConfig
 }>('config', { required: true })
 </script>
 
@@ -54,4 +58,11 @@ const config = defineModel<{
       <InputText size="small" v-model="config.index" fluid placeholder="Optional" />
     </div>
   </div>
+
+  <TransportConfigSections
+    v-model:config="config"
+    show-tls
+    show-ssh
+    :redacted-secret-fields="redactedSecretFields"
+  />
 </template>

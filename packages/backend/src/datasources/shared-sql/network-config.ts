@@ -1,4 +1,6 @@
-import { optionalBoolean, optionalString, requirePort, requireString } from '../shared/config-helpers.ts'
+import { optionalString, requirePort, requireString } from '../shared/config-helpers.ts'
+import type { SshTunnelConfig, TlsConfig } from '../shared/transport.ts'
+import { normalizeSshTunnelConfig, normalizeTlsConfig } from '../shared/transport.ts'
 
 export type NetworkSqlConfig = {
   host: string
@@ -7,7 +9,8 @@ export type NetworkSqlConfig = {
   password?: string
   database?: string
   schema?: string
-  ssl?: boolean
+  tls?: TlsConfig
+  ssh?: SshTunnelConfig
 }
 
 export function normalizeNetworkSqlConfig(
@@ -18,7 +21,8 @@ export function normalizeNetworkSqlConfig(
     requirePassword?: boolean
     requireDatabase?: boolean
     includeSchema?: boolean
-    includeSsl?: boolean
+    includeTls?: boolean
+    includeSsh?: boolean
   },
 ): NetworkSqlConfig {
   const nextConfig: NetworkSqlConfig = {
@@ -48,8 +52,14 @@ export function normalizeNetworkSqlConfig(
     nextConfig.schema = optionalString(config, 'schema')
   }
 
-  if (options.includeSsl) {
-    nextConfig.ssl = optionalBoolean(config, 'ssl', false)
+  if (options.includeTls) {
+    nextConfig.tls = normalizeTlsConfig(config, {
+      legacyBooleanKeys: ['ssl'],
+    })
+  }
+
+  if (options.includeSsh) {
+    nextConfig.ssh = normalizeSshTunnelConfig(config)
   }
 
   return nextConfig

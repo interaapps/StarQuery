@@ -10,6 +10,8 @@ import {
 import { assertIdentifier } from '../shared/identifier.ts'
 import { splitSqlStatements } from '../shared/sql-statements.ts'
 import { normalizeWhereClause } from '../shared/where-clause.ts'
+import type { ResolvedNetworkTransport, TlsConfig } from '../../../../datasources/shared/transport.ts'
+import { createNodeTlsOptions } from '../../../../datasources/shared/transport.ts'
 
 export class PostgresAdapter extends DefaultSQLAdapter {
   private client!: Client
@@ -22,6 +24,8 @@ export class PostgresAdapter extends DefaultSQLAdapter {
       password: string
       database: string
       schema?: string
+      tls?: TlsConfig
+      transport?: ResolvedNetworkTransport
     },
   ) {
     super()
@@ -72,12 +76,14 @@ export class PostgresAdapter extends DefaultSQLAdapter {
   }
 
   async connect() {
+    const transport = this.options.transport
     this.client = new Client({
-      host: this.options.host,
-      port: this.options.port,
+      host: transport?.connectHost ?? this.options.host,
+      port: transport?.connectPort ?? this.options.port,
       user: this.options.user,
       password: this.options.password,
       database: this.options.database,
+      ssl: createNodeTlsOptions(this.options.tls, transport?.serverHost ?? this.options.host),
     })
 
     await this.client.connect()

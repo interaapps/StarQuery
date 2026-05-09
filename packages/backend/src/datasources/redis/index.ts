@@ -1,8 +1,13 @@
 import {
-  optionalBoolean,
   optionalString,
   requirePort,
 } from "../shared/config-helpers.ts";
+import { resolveTcpTransportConfig } from "../shared/runtime.ts";
+import {
+  getTransportSecretFields,
+  normalizeSshTunnelConfig,
+  normalizeTlsConfig,
+} from "../shared/transport.ts";
 import type { DataSourceModule } from "../shared/module.ts";
 import { RedisResourceAdapter } from "./adapter.ts";
 
@@ -20,8 +25,12 @@ export const redisDataSourceModule = {
       schemaEditor: false,
       resourceBrowser: true,
     },
+    transportSupport: {
+      ssh: true,
+      tls: true,
+    },
   },
-  secretFields: ["password"],
+  secretFields: ["password", ...getTransportSecretFields({ ssh: true, tls: true })],
   normalizeConfig(config) {
     return {
       host: optionalString(config, "host") ?? "127.0.0.1",
@@ -29,19 +38,16 @@ export const redisDataSourceModule = {
       username: optionalString(config, "username"),
       password: optionalString(config, "password"),
       database: Number(config.database ?? 0),
-      ssl: optionalBoolean(config, "ssl", false),
+      tls: normalizeTlsConfig(config, {
+        legacyBooleanKeys: ["ssl"],
+      }),
+      ssh: normalizeSshTunnelConfig(config),
     };
   },
+  resolveRuntimeConfig(config, context) {
+    return resolveTcpTransportConfig(config as never, context);
+  },
   createResourceAdapter(config) {
-    return new RedisResourceAdapter(
-      config as {
-        host: string;
-        port: number;
-        username?: string;
-        password?: string;
-        database?: number;
-        ssl?: boolean;
-      },
-    );
+    return new RedisResourceAdapter(config as never);
   },
 } satisfies DataSourceModule;

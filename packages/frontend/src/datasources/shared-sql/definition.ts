@@ -1,5 +1,11 @@
 import type { Component } from 'vue'
 import { defineDataSourceDefinition } from '@/datasources/shared/module'
+import {
+  canSubmitTransportConfig,
+  createDefaultSshTunnelConfig,
+  createDefaultTlsConfig,
+  getTransportSecretFields,
+} from '@/datasources/shared/transport'
 import type { DataSourceType } from '@/types/datasources'
 
 export function createNetworkSqlDataSourceDefinition(input: {
@@ -23,6 +29,7 @@ export function createNetworkSqlDataSourceDefinition(input: {
   optionalDatabase?: boolean
   showSchema?: boolean
   showSsl?: boolean
+  showSsh?: boolean
   defaultDatabase?: string
   defaultSchema?: string
 }) {
@@ -34,7 +41,17 @@ export function createNetworkSqlDataSourceDefinition(input: {
     localOnly: input.localOnly,
     capabilities: input.capabilities,
     formComponent: input.formComponent,
-    secretFields: ['password'],
+    transportSupport: {
+      ssh: input.showSsh ?? true,
+      tls: input.showSsl ?? false,
+    },
+    secretFields: [
+      'password',
+      ...getTransportSecretFields({
+        ssh: input.showSsh ?? true,
+        tls: input.showSsl ?? false,
+      }),
+    ],
     createDefaultConfig() {
       return {
         host: input.defaultHost ?? '127.0.0.1',
@@ -43,11 +60,13 @@ export function createNetworkSqlDataSourceDefinition(input: {
         password: '',
         database: input.defaultDatabase ?? '',
         ...(input.showSchema ? { schema: input.defaultSchema ?? '' } : {}),
-        ...(input.showSsl ? { ssl: false } : {}),
+        ...((input.showSsh ?? true) ? { ssh: createDefaultSshTunnelConfig() } : {}),
+        ...(input.showSsl ? { tls: createDefaultTlsConfig() } : {}),
       }
     },
     canSubmit(inputState) {
-      return Boolean(
+      return (
+        Boolean(
         inputState.name.trim() &&
           String(inputState.config.host ?? '').trim() &&
           Number(inputState.config.port ?? 0) > 0 &&
@@ -56,11 +75,18 @@ export function createNetworkSqlDataSourceDefinition(input: {
           (input.optionalPassword ||
             String(inputState.config.password ?? '').trim() ||
             inputState.redactedSecretFields.includes('password')),
+        ) &&
+        canSubmitTransportConfig({
+          config: inputState.config,
+          redactedSecretFields: inputState.redactedSecretFields,
+        })
       )
     },
     getFormProps({ redactedSecretFields }) {
       return {
         redactedSecretFields,
+        showTls: input.showSsl,
+        showSsh: input.showSsh ?? true,
       }
     },
   })

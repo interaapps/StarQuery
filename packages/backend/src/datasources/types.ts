@@ -1,3 +1,5 @@
+import type { SshTunnelConfig, TlsConfig } from './shared/transport.ts'
+
 export type DataSourceType =
   | "mysql"
   | "mariadb"
@@ -34,6 +36,10 @@ export type DataSourceDefinition = {
   label: string;
   icon: string;
   localOnly?: boolean;
+  transportSupport?: {
+    ssh?: boolean;
+    tls?: boolean;
+  };
   capabilities: DataSourceCapabilities;
 };
 
@@ -46,6 +52,8 @@ export type DataSourceConfig =
       database: string;
       schema?: string;
       ssl?: boolean;
+      tls?: TlsConfig;
+      ssh?: SshTunnelConfig;
       options?: Record<string, unknown>;
     }
   | {
@@ -57,11 +65,15 @@ export type DataSourceConfig =
       password?: string;
       apiKey?: string;
       index?: string;
+      tls?: TlsConfig;
+      ssh?: SshTunnelConfig;
     }
   | {
       endPoint: string;
       port: number;
       useSSL: boolean;
+      tls?: TlsConfig;
+      ssh?: SshTunnelConfig;
       accessKey: string;
       secretKey: string;
       region?: string;
@@ -78,6 +90,8 @@ export type DataSourceConfig =
       database?: string;
       schema?: string;
       ssl?: boolean;
+      tls?: TlsConfig;
+      ssh?: SshTunnelConfig;
       options?: Record<string, unknown>;
     }
   | {
@@ -89,6 +103,8 @@ export type DataSourceConfig =
       database?: string | number;
       authSource?: string;
       ssl?: boolean;
+      tls?: TlsConfig;
+      ssh?: SshTunnelConfig;
       options?: Record<string, unknown>;
     }
   | {

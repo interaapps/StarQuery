@@ -159,7 +159,8 @@ const canSubmit = computed(() =>
       >
         {{ currentDefinition.capabilities.sqlQuery ? 'SQL datasource' : 'Resource datasource' }}
       </div>
-
+    </div>
+    <template #footer>
       <div class="flex justify-end">
         <Button
           size="small"
@@ -169,6 +170,6 @@ const canSubmit = computed(() =>
           @click="emit('submit', payload)"
         />
       </div>
-    </div>
+    </template>
   </Dialog>
 </template>

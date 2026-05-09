@@ -1,14 +1,20 @@
 import { createRequire } from 'node:module'
+import type http from 'node:http'
+import type https from 'node:https'
 import type { Client } from '@elastic/elasticsearch'
 import type * as ElasticsearchNamespace from '@elastic/elasticsearch'
 import type { ResourceBrowserItem, ResourceBrowserListing } from '../types.ts'
 import type { ResourceDataSourceAdapter, ResourceListOptions } from '../shared-resource/types.ts'
+import type { ResolvedNetworkTransport, TlsConfig } from '../shared/transport.ts'
+import { createHttpTransportAgent, destroyHttpTransportAgent, isTlsEnabled } from '../shared/transport.ts'
 
 type ElasticsearchConfig = {
   node: string
   username?: string
   password?: string
   apiKey?: string
+  tls?: TlsConfig
+  transport?: ResolvedNetworkTransport
 }
 
 type ElasticsearchModule = typeof ElasticsearchNamespace
@@ -68,6 +74,7 @@ function normalizeTotalHits(total: unknown) {
 export class ElasticsearchResourceAdapter implements ResourceDataSourceAdapter {
   private static readonly require = createRequire(import.meta.url)
   private client!: Client
+  private agent?: http.Agent | https.Agent
 
   constructor(private readonly config: ElasticsearchConfig) {}
 
@@ -77,8 +84,27 @@ export class ElasticsearchResourceAdapter implements ResourceDataSourceAdapter {
 
   async connect() {
     const { Client } = this.loadElasticsearchModule()
+    const nodeUrl = new URL(this.config.node)
+    const secure = nodeUrl.protocol === 'https:'
+    if (!secure && isTlsEnabled(this.config.tls)) {
+      throw new Error('TLS requires an https:// Elasticsearch node URL')
+    }
+
+    const port = nodeUrl.port ? Number(nodeUrl.port) : secure ? 443 : 80
+    const transport = this.config.transport ?? {
+      connectHost: nodeUrl.hostname,
+      connectPort: port,
+      serverHost: nodeUrl.hostname,
+      serverPort: port,
+      tls: this.config.tls,
+    }
+    this.agent = createHttpTransportAgent({
+      secure,
+      transport,
+    })
     this.client = new Client({
       node: this.config.node,
+      agent: () => this.agent,
       auth: this.config.apiKey
         ? { apiKey: this.config.apiKey }
         : this.config.username
@@ -92,6 +118,8 @@ export class ElasticsearchResourceAdapter implements ResourceDataSourceAdapter {
 
   async close() {
     await this.client.close()
+    destroyHttpTransportAgent(this.agent)
+    this.agent = undefined
   }
 
   async list(path: string, _options?: ResourceListOptions): Promise<ResourceBrowserListing> {

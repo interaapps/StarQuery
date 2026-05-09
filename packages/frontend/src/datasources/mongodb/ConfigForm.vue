@@ -2,7 +2,8 @@
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
-import ToggleSwitch from 'primevue/toggleswitch'
+import TransportConfigSections from '@/datasources/shared/TransportConfigSections.vue'
+import type { SshTunnelConfig, TlsConfig } from '@/datasources/shared/transport'
 
 defineProps<{
   redactedSecretFields?: string[]
@@ -16,7 +17,8 @@ const config = defineModel<{
   password?: string
   database?: string
   authSource?: string
-  ssl?: boolean
+  tls?: TlsConfig
+  ssh?: SshTunnelConfig
 }>('config', { required: true })
 </script>
 
@@ -66,8 +68,11 @@ const config = defineModel<{
     </div>
   </div>
 
-  <div class="flex items-center gap-3">
-    <ToggleSwitch v-model="config.ssl" input-id="mongodb-config-ssl" />
-    <label for="mongodb-config-ssl" class="text-sm opacity-70">Use TLS / SSL</label>
-  </div>
+  <TransportConfigSections
+    v-model:config="config"
+    show-tls
+    show-ssh
+    ssh-hint="SSH tunneling is available in host/port mode."
+    :redacted-secret-fields="redactedSecretFields"
+  />
 </template>

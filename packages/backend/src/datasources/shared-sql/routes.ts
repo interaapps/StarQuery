@@ -63,7 +63,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
       return
     }
 
-    res.json(await withSqlAdapter(requiredSource, async (adapter) => adapter.getTables()))
+    res.json(await withSqlAdapter(requiredSource, context, async (adapter) => adapter.getTables()))
   })
 
   app.get('/api/projects/:projectId/sources/:sourceId/tables/:table', async (req, res) => {
@@ -81,7 +81,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
       return
     }
 
-    res.json(await withSqlAdapter(requiredSource, async (adapter) => adapter.getTableDetails(req.params.table)))
+    res.json(await withSqlAdapter(requiredSource, context, async (adapter) => adapter.getTableDetails(req.params.table)))
   })
 
   app.get('/api/projects/:projectId/sources/:sourceId/tables/:table/rows', async (req, res) => {
@@ -107,7 +107,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     try {
       const where = typeof req.query.where === 'string' ? normalizeWhereClause(req.query.where) : undefined
       res.json(
-        await withSqlAdapter(requiredSource, async (adapter) =>
+        await withSqlAdapter(requiredSource, context, async (adapter) =>
           adapter.getTableRows({
             table: req.params.table,
             page,
@@ -149,7 +149,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     }
 
     try {
-      await withSqlAdapter(requiredSource, async (adapter) => adapter.createTable(name.trim(), columns))
+      await withSqlAdapter(requiredSource, context, async (adapter) => adapter.createTable(name.trim(), columns))
       res.status(201).json({ ok: true })
     } catch (error) {
       sendSourceError(res, error, 'The table could not be created')
@@ -172,7 +172,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     }
 
     try {
-      await withSqlAdapter(requiredSource, async (adapter) => adapter.dropTable(req.params.table))
+      await withSqlAdapter(requiredSource, context, async (adapter) => adapter.dropTable(req.params.table))
       res.json({ ok: true })
     } catch (error) {
       sendSourceError(res, error, 'The table could not be dropped')
@@ -198,7 +198,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
 
     try {
       res.json(
-        await withSqlAdapter(requiredSource, async (adapter) =>
+        await withSqlAdapter(requiredSource, context, async (adapter) =>
           adapter.saveTableChanges({
             table: req.params.table,
             primaryKeys: payload.primaryKeys,
@@ -233,7 +233,7 @@ export function registerSqlSourceRoutes(app: Express, context: AppContext) {
     }
 
     try {
-      const results = await withSqlAdapter(requiredSource, async (adapter) => adapter.executeStatements(query))
+      const results = await withSqlAdapter(requiredSource, context, async (adapter) => adapter.executeStatements(query))
       res.json({ results })
     } catch (error) {
       sendSourceError(res, error, 'The SQL query could not be executed')

@@ -9,6 +9,7 @@ import type {
 } from '../../adapters/database/sql/default-sql-adapter/DefaultSQLAdapter.ts'
 import { assertIdentifier } from '../../adapters/database/sql/shared/identifier.ts'
 import { normalizeWhereClause } from '../../adapters/database/sql/shared/where-clause.ts'
+import type { ResolvedNetworkTransport } from '../shared/transport.ts'
 import { createSelectResultFromRows, QueryOnlySqlAdapter } from '../shared-sql/query-only-adapter.ts'
 
 type OracleConfig = {
@@ -18,6 +19,7 @@ type OracleConfig = {
   password: string
   database: string
   schema?: string
+  transport?: ResolvedNetworkTransport
 }
 
 type OracleDbModule = typeof OracleDbNamespace
@@ -91,10 +93,11 @@ export class OracleSqlAdapter extends QueryOnlySqlAdapter {
 
   async connect() {
     const oracleDb = this.loadOracleDbModule()
+    const transport = this.config.transport
     this.connection = await oracleDb.getConnection({
       user: this.config.user,
       password: this.config.password,
-      connectString: `${this.config.host}:${this.config.port}/${this.config.database}`,
+      connectString: `${transport?.connectHost ?? this.config.host}:${transport?.connectPort ?? this.config.port}/${this.config.database}`,
     })
   }
 

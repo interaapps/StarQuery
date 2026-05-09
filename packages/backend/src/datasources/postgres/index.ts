@@ -1,24 +1,8 @@
 import { PostgresAdapter } from '../../adapters/database/sql/postgres-adapter/PostgresAdapter.ts'
-import { requirePort, requireString } from '../shared/config-helpers.ts'
+import { resolveTcpTransportConfig } from '../shared/runtime.ts'
+import { getTransportSecretFields } from '../shared/transport.ts'
+import { normalizeNetworkSqlConfig } from '../shared-sql/network-config.ts'
 import type { DataSourceModule } from '../shared/module.ts'
-
-type PostgresConfig = {
-  host: string
-  port: number
-  user: string
-  password: string
-  database: string
-}
-
-function normalizePostgresConfig(config: Record<string, unknown>): PostgresConfig {
-  return {
-    host: requireString(config, 'host'),
-    port: requirePort(config, 5432),
-    user: requireString(config, 'user'),
-    password: requireString(config, 'password'),
-    database: requireString(config, 'database'),
-  }
-}
 
 export const postgresDataSourceModule = {
   definition: {
@@ -33,10 +17,26 @@ export const postgresDataSourceModule = {
       schemaEditor: true,
       resourceBrowser: false,
     },
+    transportSupport: {
+      ssh: true,
+      tls: true,
+    },
   },
-  secretFields: ['password'],
-  normalizeConfig: normalizePostgresConfig,
+  secretFields: ['password', ...getTransportSecretFields({ ssh: true, tls: true })],
+  normalizeConfig(config) {
+    return normalizeNetworkSqlConfig(config, {
+      defaultPort: 5432,
+      requireUser: true,
+      requirePassword: true,
+      requireDatabase: true,
+      includeTls: true,
+      includeSsh: true,
+    })
+  },
+  resolveRuntimeConfig(config, context) {
+    return resolveTcpTransportConfig(config as never, context)
+  },
   createSqlAdapter(config) {
-    return new PostgresAdapter(config as PostgresConfig)
+    return new PostgresAdapter(config as never)
   },
 } satisfies DataSourceModule

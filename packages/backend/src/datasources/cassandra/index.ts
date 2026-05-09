@@ -1,3 +1,5 @@
+import { resolveTcpTransportConfig } from '../shared/runtime.ts'
+import { getTransportSecretFields } from '../shared/transport.ts'
 import { normalizeNetworkSqlConfig } from '../shared-sql/network-config.ts'
 import type { DataSourceModule } from '../shared/module.ts'
 import { CassandraSqlAdapter } from './adapter.ts'
@@ -15,27 +17,26 @@ export const cassandraDataSourceModule = {
       schemaEditor: false,
       resourceBrowser: false,
     },
+    transportSupport: {
+      ssh: true,
+      tls: true,
+    },
   },
-  secretFields: ['password'],
+  secretFields: ['password', ...getTransportSecretFields({ ssh: true, tls: true })],
   normalizeConfig(config) {
     return normalizeNetworkSqlConfig(config, {
       defaultPort: 9042,
       requireUser: false,
       requirePassword: false,
       requireDatabase: false,
-      includeSsl: true,
+      includeTls: true,
+      includeSsh: true,
     })
   },
+  resolveRuntimeConfig(config, context) {
+    return resolveTcpTransportConfig(config as never, context)
+  },
   createSqlAdapter(config) {
-    return new CassandraSqlAdapter(
-      config as {
-        host: string
-        port: number
-        user?: string
-        password?: string
-        database?: string
-        ssl?: boolean
-      },
-    )
+    return new CassandraSqlAdapter(config as never)
   },
 } satisfies DataSourceModule

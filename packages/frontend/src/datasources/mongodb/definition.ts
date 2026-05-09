@@ -1,6 +1,12 @@
 import ConfigForm from '@/datasources/mongodb/ConfigForm.vue'
 import MongoDbSidebarResourceExtension from '@/datasources/mongodb/components/MongoDbSidebarResourceExtension.vue'
 import { defineDataSourceDefinition } from '@/datasources/shared/module'
+import {
+  canSubmitTransportConfig,
+  createDefaultSshTunnelConfig,
+  createDefaultTlsConfig,
+  getTransportSecretFields,
+} from '@/datasources/shared/transport'
 
 export const mongodbDataSourceDefinition = defineDataSourceDefinition({
   type: 'mongodb',
@@ -16,7 +22,11 @@ export const mongodbDataSourceDefinition = defineDataSourceDefinition({
   },
   formComponent: ConfigForm,
   sidebarResourceExtensionComponent: MongoDbSidebarResourceExtension,
-  secretFields: ['password'],
+  transportSupport: {
+    ssh: true,
+    tls: true,
+  },
+  secretFields: ['password', ...getTransportSecretFields({ ssh: true, tls: true })],
   createDefaultConfig() {
     return {
       uri: '',
@@ -26,14 +36,27 @@ export const mongodbDataSourceDefinition = defineDataSourceDefinition({
       password: '',
       database: 'admin',
       authSource: '',
-      ssl: false,
+      tls: createDefaultTlsConfig(),
+      ssh: createDefaultSshTunnelConfig(),
     }
   },
   canSubmit(input) {
-    return Boolean(
-      input.name.trim() &&
-        (String(input.config.uri ?? '').trim() ||
-          (String(input.config.host ?? '').trim() && Number(input.config.port ?? 0) > 0)),
+    const sshEnabled =
+      !!input.config.ssh &&
+      typeof input.config.ssh === 'object' &&
+      (input.config.ssh as Record<string, unknown>).enabled === true
+
+    return (
+      Boolean(
+        input.name.trim() &&
+          (String(input.config.uri ?? '').trim() ||
+            (String(input.config.host ?? '').trim() && Number(input.config.port ?? 0) > 0)) &&
+          !(String(input.config.uri ?? '').trim() && sshEnabled),
+      ) &&
+      canSubmitTransportConfig({
+        config: input.config,
+        redactedSecretFields: input.redactedSecretFields,
+      })
     )
   },
   getFormProps({ redactedSecretFields }) {

@@ -2,7 +2,8 @@
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
-import ToggleSwitch from 'primevue/toggleswitch'
+import TransportConfigSections from '@/datasources/shared/TransportConfigSections.vue'
+import type { SshTunnelConfig, TlsConfig } from '@/datasources/shared/transport'
 
 defineProps<{
   redactedSecretFields?: string[]
@@ -14,7 +15,8 @@ const config = defineModel<{
   username?: string
   password?: string
   database?: number | null
-  ssl?: boolean
+  tls?: TlsConfig
+  ssh?: SshTunnelConfig
 }>('config', { required: true })
 </script>
 
@@ -53,9 +55,13 @@ const config = defineModel<{
       <label class="text-sm opacity-70">Database index</label>
       <InputNumber size="small" v-model="config.database" fluid :use-grouping="false" :min="0" />
     </div>
-    <div class="flex items-center gap-3 pt-7">
-      <ToggleSwitch v-model="config.ssl" input-id="redis-config-ssl" />
-      <label for="redis-config-ssl" class="text-sm opacity-70">Use TLS / SSL</label>
-    </div>
+    <div />
   </div>
+
+  <TransportConfigSections
+    v-model:config="config"
+    show-tls
+    show-ssh
+    :redacted-secret-fields="redactedSecretFields"
+  />
 </template>

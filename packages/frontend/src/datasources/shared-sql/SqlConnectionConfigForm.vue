@@ -2,7 +2,8 @@
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
-import ToggleSwitch from 'primevue/toggleswitch'
+import TransportConfigSections from '@/datasources/shared/TransportConfigSections.vue'
+import type { SshTunnelConfig, TlsConfig } from '@/datasources/shared/transport'
 
 defineProps<{
   engine: 'mysql' | 'mariadb' | 'postgres' | 'cockroachdb' | 'mssql' | 'clickhouse' | 'oracle' | 'cassandra'
@@ -13,7 +14,8 @@ defineProps<{
   schemaLabel?: string
   databasePlaceholder?: string
   showSchema?: boolean
-  showSsl?: boolean
+  showTls?: boolean
+  showSsh?: boolean
   optionalUser?: boolean
   optionalPassword?: boolean
   optionalDatabase?: boolean
@@ -26,7 +28,8 @@ const config = defineModel<{
   password?: string
   database?: string
   schema?: string
-  ssl?: boolean
+  tls?: TlsConfig
+  ssh?: SshTunnelConfig
 }>('config', { required: true })
 </script>
 
@@ -65,7 +68,7 @@ const config = defineModel<{
     </div>
   </div>
 
-  <div class="grid gap-3" :class="showSchema || showSsl ? 'grid-cols-2' : 'grid-cols-1'">
+  <div class="grid gap-3" :class="showSchema ? 'grid-cols-2' : 'grid-cols-1'">
     <div class="flex flex-col gap-2">
       <label class="text-sm opacity-70">{{ databaseLabel ?? 'Database' }}</label>
       <InputText
@@ -82,8 +85,11 @@ const config = defineModel<{
     </div>
   </div>
 
-  <div v-if="showSsl" class="flex items-center gap-3">
-    <ToggleSwitch v-model="config.ssl" input-id="sql-config-ssl" />
-    <label for="sql-config-ssl" class="text-sm opacity-70">Use TLS / SSL</label>
-  </div>
+  <TransportConfigSections
+    v-if="showTls || showSsh"
+    v-model:config="config"
+    :show-tls="showTls"
+    :show-ssh="showSsh"
+    :redacted-secret-fields="redactedSecretFields"
+  />
 </template>

@@ -4,7 +4,7 @@ import type { AppContext } from '../../app-context.ts'
 import type { AuthenticatedRequest } from '../../auth/request.ts'
 import { requirePermission } from '../../auth/middleware.ts'
 import { dataSourceReadPermissionTargets, dataSourceWritePermissionTargets } from '../../auth/permissions.ts'
-import { normalizeDataSourceConfig } from '../registry.ts'
+import { resolveDataSourceRuntime } from '../shared/runtime.ts'
 import { S3ResourceAdapter } from '../s3/adapter.ts'
 import { sendSourceError } from '../../routes/source-route-errors.ts'
 import { requireSource } from '../../routes/sources/shared.ts'
@@ -42,7 +42,18 @@ export function registerObjectStorageSourceRoutes(app: Express, context: AppCont
       return
     }
 
-    const adapter = new S3ResourceAdapter(normalizeDataSourceConfig(source.type, source.config) as never)
+    const resolved = await resolveDataSourceRuntime(source, context)
+    const adapter = new S3ResourceAdapter(resolved.config as never)
+    let released = false
+    const release = async () => {
+      if (released) {
+        return
+      }
+
+      released = true
+      await adapter.close().catch(() => undefined)
+      await resolved.cleanup().catch(() => undefined)
+    }
 
     try {
       await adapter.connect()
@@ -69,10 +80,10 @@ export function registerObjectStorageSourceRoutes(app: Express, context: AppCont
       sendSourceError(res, error, 'The object could not be downloaded')
     } finally {
       res.once('finish', () => {
-        void adapter.close()
+        void release()
       })
       res.once('close', () => {
-        void adapter.close()
+        void release()
       })
     }
   })
@@ -106,7 +117,8 @@ export function registerObjectStorageSourceRoutes(app: Express, context: AppCont
       }
 
       const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from([])
-      const adapter = new S3ResourceAdapter(normalizeDataSourceConfig(source.type, source.config) as never)
+      const resolved = await resolveDataSourceRuntime(source, context)
+      const adapter = new S3ResourceAdapter(resolved.config as never)
 
       try {
         await adapter.connect()
@@ -119,6 +131,7 @@ export function registerObjectStorageSourceRoutes(app: Express, context: AppCont
         sendSourceError(res, error, 'The object could not be created')
       } finally {
         await adapter.close().catch(() => undefined)
+        await resolved.cleanup().catch(() => undefined)
       }
     },
   )
@@ -147,7 +160,8 @@ export function registerObjectStorageSourceRoutes(app: Express, context: AppCont
       return
     }
 
-    const adapter = new S3ResourceAdapter(normalizeDataSourceConfig(source.type, source.config) as never)
+    const resolved = await resolveDataSourceRuntime(source, context)
+    const adapter = new S3ResourceAdapter(resolved.config as never)
 
     try {
       await adapter.connect()
@@ -156,6 +170,7 @@ export function registerObjectStorageSourceRoutes(app: Express, context: AppCont
       sendSourceError(res, error, 'The selected resources could not be deleted')
     } finally {
       await adapter.close().catch(() => undefined)
+      await resolved.cleanup().catch(() => undefined)
     }
   })
 }

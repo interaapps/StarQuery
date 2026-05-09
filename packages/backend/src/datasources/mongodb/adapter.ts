@@ -5,6 +5,8 @@ import type * as MongoDbNamespace from 'mongodb'
 import type { Sort } from 'mongodb'
 import type { ResourceBrowserItem, ResourceBrowserListing } from '../types.ts'
 import type { ResourceDataSourceAdapter, ResourceListOptions } from '../shared-resource/types.ts'
+import type { ResolvedNetworkTransport, TlsConfig } from '../shared/transport.ts'
+import { createNodeTlsOptions, isTlsEnabled } from '../shared/transport.ts'
 
 type MongoDbConfig = {
   uri?: string
@@ -14,7 +16,8 @@ type MongoDbConfig = {
   password?: string
   database?: string
   authSource?: string
-  ssl?: boolean
+  tls?: TlsConfig
+  transport?: ResolvedNetworkTransport
 }
 
 type MongoDbModule = typeof MongoDbNamespace
@@ -45,17 +48,13 @@ function buildMongoUri(config: MongoDbConfig) {
     config.username
       ? `${encodeURIComponent(config.username)}:${encodeURIComponent(config.password ?? '')}@`
       : ''
-  const host = config.host?.trim() || '127.0.0.1'
-  const port = config.port ?? 27017
+  const host = config.transport?.connectHost ?? (config.host?.trim() || '127.0.0.1')
+  const port = config.transport?.connectPort ?? config.port ?? 27017
   const database = config.database?.trim() || 'admin'
   const params = new URLSearchParams()
 
   if (config.authSource?.trim()) {
     params.set('authSource', config.authSource.trim())
-  }
-
-  if (config.ssl) {
-    params.set('tls', 'true')
   }
 
   const query = params.toString()
@@ -178,7 +177,27 @@ export class MongoDbResourceAdapter implements ResourceDataSourceAdapter {
 
   async connect() {
     const { MongoClient } = this.loadMongoModule()
-    this.client = new MongoClient(buildMongoUri(this.config))
+    const transport = this.config.transport
+    const tlsOptions = createNodeTlsOptions(
+      this.config.tls,
+      transport?.serverHost ?? (this.config.host?.trim() || '127.0.0.1'),
+    )
+    this.client = new MongoClient(buildMongoUri(this.config), {
+      ...(isTlsEnabled(this.config.tls) ? { tls: true } : {}),
+      ...(this.config.tls?.mode === 'require'
+        ? {
+            tlsAllowInvalidCertificates: true,
+            tlsAllowInvalidHostnames: true,
+          }
+        : {}),
+      ...(this.config.tls?.mode === 'verify-ca'
+        ? {
+            tlsAllowInvalidHostnames: true,
+          }
+        : {}),
+      ...(tlsOptions ?? {}),
+      directConnection: Boolean(this.config.transport),
+    })
     await this.client.connect()
   }
 

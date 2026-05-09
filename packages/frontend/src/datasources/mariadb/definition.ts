@@ -7,6 +7,7 @@ export const mariadbDataSourceDefinition = createNetworkSqlDataSourceDefinition(
   icon: 'database',
   formComponent: ConfigForm,
   defaultPort: 3306,
+  showSsl: true,
   capabilities: {
     sqlQuery: true,
     tableBrowser: true,

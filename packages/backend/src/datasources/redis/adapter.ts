@@ -7,6 +7,8 @@ import type {
   ResourceDeleteResult,
   ResourceListOptions,
 } from "../shared-resource/types.ts";
+import type { ResolvedNetworkTransport, TlsConfig } from "../shared/transport.ts";
+import { createNodeTlsOptions, isTlsEnabled } from "../shared/transport.ts";
 
 type RedisConfig = {
   host: string;
@@ -14,7 +16,8 @@ type RedisConfig = {
   username?: string;
   password?: string;
   database?: number;
-  ssl?: boolean;
+  tls?: TlsConfig;
+  transport?: ResolvedNetworkTransport;
 };
 
 type RedisModule = typeof RedisNamespace;
@@ -45,16 +48,24 @@ export class RedisResourceAdapter implements ResourceDataSourceAdapter {
 
   async connect() {
     const { createClient } = this.loadRedisModule();
+    const transport = this.config.transport;
+    const socketHost = transport?.connectHost ?? this.config.host;
+    const socketPort = transport?.connectPort ?? this.config.port;
+    const tlsOptions = createNodeTlsOptions(
+      this.config.tls,
+      transport?.serverHost ?? this.config.host,
+    );
     this.client = createClient({
-      socket: this.config.ssl
+      socket: isTlsEnabled(this.config.tls)
         ? {
-            host: this.config.host,
-            port: this.config.port,
+            host: socketHost,
+            port: socketPort,
             tls: true,
+            ...tlsOptions,
           }
         : {
-            host: this.config.host,
-            port: this.config.port,
+            host: socketHost,
+            port: socketPort,
           },
       username: this.config.username,
       password: this.config.password,

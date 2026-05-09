@@ -3,7 +3,7 @@ import type { AppContext } from '../../app-context.ts'
 import { requirePermission } from '../../auth/middleware.ts'
 import type { AuthenticatedRequest } from '../../auth/request.ts'
 import { dataSourceReadPermissionTargets, dataSourceWritePermissionTargets } from '../../auth/permissions.ts'
-import { normalizeDataSourceConfig } from '../registry.ts'
+import { resolveDataSourceRuntime } from '../shared/runtime.ts'
 import {
   ElasticsearchResourceAdapter,
   type ElasticsearchDocumentMutation,
@@ -97,9 +97,8 @@ export function registerElasticsearchSourceRoutes(app: Express, context: AppCont
             : true,
     }
 
-    const adapter = new ElasticsearchResourceAdapter(
-      normalizeDataSourceConfig('elasticsearch', source.config) as never,
-    )
+    const resolved = await resolveDataSourceRuntime(source, context)
+    const adapter = new ElasticsearchResourceAdapter(resolved.config as never)
 
     try {
       await adapter.connect()
@@ -108,6 +107,7 @@ export function registerElasticsearchSourceRoutes(app: Express, context: AppCont
       sendSourceError(res, error, 'The Elasticsearch query could not be executed')
     } finally {
       await adapter.close().catch(() => undefined)
+      await resolved.cleanup().catch(() => undefined)
     }
   })
 
@@ -167,9 +167,8 @@ export function registerElasticsearchSourceRoutes(app: Express, context: AppCont
       deleted: safeDeleted.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0),
     }
 
-    const adapter = new ElasticsearchResourceAdapter(
-      normalizeDataSourceConfig('elasticsearch', source.config) as never,
-    )
+    const resolved = await resolveDataSourceRuntime(source, context)
+    const adapter = new ElasticsearchResourceAdapter(resolved.config as never)
 
     try {
       await adapter.connect()
@@ -178,6 +177,7 @@ export function registerElasticsearchSourceRoutes(app: Express, context: AppCont
       sendSourceError(res, error, 'The Elasticsearch documents could not be saved')
     } finally {
       await adapter.close().catch(() => undefined)
+      await resolved.cleanup().catch(() => undefined)
     }
   })
 }

@@ -7,6 +7,7 @@ export const mysqlDataSourceDefinition = createNetworkSqlDataSourceDefinition({
   icon: 'brand-mysql',
   formComponent: ConfigForm,
   defaultPort: 3306,
+  showSsl: true,
   capabilities: {
     sqlQuery: true,
     tableBrowser: true,

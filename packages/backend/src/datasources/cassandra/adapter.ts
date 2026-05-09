@@ -2,6 +2,8 @@ import { createRequire } from 'node:module'
 import type { Client } from 'cassandra-driver'
 import type * as CassandraNamespace from 'cassandra-driver'
 import type { QueryResult } from '../../adapters/database/sql/default-sql-adapter/DefaultSQLAdapter.ts'
+import type { ResolvedNetworkTransport, TlsConfig } from '../shared/transport.ts'
+import { createNodeTlsOptions } from '../shared/transport.ts'
 import { createSelectResultFromRows, QueryOnlySqlAdapter } from '../shared-sql/query-only-adapter.ts'
 
 type CassandraConfig = {
@@ -10,7 +12,8 @@ type CassandraConfig = {
   user?: string
   password?: string
   database?: string
-  ssl?: boolean
+  tls?: TlsConfig
+  transport?: ResolvedNetworkTransport
 }
 
 type CassandraModule = typeof CassandraNamespace
@@ -29,11 +32,12 @@ export class CassandraSqlAdapter extends QueryOnlySqlAdapter {
 
   async connect() {
     const { Client } = this.loadCassandraModule()
+    const transport = this.config.transport
     this.client = new Client({
-      contactPoints: [this.config.host],
+      contactPoints: [transport?.connectHost ?? this.config.host],
       localDataCenter: 'datacenter1',
       protocolOptions: {
-        port: this.config.port,
+        port: transport?.connectPort ?? this.config.port,
       },
       keyspace: this.config.database,
       credentials:
@@ -43,7 +47,7 @@ export class CassandraSqlAdapter extends QueryOnlySqlAdapter {
               password: this.config.password ?? '',
             }
           : undefined,
-      sslOptions: this.config.ssl ? {} : undefined,
+      sslOptions: createNodeTlsOptions(this.config.tls, transport?.serverHost ?? this.config.host),
     })
 
     await this.client.connect()

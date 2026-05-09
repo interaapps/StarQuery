@@ -34,6 +34,10 @@ export type DataSourceDefinition = {
   label: string
   icon: string
   localOnly?: boolean
+  transportSupport?: {
+    ssh?: boolean
+    tls?: boolean
+  }
   capabilities: DataSourceCapabilities
 }
 

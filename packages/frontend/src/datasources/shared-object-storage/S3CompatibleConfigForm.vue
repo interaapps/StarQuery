@@ -3,6 +3,8 @@ import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
 import Password from 'primevue/password'
 import ToggleSwitch from 'primevue/toggleswitch'
+import TransportConfigSections from '@/datasources/shared/TransportConfigSections.vue'
+import type { SshTunnelConfig, TlsConfig } from '@/datasources/shared/transport'
 
 const props = withDefaults(
   defineProps<{
@@ -17,13 +19,14 @@ const props = withDefaults(
 const config = defineModel<{
   endPoint?: string
   port?: number | null
-  useSSL?: boolean
   pathStyle?: boolean
   accessKey?: string
   secretKey?: string
   sessionToken?: string
   region?: string
   bucket?: string
+  tls?: TlsConfig
+  ssh?: SshTunnelConfig
 }>('config', { required: true })
 </script>
 
@@ -82,16 +85,18 @@ const config = defineModel<{
       <label class="text-sm opacity-70">Default bucket</label>
       <InputText size="small" v-model="config.bucket" fluid placeholder="Optional" />
     </div>
-    <div class="flex flex-col gap-2 justify-end">
-      <div class="flex items-center gap-3 pt-6">
-        <ToggleSwitch v-model="config.useSSL" input-id="s3-use-ssl" />
-        <label for="s3-use-ssl" class="text-sm opacity-70">Use SSL</label>
-      </div>
-    </div>
+    <div />
   </div>
 
   <div class="flex items-center gap-3 pt-1">
     <ToggleSwitch v-model="config.pathStyle" input-id="s3-path-style" />
     <label for="s3-path-style" class="text-sm opacity-70">Use path-style URLs</label>
   </div>
+
+  <TransportConfigSections
+    v-model:config="config"
+    show-tls
+    show-ssh
+    :redacted-secret-fields="redactedSecretFields"
+  />
 </template>
